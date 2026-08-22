@@ -524,6 +524,12 @@
         .abandon-btn > span:first-child { flex: 1; text-align: left; transform: skewX(8deg); }
         .abandon-code { font-family: var(--font-head); font-size: 10px; color: rgba(255,92,138,0.65); padding-right: 8px; }
         .abandon-btn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); transform: none; }
+        /* Variante victoire : en tete du classement, l'action n'a plus rien de destructeur —
+           elle quitte le rouge pour la couleur d'interface et les deux ⚠ deviennent des 🏆. */
+        .abandon-row.victory .abandon-warn { background: rgba(255,255,255,0.04); border-color: var(--accent); color: var(--accent); }
+        .abandon-row.victory .abandon-btn { background: rgba(255,255,255,0.03); border-color: var(--accent); color: var(--accent); border-left: 0; border-right: 0; }
+        .abandon-row.victory .abandon-code { color: var(--accent); opacity: 0.65; }
+        .abandon-row.victory .abandon-btn:active { background: rgba(255,255,255,0.10); color: var(--accent); }
         #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
 
         /* ===== TABS ===== */
@@ -808,17 +814,17 @@
                 <div class="swatch-row" data-group="uiColor"></div>
             </div>
 
-            <div class="abandon-row">
-                <span class="abandon-warn">⚠</span>
+            <div class="abandon-row" id="abandonRow">
+                <span class="abandon-warn" data-warn>⚠</span>
                 <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
-                    <span data-i18n="abandon">ABANDONNER</span><span class="abandon-code">A00</span><span class="hachure danger" style="width:20px"></span>
+                    <span id="abandonLabel" data-i18n="abandon">ABANDONNER</span><span class="abandon-code">A00</span><span id="abandonHachure" class="hachure danger" style="width:20px"></span>
                 </button>
-                <span class="abandon-warn">⚠</span>
+                <span class="abandon-warn" data-warn>⚠</span>
             </div>
         </div>
         <div id="pauseConfirm" class="hidden">
-            <h1 data-i18n="abandonTitle">Abandonner ?</h1>
-            <p class="hint" data-i18n="abandonHint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
+            <h1 id="abandonConfirmTitle" data-i18n="abandonTitle">Abandonner ?</h1>
+            <p class="hint" id="abandonConfirmHint" data-i18n="abandonHint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
             <div class="btn-row">
                 <button id="abandonNoBtn" class="btn-primary" data-i18n="no">NON</button>
                 <button id="abandonYesBtn" class="btn-secondary" data-role="danger" data-i18n="yes">OUI</button>
@@ -859,10 +865,14 @@ const CONFIG = {
     CAMERA_SMOOTH: 0.15,
     RESPAWN_DELAY: 2000,
     MAX_HISTORY: 10,
-    MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
-    BOT_MAX_LENGTH: 300,     // plafond des bots : evite qu'un seul finisse par dominer toute l'arene
-    MAX_RADIUS: 40,          // rayon plafond (utilise aussi par grow())
+    // Aucun plafond de longueur, ni pour le joueur ni pour les bots. C'est la LONGUEUR qui decide
+    // qui mange qui (EAT_RATIO ci-dessous) : un plafond commun rendait immangeable quiconque
+    // l'avait atteint — plus personne ne pouvait ni tuer ni mourir, la partie ne finissait jamais.
+    EAT_RATIO: 1.1,          // il faut etre 10 % plus long que l'autre pour le manger
+    WIN_XP_MULTIPLIER: 1.5,  // XP d'une partie terminee en tete, en fraction de l'XP d'une mort
+    RADIUS_SOFT_CAP: 40,     // rayon ou la croissance passe de lineaire a logarithmique
+    RADIUS_SOFT_K: 12,       // douceur de ce ralentissement (cf. radiusForLength)
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
@@ -871,6 +881,17 @@ const CONFIG = {
     FOOD_CORPSE_RADIUS_SCALE: 2.2, // rayon ~ 4 + sqrt(valeur)*scale : aire perçue ~ proportionnelle a la valeur
     BODY_CUT_SKIP_RADIUS: 1.5, // marge pres de la tete de la cible exclue du test de decoupe (x son rayon)
     SAVE_KEY: 'neonSnakeUltimate_v1',
+    // Profils d'IA, tires a la naissance de chaque bot. Ils font varier ce qu'un bot repere
+    // (detect), jusqu'ou il s'accroche (giveUp), combien de temps il s'engage (lockMs), combien
+    // de temps il s'interdit ensuite la cible lachee (restMs), et s'il vise devant elle (lead).
+    // Les poids donnent une majorite de brouteurs et d'opportunistes, peu de vrais chasseurs.
+    BOT_PROFILES: [
+        { id:'chasseur',     weight:2, detect:420, giveUp:640, lockMs:[3000,6000], restMs:5000,  lead:0.50, fleeAt:120, wander:0.03 },
+        { id:'opportuniste', weight:4, detect:270, giveUp:360, lockMs:[1200,2600], restMs:7000,  lead:0.20, fleeAt:170, wander:0.05 },
+        { id:'brouteur',     weight:3, detect:150, giveUp:210, lockMs:[700,1500],  restMs:12000, lead:0,    fleeAt:220, wander:0.06 },
+        { id:'peureux',      weight:1, detect:90,  giveUp:130, lockMs:[500,900],   restMs:15000, lead:0,    fleeAt:290, wander:0.08 },
+    ],
+    BOT_MAX_HUNTERS: 3,      // au plus 3 bots poursuivent le joueur en meme temps : au-dela, meute
     BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
     BOT_COLORS: ['#ff0055','#00ccff','#ffcc00','#cc00ff','#00ff66','#ff6600','#ffffff','#ff00ff'],
     SKINS: [
@@ -970,6 +991,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
         resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
         abandonTitle: 'Abandonner ?', abandonHint: 'La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.',
+        finish: 'TERMINER LA PARTIE', finishTitle: 'Terminer en tête ?',
+        finishHint: "Tu es n°1 : la partie s’arrête ici et tout est gardé — XP, bonus de victoire, entrée à l’historique.",
         yes: 'OUI', no: 'NON',
         leaderboard: 'CLASSEMENT', you: 'TOI', size: 'Taille', time: 'Temps', kills: 'Kills',
         eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
@@ -996,6 +1019,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
         resume: '▶ RESUME', settings: 'Settings', abandon: 'GIVE UP',
         abandonTitle: 'Give up?', abandonHint: 'The current life ends. No XP, no history entry.',
+        finish: 'FINISH ON TOP', finishTitle: 'Finish in first place?',
+        finishHint: "You are #1: the game ends here and everything is kept — XP, victory bonus, history entry.",
         yes: 'YES', no: 'NO',
         leaderboard: 'LEADERBOARD', you: 'YOU', size: 'Size', time: 'Time', kills: 'Kills',
         eatenBy: '💀 Eaten by', seeResults: 'See my results ▶', offlineReady: 'Playable offline ✓',
@@ -1022,6 +1047,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
         resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'ABANDONAR',
         abandonTitle: '¿Abandonar?', abandonHint: 'La vida actual termina. Sin XP, sin entrada en el historial.',
+        finish: 'TERMINAR EN CABEZA', finishTitle: '¿Terminar en primer puesto?',
+        finishHint: "Eres el n.º 1: la partida termina aquí y se conserva todo: XP, bonus de victoria y entrada en el historial.",
         yes: 'SÍ', no: 'NO',
         leaderboard: 'CLASIFICACIÓN', you: 'TÚ', size: 'Tamaño', time: 'Tiempo', kills: 'Kills',
         eatenBy: '💀 Devorado por', seeResults: 'Ver mis resultados ▶', offlineReady: 'Jugable sin conexión ✓',
@@ -1048,6 +1075,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
         resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'AUFGEBEN',
         abandonTitle: 'Aufgeben?', abandonHint: 'Das laufende Leben endet. Kein XP, kein Verlaufseintrag.',
+        finish: 'ALS ERSTER BEENDEN', finishTitle: 'Als Erster beenden?',
+        finishHint: "Du bist Nr. 1: Das Spiel endet hier und alles bleibt erhalten — XP, Siegbonus, Verlaufseintrag.",
         yes: 'JA', no: 'NEIN',
         leaderboard: 'RANGLISTE', you: 'DU', size: 'Größe', time: 'Zeit', kills: 'Kills',
         eatenBy: '💀 Gefressen von', seeResults: 'Meine Ergebnisse ▶', offlineReady: 'Offline spielbar ✓',
@@ -1074,6 +1103,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
         resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ABBANDONA',
         abandonTitle: 'Abbandonare?', abandonHint: 'La vita in corso termina. Nessun XP, nessuna voce in cronologia.',
+        finish: 'CHIUDI DA PRIMO', finishTitle: 'Chiudere da primo?',
+        finishHint: "Sei il n. 1: la partita finisce qui e viene conservato tutto: XP, bonus vittoria, voce in cronologia.",
         yes: 'SÌ', no: 'NO',
         leaderboard: 'CLASSIFICA', you: 'TU', size: 'Taglia', time: 'Tempo', kills: 'Kills',
         eatenBy: '💀 Mangiato da', seeResults: 'Vedi i miei risultati ▶', offlineReady: 'Giocabile offline ✓',
@@ -1100,6 +1131,8 @@ const TRANSLATIONS = {
         pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
         resume: '▶ RETOMAR', settings: 'Definições', abandon: 'DESISTIR',
         abandonTitle: 'Desistir?', abandonHint: 'A vida atual termina. Sem XP, sem entrada no histórico.',
+        finish: 'TERMINAR EM PRIMEIRO', finishTitle: 'Terminar em primeiro?',
+        finishHint: "És o n.º 1: a partida termina aqui e fica tudo guardado — XP, bónus de vitória, entrada no histórico.",
         yes: 'SIM', no: 'NÃO',
         leaderboard: 'CLASSIFICAÇÃO', you: 'TU', size: 'Tamanho', time: 'Tempo', kills: 'Kills',
         eatenBy: '💀 Comido por', seeResults: 'Ver os meus resultados ▶', offlineReady: 'Jogável offline ✓',
@@ -1630,13 +1663,38 @@ class PowerUp {
 // ============================================================
 //  SERPENT
 // ============================================================
+
+let snakeUid = 0;         // identifie une cible d'IA : un bot qui reapparait est un nouveau serpent
+let playerHunters = 0;    // bots poursuivant le joueur, recompte a chaque pas de simulation
+
+// Tirage pondere d'un profil d'IA.
+function pickBotProfile() {
+    let total = 0;
+    for (const p of CONFIG.BOT_PROFILES) total += p.weight;
+    let r = Math.random() * total;
+    for (const p of CONFIG.BOT_PROFILES) { r -= p.weight; if (r <= 0) return p; }
+    return CONFIG.BOT_PROFILES[CONFIG.BOT_PROFILES.length - 1];
+}
+
+// Rayon deduit de la longueur — une seule formule, appelee partout ou la longueur change, donc
+// rayon et longueur ne peuvent plus diverger. Lineaire (pente 0,05, la courbe d'origine) jusqu'a
+// RADIUS_SOFT_CAP, logarithmique au-dela : jamais borne, donc deux serpents de longueurs
+// differentes n'ont jamais le meme rayon, mais un serpent enorme tient encore a l'ecran
+// (rayon 51 px a 1000 de long, 72 px a 3800 ; le dezoom camera sature vers 78 px).
+function radiusForLength(len) {
+    const linear = CONFIG.BASE_RADIUS + Math.max(0, len - 10) * 0.05;
+    if (linear <= CONFIG.RADIUS_SOFT_CAP) return linear;
+    const k = CONFIG.RADIUS_SOFT_K;
+    return CONFIG.RADIUS_SOFT_CAP + k * Math.log(1 + (linear - CONFIG.RADIUS_SOFT_CAP) / k);
+}
+
 class Snake {
     constructor(x, y, isPlayer, name, color) {
         this.x = x; this.y = y;
         this.angle = Math.random() * TAU;
         this.speed = CONFIG.BASE_SPEED;
-        this.radius = CONFIG.BASE_RADIUS;
         this.length = 10;
+        this.radius = radiusForLength(this.length);
         this.isPlayer = isPlayer;
         this.name = name;
         this.color = color;
@@ -1645,7 +1703,12 @@ class Snake {
         this.targetAngle = this.angle;
         this.kills = 0;
         this.turnSmoothing = 0.1;
-        this.maxLength = isPlayer ? CONFIG.MAX_LENGTH : CONFIG.BOT_MAX_LENGTH;
+        this.uid = ++snakeUid;
+        // Etat d'IA, bots seulement : profil tire a la naissance, cible verrouillee, cible lachee
+        // recemment (ignoreUid) qu'on s'interdit de reprendre avant ignoreUntil.
+        this.ai = isPlayer ? null : {
+            profile: pickBotProfile(), target: null, lockUntil: 0, ignoreUid: -1, ignoreUntil: 0
+        };
         // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
         this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
         for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
@@ -1655,10 +1718,10 @@ class Snake {
     hasPowerUp(type) { return this.powerupEnds[type] > gnow(); }
     getEffectiveSpeed() {
         // Plus gros -> plus lent, mais en douceur : courbe ease-in (t²) entre BASE_RADIUS
-        // (vitesse pleine) et MAX_RADIUS (vitesse a MIN_SPEED_RATIO). La perte de vitesse est
+        // (vitesse pleine) et RADIUS_SOFT_CAP (vitesse a MIN_SPEED_RATIO). La perte de vitesse est
         // presque imperceptible en début de croissance, plus sensible seulement en fin de
         // parcours. Le bonus vitesse s'applique par-dessus.
-        const t = Math.min(1, Math.max(0, (this.radius - CONFIG.BASE_RADIUS) / (CONFIG.MAX_RADIUS - CONFIG.BASE_RADIUS)));
+        const t = Math.min(1, Math.max(0, (this.radius - CONFIG.BASE_RADIUS) / (CONFIG.RADIUS_SOFT_CAP - CONFIG.BASE_RADIUS)));
         const eased = t * t;
         const base = this.speed * (1 - eased * (1 - CONFIG.MIN_SPEED_RATIO));
         return this.hasPowerUp('speed') ? base * CONFIG.POWERUPS.speed.speedMultiplier : base;
@@ -1717,26 +1780,92 @@ class Snake {
         while (this.segments.length > this.length) this.segments.pop();
     }
 
+    // Fuir, chasser, brouter, errer — dans cet ordre.
+    //
+    // La version d'avant recalculait sa cible a chaque image : tant que le joueur restait dans
+    // les 300 px, chaque bot repartait aussitot sur lui, impossible de semer qui que ce soit et
+    // tous se comportaient pareil. Trois garde-fous ici : un bot s'ENGAGE pour une duree bornee
+    // (lockMs) puis lache, il s'INTERDIT la cible lachee pendant restMs (le temps de la semer
+    // pour de bon), et au plus BOT_MAX_HUNTERS bots poursuivent le joueur en meme temps — les
+    // suivants retournent brouter au lieu de former une meute.
     botAI(allSnakes, grid) {
+        const p = this.ai.profile;
+        const now = gnow();
+
+        // 1. Fuite : la menace la PLUS PROCHE, pas la premiere du tableau. Prioritaire sur tout,
+        //    sauf sous bouclier (rien ne peut nous manger).
         if (!this.hasPowerUp('invincible')) {
+            let menace = null, menaceD = p.fleeAt;
             for (const o of allSnakes) {
                 if (o === this || !o.alive) continue;
-                if (o.radius > this.radius * 1.1) {
-                    const d = Math.hypot(o.x - this.x, o.y - this.y);
-                    if (d < 150) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
-                }
-            }
-        }
-        for (const o of allSnakes) {
-            if (o === this || !o.alive) continue;
-            if (o.radius < this.radius * 0.9 && o.canBeEaten()) {
+                if (o.length <= this.length * CONFIG.EAT_RATIO) continue;
                 const d = Math.hypot(o.x - this.x, o.y - this.y);
-                if (d < 300) { this.targetAngle = Math.atan2(o.y-this.y, o.x-this.x); return; }
+                if (d < menaceD) { menaceD = d; menace = o; }
+            }
+            if (menace) {
+                this.releaseTarget(now);
+                this.targetAngle = Math.atan2(this.y - menace.y, this.x - menace.x);
+                return;
             }
         }
+
+        // 2. Cible deja verrouillee : on la garde tant qu'elle vit, reste mangeable, reste a
+        //    portee d'abandon, et que l'engagement n'a pas expire.
+        let target = this.ai.target;
+        if (target) {
+            const perdue = !target.alive || !target.canBeEaten()
+                || this.length <= target.length * CONFIG.EAT_RATIO
+                || now > this.ai.lockUntil
+                || Math.hypot(target.x - this.x, target.y - this.y) > p.giveUp;
+            if (perdue) { this.releaseTarget(now); target = null; }
+        }
+
+        // 3. Nouvelle cible : la plus proche a portee de detection, hors temps de repos, et sans
+        //    depasser le quota de poursuivants du joueur.
+        if (!target) {
+            let best = null, bestD = p.detect;
+            for (const o of allSnakes) {
+                if (o === this || !o.alive || !o.canBeEaten()) continue;
+                if (this.length <= o.length * CONFIG.EAT_RATIO) continue;
+                if (o.uid === this.ai.ignoreUid && now < this.ai.ignoreUntil) continue;
+                if (o.isPlayer && playerHunters >= CONFIG.BOT_MAX_HUNTERS) continue;
+                const d = Math.hypot(o.x - this.x, o.y - this.y);
+                if (d < bestD) { bestD = d; best = o; }
+            }
+            if (best) {
+                target = this.ai.target = best;
+                this.ai.lockUntil = now + p.lockMs[0] + Math.random() * (p.lockMs[1] - p.lockMs[0]);
+                if (best.isPlayer) playerHunters++;   // le recompte du pas suivant fait autorite
+            }
+        }
+
+        // 4. Poursuite. Les profils agressifs visent DEVANT la cible, proportionnellement a la
+        //    distance : une poursuite pure se seme en tournant sur place, une interception oblige
+        //    a changer vraiment de direction — plus dangereux, mais lisible et evitable.
+        if (target) {
+            const d = Math.hypot(target.x - this.x, target.y - this.y);
+            const lead = p.lead * d;
+            const ax = target.x + Math.cos(target.angle) * lead;
+            const ay = target.y + Math.sin(target.angle) * lead;
+            this.targetAngle = Math.atan2(ay - this.y, ax - this.x);
+            return;
+        }
+
+        // 5. Rien a chasser : nourriture la plus proche, sinon errance.
         const closest = grid.nearest(this.x, this.y, 6);
         if (closest) { this.targetAngle = Math.atan2(closest.y-this.y, closest.x-this.x); return; }
-        if (Math.random() < 0.05) this.targetAngle += (Math.random()-0.5);
+        if (Math.random() < p.wander) this.targetAngle += (Math.random()-0.5);
+    }
+
+    // Lache la cible en cours et s'interdit de la reprendre pendant le repos du profil. Le
+    // compteur playerHunters n'est pas decremente ici : il est recompte a chaque pas de
+    // simulation, ce qui couvre aussi les bots morts en pleine poursuite.
+    releaseTarget(now) {
+        const t = this.ai.target;
+        if (!t) return;
+        this.ai.ignoreUid = t.uid;
+        this.ai.ignoreUntil = now + this.ai.profile.restMs;
+        this.ai.target = null;
     }
 
     draw(ctx) {
@@ -1789,8 +1918,8 @@ class Snake {
     }
 
     grow(amount) {
-        this.length = Math.min(this.maxLength, this.length + amount);
-        this.radius = Math.min(CONFIG.MAX_RADIUS, this.radius + amount * 0.05);
+        this.length += amount;
+        this.radius = radiusForLength(this.length);
     }
 
     // Toucher le CORPS ampute : le serpent perd la partie coupee mais reste vivant (raccourci),
@@ -1799,7 +1928,7 @@ class Snake {
         const removed = this.length - atIndex;
         this.segments.length = Math.max(1, atIndex);
         this.length = this.segments.length;
-        this.radius = Math.max(CONFIG.BASE_RADIUS, this.radius - removed * 0.05);
+        this.radius = radiusForLength(this.length);
         return removed;
     }
 
@@ -1955,7 +2084,7 @@ function renderMenu() {
     } else {
         save.history.forEach((h, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + (i+1) + '</td><td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
+            tr.innerHTML = '<td>' + (h.won ? '🥇 ' : '') + (i+1) + '</td><td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
             tbody.appendChild(tr);
         });
     }
@@ -1975,7 +2104,10 @@ function renderMenu() {
 
 function updateHUD() {
     if (!player) return;
-    $('scoreDisplay').textContent = t('size') + ': ' + player.length;
+    // Arrondi a l'affichage seulement : une pastille issue d'une decoupe vaut une fraction
+    // (scatterCorpseFood), la longueur reelle n'est donc pas entiere — mais "Taille: 285,25"
+    // ne veut rien dire pour le joueur. Meme arrondi au classement et a l'historique.
+    $('scoreDisplay').textContent = t('size') + ': ' + Math.round(player.length);
     $('timerDisplay').textContent = t('time') + ': ' + formatTime(Math.floor(gameClock / 1000));
     $('killsDisplay').textContent = t('kills') + ': ' + sessionKills;
 
@@ -2008,11 +2140,11 @@ function updateLeaderboard() {
     let html = '';
     all.slice(0, 3).forEach((s, i) => {
         html += '<div class="lb-entry ' + (s.isPlayer ? 'lb-player' : '') + '">' +
-                medals[i] + ' ' + s.name + ' (' + s.length + ')</div>';
+                medals[i] + ' ' + s.name + ' (' + Math.round(s.length) + ')</div>';
     });
     if (player && player.alive) {
         const rank = all.indexOf(player);
-        if (rank > 2) html += '<div class="lb-entry lb-player">📊 ' + playerName() + ': #' + (rank+1) + ' (' + player.length + ')</div>';
+        if (rank > 2) html += '<div class="lb-entry lb-player">📊 ' + playerName() + ': #' + (rank+1) + ' (' + Math.round(player.length) + ')</div>';
     }
     $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
 }
@@ -2173,12 +2305,59 @@ function startGame() {
     updateLeaderboard();
 }
 
+let pauseVictory = false;   // la sortie proposee par l'ecran Pause en cours est-elle une victoire ?
+
+// Le joueur est-il en tete ? Meme critere que le classement affiche : la longueur, parmi les
+// serpents vivants.
+function playerIsFirst() {
+    if (!player || !player.alive) return false;
+    return aliveSnakes().sort((a, b) => b.length - a.length)[0] === player;
+}
+
+// Prepare la sortie proposee par l'ecran Pause. En tete du classement, "Abandonner" devient
+// "Terminer la partie" : meme place, meme code A00, mais l'action n'a plus rien de destructeur —
+// donc la couleur d'interface au lieu du rouge fixe, des 🏆 au lieu des ⚠, et l'eclat de clic
+// reprend la couleur choisie (data-role="danger" retire).
+function applyPauseExitMode() {
+    pauseVictory = playerIsFirst();
+    const cle = (gagne, oui, non) => gagne ? oui : non;
+    const g = pauseVictory;
+
+    $('abandonRow').classList.toggle('victory', g);
+    document.querySelectorAll('#abandonRow [data-warn]').forEach(w => { w.textContent = g ? '🏆' : '⚠'; });
+    $('abandonHachure').classList.toggle('danger', !g);
+
+    const paires = [
+        [$('abandonLabel'), cle(g, 'finish', 'abandon')],
+        [$('abandonConfirmTitle'), cle(g, 'finishTitle', 'abandonTitle')],
+        [$('abandonConfirmHint'), cle(g, 'finishHint', 'abandonHint')],
+    ];
+    for (const [el, key] of paires) { el.setAttribute('data-i18n', key); el.textContent = t(key); }
+
+    $('abandonBtn').setAttribute('aria-label', t(cle(g, 'finishTitle', 'abandonTitle')));
+    for (const el of [$('abandonBtn'), $('abandonYesBtn')]) {
+        if (g) el.removeAttribute('data-role'); else el.setAttribute('data-role', 'danger');
+    }
+}
+
 function pauseGame() {
     if (gameState !== 'PLAYING') return;
     gameState = 'PAUSED';
     $('pauseConfirm').classList.add('hidden');
     $('pauseNormal').classList.remove('hidden');
+    applyPauseExitMode();
     showScreen('pause');
+}
+
+// Sortie confirmee depuis Pause : en tete, la partie est GAGNEE et tout est garde (endGame) ;
+// sinon c'est l'abandon d'origine, qui ne compte pas comme une vie terminee.
+function confirmPauseExit() {
+    if (pauseVictory && player && player.alive) {
+        gameState = 'PLAYING';        // endGame() n'accepte que cet etat (cf. finishSpectate)
+        endGame({ won: true });
+    }
+    pauseVictory = false;
+    goToMenu();
 }
 
 function showAbandonConfirm() {
@@ -2213,13 +2392,17 @@ function goToMenu() {
 // Enregistre la fin d'une vie (XP, historique, succès) et l'annonce par toast — pas d'écran
 // bloquant : le jeu ne s'arrête jamais, la partie n'est ni gagnée ni perdue (cf. finishSpectate,
 // qui enchaîne sur respawnPlayer()).
-function endGame() {
+function endGame(opts) {
     if (gameState !== 'PLAYING') return;
     pendingRespawns = [];
 
-    const size = player ? player.length : 0;
+    // Partie terminee en tete du classement (depuis Pause) : meme comptabilite qu'une mort,
+    // majoree du bonus de victoire. Un abandon hors du top 1 ne passe jamais par ici.
+    const won = !!(opts && opts.won);
+    const size = Math.round(player ? player.length : 0);
     const duration = Math.floor(gameClock / 1000);
-    const xpGain = Math.floor(size * 0.5) + sessionKills * 15;
+    const xpBase = Math.floor(size * 0.5) + sessionKills * 15;
+    const xpGain = won ? Math.floor(xpBase * CONFIG.WIN_XP_MULTIPLIER) : xpBase;
     const leveledUp = addXP(xpGain);
 
     save.games++;
@@ -2227,7 +2410,7 @@ function endGame() {
     save.kills += sessionKills;
     if (size > save.bestSize) save.bestSize = size;
 
-    save.history.unshift({ size, kills: sessionKills, duration, date: new Date().toLocaleDateString('fr-FR') });
+    save.history.unshift({ size, kills: sessionKills, duration, won, date: new Date().toLocaleDateString('fr-FR') });
     while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
     writeSave();
 
@@ -2236,8 +2419,8 @@ function endGame() {
     checkAchievement('ten_kills', sessionKills >= 10);
     checkAchievement('big_snake', size >= 200);
 
-    audio.play('death');
-    showToast('💀 Taille ' + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
+    audio.play(won ? 'victory' : 'death');
+    showToast((won ? '🏆 Victoire • Taille ' : '💀 Taille ') + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
     if (sessionNewAch.length) showToast('🏅 ' + sessionNewAch.map(a => a.name).join(' • '));
 }
 
@@ -2452,7 +2635,10 @@ function checkCollisions() {
         }
     }
 
-    // Tête contre tête : le plus gros mange le plus petit (chaque paire testée une seule fois).
+    // Tête contre tête : le plus LONG mange le plus court (chaque paire testée une seule fois).
+    // La longueur, pas le rayon : le rayon ralentit sa croissance avec la taille (radiusForLength),
+    // deux serpents très différents finiraient par se ressembler assez pour ne plus pouvoir se
+    // manger — c'est exactement ce qui figeait les parties quand le rayon était plafonné.
     for (let i = 0; i < snakes.length; i++) {
         const a = snakes[i];
         if (!a.alive) continue;
@@ -2463,8 +2649,8 @@ function checkCollisions() {
 
             if (!a.canBeEaten() || !b.canBeEaten()) continue;
 
-            if (a.radius > b.radius * 1.1) devour(a, b);
-            else if (b.radius > a.radius * 1.1) devour(b, a);
+            if (a.length > b.length * CONFIG.EAT_RATIO) devour(a, b);
+            else if (b.length > a.length * CONFIG.EAT_RATIO) devour(b, a);
             if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
             if (!a.alive) break;
         }
@@ -2511,7 +2697,7 @@ function checkCollisions() {
             }
             hitIndex = bestIndex;
 
-            if (attacker.radius > target.radius * 1.1) {
+            if (attacker.length > target.length * CONFIG.EAT_RATIO) {
                 cutSnake(attacker, target, hitIndex);
             } else {
                 // Mur : on repousse juste la tete hors du corps touché.
@@ -2696,6 +2882,11 @@ function simulate() {
 
     const snakes = aliveSnakes();
     foodGrid.build(foods);
+
+    // Recompte autoritaire des poursuivants du joueur : un bot mange en pleine poursuite ne doit
+    // pas laisser sa place occupee derriere lui.
+    playerHunters = 0;
+    for (const b of bots) if (b && b.alive && b.ai && b.ai.target === player) playerHunters++;
 
     if (player && player.alive) player.update(screenToWorld(pointer.x, pointer.y), snakes, foodGrid);
     for (const b of bots) if (b && b.alive) b.update(null, snakes, foodGrid);
@@ -3028,7 +3219,7 @@ bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
 bindBtn('abandonBtn', showAbandonConfirm);
 bindBtn('abandonNoBtn', hideAbandonConfirm);
-bindBtn('abandonYesBtn', goToMenu);
+bindBtn('abandonYesBtn', confirmPauseExit);
 bindBtn('spectateSkipBtn', finishSpectate);
 
 document.querySelectorAll('[data-vol]').forEach(slider => {
