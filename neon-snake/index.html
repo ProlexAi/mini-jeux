@@ -58,6 +58,16 @@
             border: 1px solid;
         }
         #comboDisplay { color: var(--warning); font-weight: bold; margin-top: 4px; display: none; }
+        #spectateBanner {
+            position: absolute; top: calc(10px + var(--safe-t)); left: 50%;
+            transform: translateX(-50%);
+            z-index: 10; background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,0,85,0.4); border-radius: 20px;
+            padding: 8px 10px 8px 16px; display: flex; align-items: center; gap: 10px;
+            color: white; font-size: 13px; text-align: center;
+        }
+        #spectateBanner.hidden { display: none; }
+        #spectateBanner button { margin: 0; padding: 6px 14px; font-size: 12px; white-space: nowrap; }
         #killStreak {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -280,6 +290,10 @@
     <div id="killStreak"></div>
     <div id="leaderboard"><h3>CLASSEMENT</h3><div id="lbContent"></div></div>
     <canvas id="minimap" width="100" height="70"></canvas>
+    <div id="spectateBanner" class="hidden">
+        <span>💀 Mangé par <span id="spectateName" class="accent"></span></span>
+        <button id="spectateSkipBtn">Voir mes résultats ▶</button>
+    </div>
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
 
@@ -383,6 +397,12 @@ const CONFIG = {
     MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
     BOT_MAX_LENGTH: 300,     // les bots plafonnent AVANT le joueur : sinon « etre le plus gros » devient impossible
+    MAX_RADIUS: 40,          // rayon plafond (utilise aussi par grow())
+    MIN_SPEED_RATIO: 0.55,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
+    SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
+    FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
+    FOOD_CORPSE_MAX: 14,     // nombre max de pastilles existantes reutilisees pour une decoupe
+    BODY_CUT_SKIP_RADIUS: 1.5, // marge pres de la tete de la cible exclue du test de decoupe (x son rayon)
     SAVE_KEY: 'neonSnakeUltimate_v1',
     BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
     BOT_COLORS: ['#ff0055','#00ccff','#ffcc00','#cc00ff','#00ff66','#ff6600','#ffffff','#ff00ff'],
@@ -915,7 +935,13 @@ class Snake {
 
     applyPowerUp(type) { this.powerupEnds[type] = gnow() + CONFIG.POWERUPS[type].duration; }
     hasPowerUp(type) { return this.powerupEnds[type] > gnow(); }
-    getEffectiveSpeed() { return this.hasPowerUp('speed') ? this.speed * CONFIG.POWERUPS.speed.speedMultiplier : this.speed; }
+    getEffectiveSpeed() {
+        // Plus gros -> plus lent : interpolation lineaire entre BASE_RADIUS (vitesse pleine)
+        // et MAX_RADIUS (vitesse a MIN_SPEED_RATIO). Le bonus vitesse s'applique par-dessus.
+        const t = Math.min(1, Math.max(0, (this.radius - CONFIG.BASE_RADIUS) / (CONFIG.MAX_RADIUS - CONFIG.BASE_RADIUS)));
+        const base = this.speed * (1 - t * (1 - CONFIG.MIN_SPEED_RATIO));
+        return this.hasPowerUp('speed') ? base * CONFIG.POWERUPS.speed.speedMultiplier : base;
+    }
     addKill() { this.kills++; }
     canBeEaten() { return !this.hasPowerUp('invincible'); }
 
@@ -1044,7 +1070,7 @@ class Snake {
 
     grow(amount) {
         this.length = Math.min(this.maxLength, this.length + amount);
-        this.radius = Math.min(40, this.radius + amount * 0.05);
+        this.radius = Math.min(CONFIG.MAX_RADIUS, this.radius + amount * 0.05);
     }
 
     kill() { this.alive = false; }
@@ -1059,8 +1085,9 @@ const minimapCanvas = document.getElementById('minimap');
 const minimapCtx = minimapCanvas.getContext('2d');
 
 let WIDTH = 0, HEIGHT = 0, DPR = 1, MM_W = 100, MM_H = 70;
-let gameState = 'MENU';                     // MENU | PLAYING | PAUSED | END
+let gameState = 'MENU';                     // MENU | PLAYING | PAUSED | SPECTATING | END
 let player = null, bots = [], foods = [], powerups = [];
+let spectateTarget = null, spectateEndsAt = 0;   // mode spectateur : vue du serpent qui t'a tué
 let pointer = { x: 0, y: 0 };                 // position du doigt / de la souris, en pixels ECRAN
 const cam = { x: 0, y: 0, zoom: 1 };          // centre de la vue, en coordonnees MONDE
 let foodGrid = null;
@@ -1092,13 +1119,17 @@ function clampCamera() {
 }
 
 function updateCamera() {
-    if (player && player.alive) {
+    // Apres la mort, on suit le serpent qui nous a mangés au lieu de couper direct sur l'écran de fin.
+    const follow = (gameState === 'SPECTATING' && spectateTarget && spectateTarget.alive)
+        ? spectateTarget
+        : (player && player.alive) ? player : null;
+    if (follow) {
         // Plus le serpent est gros, plus on voit large : sinon on avance a l'aveugle.
-        const target = Math.pow(CONFIG.BASE_RADIUS / player.radius, 0.35);
+        const target = Math.pow(CONFIG.BASE_RADIUS / follow.radius, 0.35);
         const targetZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, target));
         cam.zoom += (targetZoom - cam.zoom) * CONFIG.ZOOM_SMOOTH;
-        cam.x += (player.x - cam.x) * CONFIG.CAMERA_SMOOTH;
-        cam.y += (player.y - cam.y) * CONFIG.CAMERA_SMOOTH;
+        cam.x += (follow.x - cam.x) * CONFIG.CAMERA_SMOOTH;
+        cam.y += (follow.y - cam.y) * CONFIG.CAMERA_SMOOTH;
     }
     clampCamera();
 }
@@ -1127,10 +1158,12 @@ function showScreen(screen) {
     $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
 
     const inGame = (screen === 'game');
+    const spectating = (screen === 'spectate');
     $('hud').style.display = inGame ? 'block' : 'none';
-    $('leaderboard').style.display = inGame ? 'block' : 'none';
-    $('minimap').style.display = inGame ? 'block' : 'none';
+    $('leaderboard').style.display = (inGame || spectating) ? 'block' : 'none';
+    $('minimap').style.display = (inGame || spectating) ? 'block' : 'none';
     $('pauseBtn').style.display = inGame ? 'block' : 'none';
+    $('spectateBanner').classList.toggle('hidden', !spectating);
 }
 
 function formatTime(seconds) {
@@ -1353,6 +1386,7 @@ function startGame() {
     particles.clear();
     killStreak.reset();
     screenShake.reset();
+    spectateTarget = null;
     showScreen('game');
 
     // Apparition quelque part dans le monde, pas toujours au meme endroit.
@@ -1469,7 +1503,7 @@ function endGame(won) {
 }
 
 function respawnBot(idx, name, color) {
-    if (gameState !== 'PLAYING' || idx < 0 || idx >= bots.length) return;
+    if ((gameState !== 'PLAYING' && gameState !== 'SPECTATING') || idx < 0 || idx >= bots.length) return;
     const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
     bot.grow(Math.floor(Math.random() * 10));
     bots[idx] = bot;
@@ -1499,11 +1533,45 @@ function handleInput(e) {
     }
 }
 
-function devour(winner, loser) {
+// Réutilise n pastilles EXISTANTES du pool (le tableau `foods` garde une taille constante)
+// et les repositionne le long d'un tronçon de corps : "quand un serpent meurt, il génère
+// des ressources" — un tirage sans remise (Fisher-Yates partiel) pour ne pas piocher deux fois
+// la même pastille.
+function pickRandomFoods(n) {
+    const picked = [];
+    const len = foods.length;
+    const count = Math.min(n, len);
+    for (let k = 0; k < count; k++) {
+        const j = k + Math.floor(Math.random() * (len - k));
+        const tmp = foods[k]; foods[k] = foods[j]; foods[j] = tmp;
+        picked.push(foods[k]);
+    }
+    return picked;
+}
+
+function scatterCorpseFood(snake, fromIndex) {
+    const segs = snake.segments;
+    if (fromIndex >= segs.length) return;
+    const stride = Math.max(1, Math.round(CONFIG.FOOD_CORPSE_SPACING / CONFIG.BASE_SPEED));
+    const positions = [];
+    for (let i = fromIndex; i < segs.length; i += stride) positions.push(segs[i]);
+    const dropped = pickRandomFoods(Math.min(positions.length, CONFIG.FOOD_CORPSE_MAX));
+    for (let k = 0; k < dropped.length; k++) {
+        dropped[k].x = positions[k].x;
+        dropped[k].y = positions[k].y;
+        dropped[k].pulseOffset = Math.random() * TAU;
+    }
+}
+
+// cutFromIndex : segment à partir duquel le corps de "loser" se change en nourriture.
+// 0 pour une mort tête-contre-tête (tout le corps) ; le point d'impact pour une découpe
+// corps-à-corps (seul le tronçon du point de rupture jusqu'à la queue devient ressource).
+function killSnake(winner, loser, cutFromIndex) {
     loser.kill();
     winner.grow(Math.floor(loser.length / 2));
     winner.addKill();
     particles.emitDeath(loser.x, loser.y, loser.color);
+    scatterCorpseFood(loser, cutFromIndex);
 
     if (winner.isPlayer) {
         sessionKills++;
@@ -1517,11 +1585,38 @@ function devour(winner, loser) {
 
     if (loser.isPlayer) {
         screenShake.trigger(10);
-        endGame(false);
+        startSpectate(winner);
         return;
     }
     const idx = bots.indexOf(loser);
     if (idx !== -1) pendingRespawns.push({ idx, name: loser.name, color: loser.color, at: gnow() + CONFIG.RESPAWN_DELAY });
+}
+
+function devour(winner, loser) { killSnake(winner, loser, 0); }
+
+// ============================================================
+//  MODE SPECTATEUR — après la mort, on continue de voir la partie depuis le point de
+//  vue du serpent qui nous a mangés, avant de passer à l'écran de fin.
+// ============================================================
+function startSpectate(killer) {
+    gameState = 'SPECTATING';
+    spectateTarget = killer;
+    spectateEndsAt = gnow() + CONFIG.SPECTATE_MS;
+    showScreen('spectate');
+    updateSpectateBanner();
+}
+
+function finishSpectate() {
+    if (gameState !== 'SPECTATING') return;
+    gameState = 'PLAYING';   // endGame() exige 'PLAYING' ; on le repasse juste avant de l'appeler.
+    endGame(false);
+}
+
+function updateSpectateBanner() {
+    if (gameState !== 'SPECTATING') return;
+    $('spectateName').textContent = (spectateTarget && spectateTarget.name) || '?';
+    const left = Math.max(0, Math.ceil((spectateEndsAt - gnow()) / 1000));
+    $('spectateSkipBtn').textContent = 'Voir mes résultats (' + left + 's) ▶';
 }
 
 function checkCollisions() {
@@ -1587,8 +1682,66 @@ function checkCollisions() {
 
             if (a.radius > b.radius * 1.1) devour(a, b);
             else if (b.radius > a.radius * 1.1) devour(b, a);
-            if (gameState !== 'PLAYING') return;
+            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
             if (!a.alive) break;
+        }
+    }
+
+    // Corps contre tête : croiser le CORPS d'un autre serpent (pas seulement sa tête).
+    // Plus petit -> découpe (le tronçon du point d'impact jusqu'à la queue devient nourriture,
+    // cf. scatterCorpseFood). Plus gros ou égal -> mur : léger recul, pas de dégâts.
+    for (let ai = 0; ai < snakes.length; ai++) {
+        const attacker = snakes[ai];
+        if (!attacker.alive) continue;
+        for (let ti = 0; ti < snakes.length; ti++) {
+            if (ti === ai) continue;
+            const target = snakes[ti];
+            if (!target.alive || !attacker.alive) continue;
+            if (!attacker.canBeEaten() || !target.canBeEaten()) continue;   // bouclier = fantôme
+
+            const segs = target.segments;
+            const reach = segs.length * CONFIG.BASE_SPEED + target.radius + attacker.radius;
+            if (Math.hypot(attacker.x - target.x, attacker.y - target.y) > reach) continue;
+
+            // Echantillonne le corps par pas de rayon (pas de trou : segments espaces d'environ
+            // BASE_SPEED, un pas de radius/BASE_SPEED garde des cercles qui se recouvrent).
+            // On saute les segments pres de la tete de la cible : deja couverts par le test
+            // tete-a-tete ci-dessus.
+            const stride = Math.max(1, Math.round(target.radius / CONFIG.BASE_SPEED));
+            const skip = Math.round(target.radius * CONFIG.BODY_CUT_SKIP_RADIUS / CONFIG.BASE_SPEED);
+            let hitIndex = -1;
+            for (let i = skip; i < segs.length; i += stride) {
+                const seg = segs[i];
+                if (Math.hypot(attacker.x - seg.x, attacker.y - seg.y) < attacker.radius + target.radius) { hitIndex = i; break; }
+            }
+            if (hitIndex === -1) continue;
+
+            // Affine sur le voisinage réel (pas seulement l'échantillon touché) : pousser depuis
+            // un point qui n'est pas le plus proche laisse le repoussé "glisser" le long du corps
+            // sans jamais vraiment être arrêté (mesuré : fonce droit dans un mur, le traverse au
+            // bout d'une seconde).
+            let bestIndex = hitIndex, bestD = Infinity;
+            const lo = Math.max(0, hitIndex - stride), hi = Math.min(segs.length - 1, hitIndex + stride);
+            for (let i = lo; i <= hi; i++) {
+                const d = Math.hypot(attacker.x - segs[i].x, attacker.y - segs[i].y);
+                if (d < bestD) { bestD = d; bestIndex = i; }
+            }
+            hitIndex = bestIndex;
+
+            if (attacker.isPlayer || target.isPlayer) wasTouched = true;
+
+            if (attacker.radius > target.radius * 1.1) {
+                killSnake(attacker, target, hitIndex);
+            } else {
+                // Mur : on repousse juste la tete hors du corps touché.
+                const seg = segs[hitIndex];
+                const dx = attacker.x - seg.x, dy = attacker.y - seg.y;
+                const d = Math.hypot(dx, dy) || 1;
+                const push = (attacker.radius + target.radius) - d;
+                attacker.x += (dx / d) * push;
+                attacker.y += (dy / d) * push;
+            }
+            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
         }
     }
 }
@@ -1723,6 +1876,12 @@ let accumulator = 0;
 let lastFrameTs = 0;
 
 function simulate() {
+    if (gameState === 'SPECTATING') {
+        // Le timeout ou la mort du serpent suivi mettent fin au spectateur DES le pas de
+        // simulation suivant (~16 ms), pas au prochain tick d'affichage UI (~100 ms).
+        if (gnow() >= spectateEndsAt || !spectateTarget || !spectateTarget.alive) { finishSpectate(); return; }
+    }
+
     const snakes = aliveSnakes();
     foodGrid.build(foods);
 
@@ -1736,9 +1895,9 @@ function simulate() {
     // construite en haut de fonction leur est d'un pas périmée.
     foodGrid.build(foods);
     checkCollisions();
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
     checkWinCondition();
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
 
     particles.update();
     screenShake.update();
@@ -1761,7 +1920,7 @@ function render() {
     ctx.fillStyle = '#0f0f13';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    const shake = gameState === 'PLAYING' ? screenShake.getOffset() : { x: 0, y: 0 };
+    const shake = (gameState === 'PLAYING' || gameState === 'SPECTATING') ? screenShake.getOffset() : { x: 0, y: 0 };
     ctx.save();
     // Ecran -> monde : on centre la vue sur la camera, puis on applique le zoom.
     ctx.translate(WIDTH/2 + shake.x, HEIGHT/2 + shake.y);
@@ -1772,7 +1931,7 @@ function render() {
     drawGrid(v);
     drawWorldBorder();
 
-    if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'END') {
+    if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'SPECTATING' || gameState === 'END') {
         for (const p of powerups) if (inView(p.x, p.y, 40, v)) p.draw(ctx);
         for (const f of foods) if (inView(f.x, f.y, 20, v)) f.draw(ctx);
         for (const b of bots) if (b && b.alive && snakeVisible(b, v)) { b.draw(ctx); drawAuras(b); }
@@ -1781,7 +1940,7 @@ function render() {
     }
     ctx.restore();
 
-    if (gameState === 'PLAYING') drawMinimap();
+    if (gameState === 'PLAYING' || gameState === 'SPECTATING') drawMinimap();
 }
 
 function gameLoop(ts) {
@@ -1792,7 +1951,7 @@ function gameLoop(ts) {
     lastFrameTs = ts;
     if (dt > 250) dt = 250;   // onglet réveillé : on ne rattrape pas 10 minutes de simulation
 
-    if (gameState === 'PLAYING') {
+    if (gameState === 'PLAYING' || gameState === 'SPECTATING') {
         accumulator += dt;
         let steps = 0;
         while (accumulator >= STEP_MS && steps < MAX_STEPS_PER_FRAME) {
@@ -1800,12 +1959,17 @@ function gameLoop(ts) {
             gameClock += STEP_MS;
             simulate();
             steps++;
-            if (gameState !== 'PLAYING') { accumulator = 0; break; }
+            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') { accumulator = 0; break; }
         }
         if (steps >= MAX_STEPS_PER_FRAME) accumulator = 0;
 
         uiAccum += dt;
-        if (uiAccum >= 100) { uiAccum = 0; updateHUD(); updateLeaderboard(); }
+        if (uiAccum >= 100) {
+            uiAccum = 0;
+            if (gameState === 'PLAYING') updateHUD();
+            updateLeaderboard();
+            updateSpectateBanner();
+        }
     } else {
         accumulator = 0;
     }
@@ -1837,6 +2001,7 @@ bindBtn('menuBtn', goToMenu);
 bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
 bindBtn('quitBtn', goToMenu);
+bindBtn('spectateSkipBtn', finishSpectate);
 
 canvas.addEventListener('mousemove', handleInput);
 canvas.addEventListener('touchmove', handleInput, { passive: false });
@@ -1846,11 +2011,13 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         if (gameState === 'PLAYING') { e.preventDefault(); pauseGame(); }
         else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
+        else if (gameState === 'SPECTATING' && e.key === 'Escape') { e.preventDefault(); finishSpectate(); }
     } else if (e.key === 'Enter' || e.key === ' ') {
         // preventDefault : sinon un bouton focus (Jouer, Reprendre) reçoit AUSSI le clic natif
         // du clavier et l'action se déclenche deux fois.
         if (gameState === 'MENU' || gameState === 'END') { e.preventDefault(); audio.init(); startGame(); }
         else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
+        else if (gameState === 'SPECTATING') { e.preventDefault(); finishSpectate(); }
     }
 });
 
