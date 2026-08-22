@@ -1798,12 +1798,15 @@ class Snake {
         ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
 
-        // Traînée : cadencée sur l'horloge de jeu (pas sur le framerate), et seulement si le
-        // budget de particules partagé a de la place (cf. QUALITY_PARTICLES).
+        // Traînée : émise à la QUEUE, pas à la tête — le corps est un tube opaque qui repasse
+        // exactement sur la position de la tête à chaque pas ; une particule posée là serait
+        // recouverte en permanence. La queue est le seul point que le corps ne recouvre plus.
+        // Cadencée sur l'horloge de jeu (pas le framerate), et seulement si le budget de
+        // particules partagé a de la place (cf. QUALITY_PARTICLES).
         if (style && style.trail && animated && particles.room && gnow() - this.lastTrailEmit > 80) {
             this.lastTrailEmit = gnow();
-            const head = segs[0];
-            particles.push(new Particle(head.x, head.y, {
+            const tail = segs[segs.length - 1];
+            particles.push(new Particle(tail.x, tail.y, {
                 vx:(Math.random()-0.5)*0.6, vy:(Math.random()-0.5)*0.6,
                 life:0.6, decay:0.045, size:r*0.35, color:this.color, type:'smoke', friction:0.96
             }));
