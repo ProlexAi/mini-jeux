@@ -1074,7 +1074,6 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Aucun salon avec ce code.',
         lobbyErrorHostLeft: 'L’hôte a quitté la partie.',
         lobbyErrorGeneric: 'Connexion impossible.',
-        lobbyWorldReady: 'Monde généré ✓', lobbyWorldReceived: 'Monde reçu ✓',
     },
     en: {
         tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 History',
@@ -1661,8 +1660,12 @@ class FoodGrid {
 // ============================================================
 //  NOURRITURE
 // ============================================================
+// Identifiant STABLE d'une pastille : pickRandomFoods() permute le tableau `foods`, donc un
+// indice ne designe pas toujours la meme pastille — un delta reseau indexe se desynchroniserait.
+let foodUid = 0;
+
 class Food {
-    constructor() { this.respawn(); }
+    constructor() { this.id = ++foodUid; this.respawn(); }
     respawn() {
         const c = foodClusters.length ? foodClusters[Math.floor(Math.random() * foodClusters.length)] : null;
         if (c) {
@@ -1679,6 +1682,7 @@ class Food {
         this.color = '#ff00ff';
         this.pulseOffset = Math.random() * TAU;
         this.pulseSpeed = 0.05 + Math.random() * 0.05;
+        markFoodDirty(this);
     }
     draw(ctx) {
         // Phase dérivée de l'horloge de simulation (fixe à 60 Hz), pas du nombre d'appels à
@@ -1699,8 +1703,11 @@ class Food {
 // ============================================================
 //  POWER-UP
 // ============================================================
+let powerupUid = 0;
+
 class PowerUp {
     constructor(x, y, type) {
+        this.id = ++powerupUid;
         this.x = x; this.y = y; this.type = type;
         this.radius = 12;
         this.config = CONFIG.POWERUPS[type];
@@ -1824,6 +1831,11 @@ class Snake {
                 const dy = target.y - this.y;
                 if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this.targetAngle = Math.atan2(dy, dx);
             }
+        } else if (this.netControlled) {
+            // Humain distant (partie privee, cote hote) : son cap arrive par le reseau, il n'est
+            // pilote ni par le pointeur local ni par l'IA. Sauf en pause, ou l'IA reprend la main
+            // pour que son serpent se defende seul (cahier des charges UI §6).
+            if (this.netPaused) this.botAI(allSnakes, grid);
         } else {
             this.botAI(allSnakes, grid);
         }
@@ -2041,7 +2053,13 @@ const screenShake = new ScreenShake();
 const killStreak = new KillStreak();
 
 function $(id) { return document.getElementById(id); }
-function aliveSnakes() { return [player, ...bots].filter(s => s && s.alive); }
+// En partie privee : cote hote, les humains distants s'ajoutent au joueur local et aux bots ;
+// cote client, la liste vient entierement des instantanes recus (aucune simulation locale).
+function aliveSnakes() {
+    if (party.inGame && !party.isHost) return Array.from(netSnakes.values()).filter(s => s && s.alive);
+    if (party.inGame) return [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
+    return [player, ...bots].filter(s => s && s.alive);
+}
 
 // ============================================================
 //  CAMERA
@@ -2460,6 +2478,9 @@ function resumeGame() {
 }
 
 function goToMenu() {
+    // Quitter une partie privée, c'est aussi quitter le salon : sans ça, party.inGame resterait
+    // vrai et la partie solo suivante irait chercher ses serpents dans l'état réseau.
+    if (party.active) resetParty();
     gameState = 'MENU';
     pendingRespawns = [];
     particles.clear();
@@ -2508,6 +2529,7 @@ function respawnBot(idx, name, color) {
     if ((gameState !== 'PLAYING' && gameState !== 'SPECTATING') || idx < 0 || idx >= bots.length) return;
     const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
     bot.grow(Math.floor(Math.random() * 10));
+    bot.netId = 'b' + idx;   // meme identite reseau qu'avant sa mort : le roster reste valable
     bots[idx] = bot;
 }
 
@@ -2570,6 +2592,7 @@ function scatterCorpseFood(snake, fromIndex, totalValue) {
         dropped[k].value = valuePerPellet;
         dropped[k].radius = radius;
         dropped[k].pulseOffset = Math.random() * TAU;
+        markFoodDirty(dropped[k]);
     }
 }
 
@@ -2598,6 +2621,9 @@ function killSnake(winner, loser, cutFromIndex) {
         startSpectate(winner);
         return;
     }
+    // Humain distant mange : c'est SON client qui decide de la suite (spectateur, XP, reapparition
+    // — exactement comme en solo). L'hote se contente de le prevenir et d'attendre son RESPAWN.
+    if (loser.netControlled) { hostNotifyDeath(loser, winner); return; }
     const idx = bots.indexOf(loser);
     if (idx !== -1) pendingRespawns.push({ idx, name: loser.name, color: loser.color, at: gnow() + CONFIG.RESPAWN_DELAY });
 }
@@ -2654,6 +2680,7 @@ function respawnPlayer() {
     killStreak.reset();
     sessionNewAch = [];
     gameState = 'PLAYING';
+    if (party.inGame) partyRegisterOwnSnake();
     showScreen('game');
     updateHUD();
     updateLeaderboard();
@@ -2799,7 +2826,12 @@ function spawnPowerups() {
         if (powerups.length < CONFIG.POWERUP_MAX_ON_MAP && Math.random() < CONFIG.POWERUP_SPAWN_CHANCE) {
             const types = Object.keys(CONFIG.POWERUPS);
             const type = types[Math.floor(Math.random() * types.length)];
-            const v = viewBounds();
+            // En solo, le bonus apparait dans la vue du joueur — sinon il ne le verrait jamais.
+            // En partie privee, la vue de l'HOTE n'a aucune raison d'etre privilegiee : le bonus
+            // apparait n'importe ou dans le monde, egal pour tous.
+            const v = party.inGame
+                ? { x0: 0, y0: 0, x1: CONFIG.WORLD_WIDTH, y1: CONFIG.WORLD_HEIGHT }
+                : viewBounds();
             powerups.push(new PowerUp(
                 Math.min(CONFIG.WORLD_WIDTH-30, Math.max(30, v.x0 + Math.random() * (v.x1-v.x0))),
                 Math.min(CONFIG.WORLD_HEIGHT-30, Math.max(30, v.y0 + Math.random() * (v.y1-v.y0))),
@@ -2954,6 +2986,10 @@ let accumulator = 0;
 let lastFrameTs = 0;
 
 function simulate() {
+    // Client d'une partie privee : il ne simule RIEN (ni IA, ni collisions, ni nourriture) —
+    // l'hote fait autorite. Il interpole seulement ce qu'il a recu. Voir netClientStep().
+    if (party.inGame && !party.isHost) { netClientStep(); return; }
+
     if (gameState === 'SPECTATING') {
         // Le timeout ou la mort du serpent suivi mettent fin au spectateur DES le pas de
         // simulation suivant (~16 ms), pas au prochain tick d'affichage UI (~100 ms).
@@ -2970,6 +3006,9 @@ function simulate() {
 
     if (player && player.alive) player.update(screenToWorld(pointer.x, pointer.y), snakes, foodGrid);
     for (const b of bots) if (b && b.alive) b.update(null, snakes, foodGrid);
+    // Humains distants : meme integration que tout le monde, mais leur cap vient du reseau
+    // (Snake.update() branche sur netControlled).
+    remotes.forEach(r => { if (r.alive) r.update(null, snakes, foodGrid); });
 
     updateCamera();
     processRespawns();
@@ -3015,7 +3054,9 @@ function render() {
     if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'SPECTATING' || gameState === 'END') {
         for (const p of powerups) if (inView(p.x, p.y, 40, v)) p.draw(ctx);
         for (const f of foods) if (inView(f.x, f.y, 20, v)) f.draw(ctx);
-        for (const b of bots) if (b && b.alive && snakeVisible(b, v)) { b.draw(ctx); drawAuras(b); }
+        // Tous les adversaires d'abord (bots ET humains distants en partie privee), le joueur
+        // en dernier pour qu'il reste au-dessus du tas.
+        for (const s of aliveSnakes()) if (s !== player && snakeVisible(s, v)) { s.draw(ctx); drawAuras(s); }
         if (player && player.alive) { player.draw(ctx); drawAuras(player); }
         particles.draw(ctx);
     }
@@ -3051,6 +3092,8 @@ function gameLoop(ts) {
             updateLeaderboard();
             updateSpectateBanner();
         }
+
+        if (party.inGame) netPump(dt);
     } else {
         accumulator = 0;
     }
@@ -3467,7 +3510,7 @@ function peerIdForCode(code) { return 'snakeon-party-' + code; }
 
 // party.players : id de connexion PeerJS -> { name, isHost }. 'host' désigne l'hôte lui-même.
 const party = {
-    active: false, isHost: false, code: '', peer: null,
+    active: false, isHost: false, inGame: false, code: '', peer: null,
     conns: new Map(),    // hôte uniquement : peerId -> DataConnection
     hostConn: null,      // client uniquement : DataConnection vers l'hôte
     players: new Map(),
@@ -3476,9 +3519,12 @@ const party = {
 
 function resetParty() {
     if (party.peer) { try { party.peer.destroy(); } catch(e) {} }
-    party.active = false; party.isHost = false; party.code = '';
+    party.active = false; party.isHost = false; party.inGame = false; party.code = '';
     party.peer = null; party.conns.clear(); party.hostConn = null;
     party.players.clear(); party.selfId = 'host';
+    remotes.clear(); netSnakes.clear(); netTargets.clear();
+    netRoster.clear(); netPowerups.clear(); foodDirty.clear();
+    netSnapshotAccum = 0; netInputAccum = 0; netLastSentAngle = null;
 }
 
 function lobbySend(conn, msg) { try { conn.send(msg); } catch(e) {} }
@@ -3530,7 +3576,7 @@ async function createParty() {
 
     peer.on('open', () => {
         party.active = true; party.code = code;
-        party.players.set('host', { name: playerName(), isHost: true });
+        party.players.set('host', { name: playerName(), color: currentSkin().color, isHost: true });
         enterLobbyRoom();
         lobbySetStatus('lobbyWaitingPlayers');
     });
@@ -3540,6 +3586,7 @@ async function createParty() {
         conn.on('data', (msg) => handleHostMessage(conn, msg));
         conn.on('close', () => {
             party.conns.delete(conn.peer);
+            remotes.delete(conn.peer);   // son serpent disparaît de l'arène pour tout le monde
             if (party.players.delete(conn.peer)) {
                 hostBroadcast({ type: 'PLAYER_LEFT', id: conn.peer });
                 renderLobbyPlayers();
@@ -3558,13 +3605,32 @@ function handleHostMessage(conn, msg) {
     if (!msg || typeof msg !== 'object') return;
     if (msg.type === 'HELLO') {
         const name = String(msg.name || '').slice(0, 14) || t('you');
-        party.players.set(conn.peer, { name, isHost: false });
+        const color = String(msg.color || CONFIG.SKINS[0].color).slice(0, 9);
+        party.players.set(conn.peer, { name, color, isHost: false });
         lobbySend(conn, {
             type: 'WELCOME', selfId: conn.peer,
-            players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, isHost: p.isHost })),
+            players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, color: p.color, isHost: p.isHost })),
         });
-        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name }, conn.peer);
+        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name, color }, conn.peer);
         renderLobbyPlayers();
+        // Arrivée en cours de partie : il apparaît tout de suite, pas en spectateur (§2 de la
+        // note de conception). Il reçoit le monde déjà en cours, pas un nouveau.
+        if (party.inGame) {
+            hostSpawnRemote(conn.peer);
+            lobbySend(conn, {
+                type: 'GAME_START',
+                width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
+                foodClusters, foods: serializeFoods(), roster: hostBuildRoster(),
+            });
+        }
+        return;
+    }
+    if (!party.inGame) return;
+    if (msg.type === 'I') {
+        const s = remotes.get(conn.peer);
+        if (s && s.alive && typeof msg.a === 'number') s.targetAngle = msg.a;
+    } else if (msg.type === 'RESPAWN') {
+        hostSpawnRemote(conn.peer);
     }
 }
 
@@ -3580,9 +3646,14 @@ async function joinParty() {
     peer.on('open', () => {
         const conn = peer.connect(peerIdForCode(code));
         party.hostConn = conn;
-        conn.on('open', () => { lobbySend(conn, { type: 'HELLO', name: playerName() }); });
+        conn.on('open', () => { lobbySend(conn, { type: 'HELLO', name: playerName(), color: currentSkin().color }); });
         conn.on('data', (msg) => handleClientMessage(msg, code));
-        conn.on('close', () => { lobbySetStatus(party.active ? 'lobbyErrorHostLeft' : 'lobbyErrorCodeNotFound'); });
+        conn.on('close', () => {
+            // En pleine partie, la perte de l'hôte arrête la partie (décision actée). Le joueur
+            // ne perd rien pour autant : sa vie est comptée comme une mort, XP compris.
+            if (party.inGame) { hostLostDuringGame(); return; }
+            lobbySetStatus(party.active ? 'lobbyErrorHostLeft' : 'lobbyErrorCodeNotFound');
+        });
         conn.on('error', () => { lobbySetStatus('lobbyErrorCodeNotFound'); });
     });
     peer.on('error', () => { if (!party.active) lobbySetStatus('lobbyErrorCodeNotFound'); });
@@ -3593,30 +3664,64 @@ function handleClientMessage(msg, code) {
     if (msg.type === 'WELCOME') {
         party.active = true; party.code = code; party.selfId = msg.selfId;
         party.players.clear();
-        msg.players.forEach(p => party.players.set(p.id, { name: p.name, isHost: p.isHost }));
-        party.players.set(party.selfId, { name: playerName(), isHost: false });
+        msg.players.forEach(p => party.players.set(p.id, { name: p.name, color: p.color, isHost: p.isHost }));
+        party.players.set(party.selfId, { name: playerName(), color: currentSkin().color, isHost: false });
         enterLobbyRoom();
         lobbySetStatus('lobbyWaiting');
     } else if (msg.type === 'PLAYER_JOINED') {
-        party.players.set(msg.id, { name: msg.name, isHost: false });
+        party.players.set(msg.id, { name: msg.name, color: msg.color, isHost: false });
+        netRoster.set(msg.id, { name: msg.name, color: msg.color });
         renderLobbyPlayers();
     } else if (msg.type === 'PLAYER_LEFT') {
         party.players.delete(msg.id);
+        netSnakes.delete(msg.id);
+        netTargets.delete(msg.id);
         renderLobbyPlayers();
-    } else if (msg.type === 'WORLD_INIT') {
-        applyWorldInit(msg);
+    } else if (msg.type === 'GAME_START') {
+        applyGameStart(msg);
+    } else if (msg.type === 'S') {
+        applySnapshot(msg);
+    } else if (msg.type === 'DEAD') {
+        // Mort décidée par l'hôte. La suite est locale et identique au solo : spectateur, puis
+        // endGame() (XP, stats, historique dans MON localStorage), puis réapparition.
+        if (gameState === 'PLAYING' && player) {
+            player.alive = false;
+            screenShake.trigger(10);
+            startSpectate(netSnakes.get(msg.killer) || player);
+        }
     }
 }
 
-// Envoi initial complet (une fois), pas de deltas pour l'instant : ~150 à 1600 pastilles selon
-// la taille du monde, un seul message à la connexion, jamais répété.
-function serializeFoods() {
-    return foods.map(f => ({ x: f.x, y: f.y, value: f.value, radius: f.radius }));
+// ---------- Boucle de jeu partagée : l'hôte simule, les clients interpolent ----------
+//
+// Identité réseau (netId) : 'host' pour l'hôte, 'b<i>' pour le bot d'indice i, l'id de pair
+// PeerJS pour chaque humain distant. Elle survit à la mort : un bot qui réapparaît ou un humain
+// qui reprend une vie garde son netId, donc le roster envoyé au lancement reste valable.
+
+const NET_SNAPSHOT_MS = 66;      // l'hôte diffuse ~15 instantanés par seconde
+const NET_INPUT_MS = 33;         // le client envoie son cap ~30 fois par seconde
+const NET_LERP = 0.28;           // rattrapage des adversaires vers la position de l'hôte
+const NET_SELF_CORRECTION = 0.12; // rappel de MON serpent prédit vers celle de l'hôte
+
+const remotes = new Map();       // hôte : peerId -> Snake de cet humain
+const netSnakes = new Map();     // client : netId -> Snake reconstruit
+const netTargets = new Map();    // client : netId -> dernier état reçu de l'hôte
+const netRoster = new Map();     // client : netId -> { name, color }
+const netPowerups = new Map();   // client : id -> PowerUp
+let foodDirty = new Set();       // hôte : pastilles modifiées depuis le dernier instantané
+let netSnapshotAccum = 0, netInputAccum = 0;
+let netLastSentAngle = null;
+
+// Appelée à chaque changement d'une pastille (respawn, découpe). Ne coûte rien hors partie privée.
+function markFoodDirty(f) {
+    if (party.isHost && party.inGame && f.id !== undefined) foodDirty.add(f);
 }
 
-// Le monde n'est calculé QUE par l'hôte, sur SON écran (cf. cahier des charges — problème n°1 à
-// résoudre) : deux joueurs sur deux écrans différents doivent voir le même monde, pas chacun le
-// sien. Réutilise exactement le calcul solo (computeWorld, génération des pastilles).
+function partySendToHost(msg) { if (party.hostConn) lobbySend(party.hostConn, msg); }
+
+// Le monde n'est calculé QUE par l'hôte, sur SON écran (premier problème posé par le cahier des
+// charges) : deux joueurs sur deux écrans différents doivent voir le même monde, pas chacun le
+// sien. Réutilise exactement le calcul solo (computeWorld + génération des pastilles).
 function hostGenerateWorld() {
     computeWorld();
     foods = [];
@@ -3625,29 +3730,288 @@ function hostGenerateWorld() {
     foodGrid.build(foods);
 }
 
-function launchPrivateGame() {
-    if (!party.active || !party.isHost) return;
-    hostGenerateWorld();
-    hostBroadcast({
-        type: 'WORLD_INIT',
-        width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
-        foodClusters, foods: serializeFoods(),
-    });
-    // Étape suivante (lot 4) : ici, transition vers la boucle de jeu partagée. Pour l'instant,
-    // seule la génération et la diffusion du monde sont vérifiées.
-    $('lobbyStatus').textContent = t('lobbyWorldReady') + ' (' + CONFIG.WORLD_WIDTH + '×' + CONFIG.WORLD_HEIGHT + ', ' + foods.length + ' pastilles)';
+function serializeFoods() {
+    return foods.map(f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius]);
 }
 
-// Applique le monde reçu de l'hôte : mêmes dimensions, mêmes pastilles, quel que soit l'écran
-// du client — remplace computeWorld() côté client, qui ne doit plus jamais tourner en partie privée.
-function applyWorldInit(msg) {
+// Noms et couleurs ne bougent jamais : envoyés UNE fois au lancement, jamais dans les instantanés.
+function hostBuildRoster() {
+    const roster = [['host', playerName(), player.color]];
+    bots.forEach((b, i) => roster.push(['b' + i, b.name, b.color]));
+    remotes.forEach((s, id) => roster.push([id, s.name, s.color]));
+    return roster;
+}
+
+function hostSpawnRemote(peerId) {
+    const info = party.players.get(peerId) || {};
+    const s = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        false, info.name || '?', info.color || CONFIG.SKINS[0].color
+    );
+    s.netId = peerId;
+    s.netControlled = true;          // ni pointeur local, ni IA : son cap arrive par le réseau
+    s.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+    remotes.set(peerId, s);
+    return s;
+}
+
+function launchPrivateGame() {
+    if (!party.active || !party.isHost || party.inGame) return;
+    party.inGame = true;
+
+    // Même mise en place qu'une partie solo (startGame), monde en plus : il est généré ici et
+    // diffusé, au lieu d'être recalculé par chacun.
+    audio.init(); audio.resume();
+    hostGenerateWorld();
+    gameState = 'PLAYING';
+    gameClock = 0; accumulator = 0; lastFrameTs = 0;
+    sessionKills = 0; comboCount = 0; comboMultiplier = 1; lastComboTime = -Infinity;
+    sessionNewAch = []; pendingRespawns = []; powerups = [];
+    particles.clear(); killStreak.reset(); screenShake.reset();
+    spectateTarget = null;
+
+    player = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        true, playerName(), currentSkin().color
+    );
+    player.netId = 'host';
+    player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+    cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
+    clampCamera();
+
+    bots = [];
+    for (let i = 0; i < CONFIG.BOT_COUNT; i++) {
+        const bot = new Snake(
+            Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT,
+            false, CONFIG.BOT_NAMES[i % CONFIG.BOT_NAMES.length],
+            CONFIG.BOT_COLORS[i % CONFIG.BOT_COLORS.length]
+        );
+        if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
+        bot.kills = Math.floor(Math.random() * 15);
+        bot.netId = 'b' + i;
+        bots.push(bot);
+    }
+
+    remotes.clear();
+    party.players.forEach((p, id) => { if (id !== 'host') hostSpawnRemote(id); });
+
+    hostBroadcast({
+        type: 'GAME_START',
+        width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
+        foodClusters, foods: serializeFoods(), roster: hostBuildRoster(),
+    });
+    foodDirty.clear();
+
+    pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
+    lastPowerupSpawn = gnow();
+    showScreen('game');
+    updateHUD();
+    updateLeaderboard();
+}
+
+// Instantané : uniquement de la cinématique. Les corps ne voyagent JAMAIS — chaque client
+// rejoue la traînée de la tête à 60 Hz, exactement comme le fait Snake.update(). Le coût dépend
+// donc du nombre de serpents, pas de leur longueur.
+function hostSendSnapshot() {
+    const snakes = [];
+    for (const s of [player, ...bots, ...remotes.values()]) {
+        if (!s) continue;
+        snakes.push([s.netId, Math.round(s.x), Math.round(s.y), +s.angle.toFixed(3),
+                     Math.round(s.length), s.alive ? 1 : 0, s.kills]);
+    }
+    const msg = {
+        type: 'S', c: gameClock, s: snakes,
+        p: powerups.map(p => [p.id, Math.round(p.x), Math.round(p.y), p.type]),
+    };
+    if (foodDirty.size) {
+        msg.f = Array.from(foodDirty, f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius]);
+        foodDirty.clear();
+    }
+    hostBroadcast(msg);
+}
+
+function hostNotifyDeath(loserSnake, winner) {
+    const conn = party.conns.get(loserSnake.netId);
+    if (conn) lobbySend(conn, { type: 'DEAD', killer: winner ? winner.netId : null });
+}
+
+// ---------- Côté client ----------
+
+function applyGameStart(msg) {
+    party.inGame = true;
+    audio.init(); audio.resume();
+
     CONFIG.WORLD_WIDTH = msg.width;
     CONFIG.WORLD_HEIGHT = msg.height;
     foodClusters = msg.foodClusters;
-    foods = msg.foods.map(f => Object.assign(new Food(), f));
+    foods = msg.foods.map(([id, x, y, value, radius]) => {
+        const f = new Food();
+        f.id = id; f.x = x; f.y = y; f.value = value; f.radius = radius;
+        return f;
+    });
     foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
     foodGrid.build(foods);
-    $('lobbyStatus').textContent = t('lobbyWorldReceived') + ' (' + CONFIG.WORLD_WIDTH + '×' + CONFIG.WORLD_HEIGHT + ', ' + foods.length + ' pastilles)';
+
+    netRoster.clear(); netSnakes.clear(); netTargets.clear(); netPowerups.clear();
+    msg.roster.forEach(([id, name, color]) => netRoster.set(id, { name, color }));
+
+    gameState = 'PLAYING';
+    gameClock = 0; accumulator = 0; lastFrameTs = 0;
+    sessionKills = 0; comboCount = 0; comboMultiplier = 1; lastComboTime = -Infinity;
+    sessionNewAch = []; pendingRespawns = []; powerups = [];
+    particles.clear(); killStreak.reset(); screenShake.reset();
+    spectateTarget = null;
+
+    player = netEnsureSnake(party.selfId);
+    player.isPlayer = true; player.ai = null;
+    cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
+    clampCamera();
+
+    pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
+    showScreen('game');
+    updateHUD();
+    updateLeaderboard();
+}
+
+function netEnsureSnake(netId) {
+    let s = netSnakes.get(netId);
+    if (s) return s;
+    const info = netRoster.get(netId) || { name: '?', color: CONFIG.SKINS[0].color };
+    s = new Snake(CONFIG.WORLD_WIDTH/2, CONFIG.WORLD_HEIGHT/2, false, info.name, info.color);
+    s.netId = netId;
+    netSnakes.set(netId, s);
+    return s;
+}
+
+function applySnapshot(msg) {
+    gameClock = msg.c;   // une seule horloge fait foi : celle de l'hôte
+
+    for (const [id, x, y, angle, length, alive, kills] of msg.s) {
+        const s = netEnsureSnake(id);
+        s.kills = kills;
+        // Première vue, ou serpent qui vient de réapparaître ailleurs : calage SEC. Sans ça il
+        // partirait de son ancienne position et traverserait la carte en traînant tout son corps
+        // derrière lui avant de rejoindre sa vraie place.
+        const isNew = !netTargets.has(id) || (!s.alive && alive);
+        if (isNew) netTeleport(s, x, y, angle, length);
+        netTargets.set(id, { x, y, angle, length });
+        // Ma propre mort m'arrive par DEAD, jamais par l'instantané : entre ma réapparition
+        // locale et l'accusé de l'hôte, un instantané encore marqué mort me re-tuerait.
+        if (s === player) sessionKills = kills;
+        else s.alive = !!alive;
+    }
+
+    if (msg.f) {
+        for (const [id, x, y, value, radius] of msg.f) {
+            const f = foods.find(o => o.id === id);
+            if (f) { f.x = x; f.y = y; f.value = value; f.radius = radius; }
+        }
+        foodGrid.build(foods);
+    }
+
+    const seen = new Set();
+    for (const [id, x, y, type] of msg.p) {
+        seen.add(id);
+        let pu = netPowerups.get(id);
+        if (!pu) { pu = new PowerUp(x, y, type); pu.id = id; netPowerups.set(id, pu); }
+        pu.x = x; pu.y = y;
+    }
+    netPowerups.forEach((pu, id) => { if (!seen.has(id)) netPowerups.delete(id); });
+    powerups = Array.from(netPowerups.values());
+}
+
+// Un pas de simulation côté client : aucune règle de jeu, seulement du rattrapage visuel.
+function netClientStep() {
+    if (gameState === 'SPECTATING' && (gnow() >= spectateEndsAt || !spectateTarget || !spectateTarget.alive)) {
+        finishSpectate();
+        return;
+    }
+
+    // MON serpent est prédit localement — sinon chaque virage attendrait l'aller-retour réseau,
+    // ce qui se sent immédiatement au doigt. L'hôte reste juge : sa position rappelle la mienne
+    // en douceur, au lieu de la remplacer d'un coup (ce qui se verrait comme un saut).
+    if (player && player.alive) {
+        player.update(screenToWorld(pointer.x, pointer.y), NET_NO_SNAKES, foodGrid);
+        const tgt = netTargets.get(party.selfId);
+        if (tgt) {
+            player.x += (tgt.x - player.x) * NET_SELF_CORRECTION;
+            player.y += (tgt.y - player.y) * NET_SELF_CORRECTION;
+            netApplyLength(player, tgt.length);
+        }
+    }
+
+    netSnakes.forEach((s, id) => {
+        if (s === player || !s.alive) return;
+        const tgt = netTargets.get(id);
+        if (!tgt) return;
+        s.x += (tgt.x - s.x) * NET_LERP;
+        s.y += (tgt.y - s.y) * NET_LERP;
+        s.angle = tgt.angle;
+        netApplyLength(s, tgt.length);
+        s.segments.unshift({ x: s.x, y: s.y });
+        while (s.segments.length > s.length) s.segments.pop();
+    });
+
+    for (const pu of powerups) pu.update();
+    updateCamera();
+    particles.update();
+    screenShake.update();
+    for (const s of aliveSnakes()) emitSnakeEffects(s);
+}
+
+const NET_NO_SNAKES = [];   // le client ne fait aucune détection : rien à lui passer
+
+function netApplyLength(s, length) {
+    s.length = length;
+    s.radius = radiusForLength(length);
+}
+
+// Repose le serpent d'un bloc, corps compris : aucune traînée entre l'ancienne position et la
+// nouvelle. Utilisé à la première vue d'un serpent et à chaque réapparition.
+function netTeleport(s, x, y, angle, length) {
+    s.x = x; s.y = y; s.angle = angle; s.targetAngle = angle;
+    netApplyLength(s, length);
+    s.segments.length = 0;
+    for (let i = 0; i < Math.max(1, Math.round(length)); i++) s.segments.push({ x, y });
+}
+
+// Le client vient de réapparaître (ou l'hôte de le faire) : son serpent local reprend l'identité
+// réseau, et l'hôte est prévenu qu'il lui faut un nouveau serpent.
+function partyRegisterOwnSnake() {
+    player.netId = party.isHost ? 'host' : party.selfId;
+    if (party.isHost) return;
+    player.netControlled = false;
+    netSnakes.set(party.selfId, player);
+    netTargets.delete(party.selfId);
+    partySendToHost({ type: 'RESPAWN' });
+}
+
+// Émission périodique : le client n'envoie que son cap, l'hôte diffuse l'état du monde.
+function netPump(dt) {
+    if (party.isHost) {
+        netSnapshotAccum += dt;
+        if (netSnapshotAccum >= NET_SNAPSHOT_MS) { netSnapshotAccum = 0; hostSendSnapshot(); }
+        return;
+    }
+    netInputAccum += dt;
+    if (netInputAccum < NET_INPUT_MS) return;
+    netInputAccum = 0;
+    if (!player || !player.alive) return;
+    const a = +player.targetAngle.toFixed(3);
+    if (a === netLastSentAngle) return;   // cap inchangé : rien à dire
+    netLastSentAngle = a;
+    partySendToHost({ type: 'I', a });
+}
+
+// L'hôte a disparu en pleine partie : on encaisse la vie en cours comme une mort (même
+// comptabilité qu'en solo, dans MON localStorage), puis retour au menu.
+function hostLostDuringGame() {
+    if (gameState === 'SPECTATING') gameState = 'PLAYING';
+    if (gameState === 'PLAYING') endGame();
+    goToMenu();
+    showToast('🔌 ' + t('lobbyErrorHostLeft'));
 }
 
 function leaveLobby() { resetParty(); showScreen('menu'); }
