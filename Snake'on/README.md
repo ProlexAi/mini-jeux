@@ -21,11 +21,16 @@ code. **100 % HTML/JS/CSS**, aucun build, aucun serveur. Installable comme une v
 **But :** grossir le plus possible, **sans fin** — comme sur slither.io, la partie ne s'arrête
 jamais d'elle-même. Une seule façon de « gagner » : arriver **en tête du classement** et choisir
 de t'arrêter là, depuis Pause, pour empocher le bonus de victoire.
-Face à 45 adversaires, seul un coup sur la **tête** détruit complètement un serpent (~10 % plus
-gros suffit) ; toucher son **corps** ne le tue pas — ça le "coupe" : il perd la partie amputée
+Face à 150 adversaires, seul un coup sur la **tête** détruit complètement un serpent (il faut être
+25 % plus lourd) ; toucher son **corps** ne le tue pas — ça le "coupe" : il perd la partie amputée
 mais **survit**, raccourci. Le tronçon amputé devient des pastilles de nourriture, dont la taille
 et le gain sont proportionnels à ce qui a été coupé. Toucher un corps plus gros ou égal agit comme
-un mur. Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
+un mur.
+
+**Un kill, c'est une élimination complète — jamais une découpe.** Le compteur ne monte qu'en
+mangeant une tête, et le jeu le dit maintenant : une découpe a son propre son, sec et bref, et sa
+propre gerbe de particules dirigée le long de la coupure. Sans ça on croyait tuer à chaque touche,
+et il aurait suffi de couper dix fois le même serpent pour « le tuer » dix fois. Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
 4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**. Une
 pop-up explique tout ça en quelques secondes à la toute première partie — jamais revue ensuite.
 

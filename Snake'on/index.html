@@ -1637,6 +1637,18 @@ class AudioManager {
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
                 osc.start(now); osc.stop(now + 0.2);
                 break;
+            // Decouper n'est PAS tuer : le serpent survit, raccourci. Le son doit donc se
+            // distinguer de 'kill' — un cisaillement bref et descendant, deux fois plus court et
+            // plus discret, la ou 'kill' est une montee triomphale. Sans ca, le joueur entend une
+            // elimination a chaque touche et croit que son compteur est casse.
+            case 'cut':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.09);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+                break;
             case 'death':
                 osc.frequency.setValueAtTime(400, now);
                 osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
@@ -1886,6 +1898,22 @@ class ParticleSystem {
                 vx: Math.cos(a)*s, vy: Math.sin(a)*s,
                 life: 1, decay: 0.02, size: Math.random()*4+2,
                 color, type: 'circle', friction: 0.96
+            }));
+        }
+    }
+    // Decoupe : une GERBE dirigee de part et d'autre du point de rupture, pas l'explosion
+    // omnidirectionnelle d'une mort (emitDeath, 20 particules sur un cercle complet). Moitie
+    // moins de particules, plus rapides, plus breves — la lecture doit etre « quelque chose a
+    // ete tranche ici », jamais « quelqu'un vient de mourir ».
+    emitCut(x, y, color, angle) {
+        for (let i = 0; i < 10; i++) {
+            const cote = i % 2 ? 1 : -1;
+            const a = angle + cote * (Math.PI/2) + (Math.random()-0.5) * 0.7;
+            const s = Math.random()*4 + 3;
+            this.push(new Particle(x, y, {
+                vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                life: 1, decay: 0.05, size: Math.random()*2+1.5,
+                color, type: 'circle', friction: 0.93
             }));
         }
     }
@@ -3503,14 +3531,19 @@ function devour(winner, loser) { killSnake(winner, loser, 0); }
 // dessus). La partie amputee devient des ressources (scatterCorpseFood) dont la valeur/taille est
 // proportionnelle a ce qui a ete coupe. Pas de croissance instantanee pour l'attaquant : il doit
 // aller manger les ressources comme une pastille normale, exactement comme sur slither.io.
+// Le retour sensoriel d'une decoupe est DISTINCT de celui d'une elimination, et c'est voulu :
+// un kill, c'est manger la TETE et annihiler l'adversaire, rien d'autre. Une decoupe laisse sa
+// victime en vie. Tant qu'elle jouait le son de kill et les particules de mort, le joueur croyait
+// tuer et voyait son compteur ne pas bouger — le compteur avait raison, c'est le retour qui
+// mentait, et il aurait suffi de couper dix fois le meme serpent pour « le tuer » dix fois.
 function cutSnake(attacker, target, atIndex) {
     const removed = target.length - atIndex;
     if (removed <= 0) return;
     const cutPoint = target.segments[atIndex] || { x: target.x, y: target.y };
     scatterCorpseFood(target, atIndex, removed);
     target.cut(atIndex);
-    particles.emitDeath(cutPoint.x, cutPoint.y, target.color);
-    if (attacker.isPlayer) { audio.play('kill'); screenShake.trigger(5); }
+    particles.emitCut(cutPoint.x, cutPoint.y, target.color, target.angle);
+    if (attacker.isPlayer) { audio.play('cut'); screenShake.trigger(3); }
     if (target.isPlayer) screenShake.trigger(6);
 }
 

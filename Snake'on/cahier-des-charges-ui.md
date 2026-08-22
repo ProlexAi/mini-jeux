@@ -283,6 +283,13 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     plutôt que masqué — un bouton absent ne s'explique pas.
 26. **Sortie subie ≠ sortie choisie.** Perdre l'hôte ou le réseau en pleine partie encaisse la
     vie comme une mort : on ne fait pas payer au joueur une panne qu'il n'a pas causée.
+27. **Un kill est une élimination complète, jamais une découpe.** Le compteur ne monte qu'en
+    mangeant une **tête**. Il l'a toujours fait ; ce qui mentait, c'était le retour sensoriel —
+    une découpe jouait le son de kill et les particules de mort, si bien qu'on croyait tuer sans
+    voir son compteur bouger. La découpe a désormais **son propre son** (sec, bref, descendant)
+    et **sa propre gerbe** de particules, dirigée le long de la coupure. Faire compter la découpe
+    aurait été l'autre issue possible : elle est écartée, on « tuerait » dix fois le même serpent
+    en le coupant dix fois.
 
 ---
 
