@@ -164,6 +164,26 @@
             font-size: 10px; opacity: 0.42; margin-top: 3px;
             text-shadow: none; font-variant-numeric: tabular-nums;
         }
+        /* Légende du liseré, écran de bienvenue. Les trois pastilles reprennent les teintes ET
+           les épaisseurs réelles du jeu : la légende reste donc exacte pour qui ne distingue
+           pas les couleurs. Cible tactile non requise, rien n'y est cliquable. */
+        .rim-legend {
+            /* Largeur bornee par le viewport : 340 px comme le paragraphe au-dessus, mais jamais
+               plus de 86 % de la largeur d'ecran, pour tenir sur un telephone etroit. */
+            margin: 14px 0 4px; width: min(340px, 86vw);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            border-radius: 8px; padding: 10px 14px;
+            background: rgba(0,0,0,0.28);
+        }
+        .rim-legend h2 {
+            font-family: var(--font-head); font-size: 12px; letter-spacing: 0.08em;
+            color: var(--accent); margin: 0 0 8px; text-align: center;
+        }
+        .rim-row { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 5px 0; }
+        .rim-swatch { flex: 0 0 26px; border-radius: 3px; }
+        .rim-danger  { height: 9px; background: #ff5c8a; }
+        .rim-neutral { height: 5px; background: #7c8798; }
+        .rim-prey    { height: 3px; background: #39ff88; }
         #comboDisplay { color: var(--warning); font-weight: bold; margin-top: 4px; display: none; }
         #spectateBanner {
             position: absolute; top: calc(10px + var(--safe-t)); left: 50%;
@@ -780,6 +800,17 @@
             plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
             tu réapparais aussitôt dans la même arène.
         </p>
+        <!-- Légende du liseré de menace : c'est la seule information que le joueur doit avoir
+             comprise avant sa première partie, puisqu'elle décide à chaque rencontre s'il fonce
+             ou s'il fuit. Montrée plutôt qu'expliquée — un nouveau venu lit une couleur plus
+             vite qu'une phrase. L'épaisseur des trois traits reprend celle du jeu, pour que la
+             légende reste juste sans distinguer les teintes. -->
+        <div class="rim-legend">
+            <h2 data-i18n="rimTitle">LE LISERÉ DES SERPENTS</h2>
+            <div class="rim-row"><span class="rim-swatch rim-danger"></span><span data-i18n="rimDanger">Il peut te dévorer — fuis</span></div>
+            <div class="rim-row"><span class="rim-swatch rim-neutral"></span><span data-i18n="rimNeutral">Ni l'un ni l'autre ne mange</span></div>
+            <div class="rim-row"><span class="rim-swatch rim-prey"></span><span data-i18n="rimPrey">C'est ta proie — fonce</span></div>
+        </div>
         <button id="welcomeStartBtn" class="btn-primary" data-i18n="welcomeStart">C'EST PARTI ▶</button>
     </div>
 
@@ -1205,6 +1236,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile : le serpent suit ton doigt',
         ctrlKeys: '⌨️ Échap ou P : pause · Entrée / Espace : jouer',
         welcomeText: "Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort, tu réapparais aussitôt dans la même arène.",
+        rimTitle: 'LE LISERÉ DES SERPENTS', rimDanger: 'Il peut te dévorer — fuis',
+        rimNeutral: "Ni l'un ni l'autre ne mange", rimPrey: 'C’est ta proie — fonce',
         welcomeStart: "C'EST PARTI ▶",
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
         resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
@@ -1231,6 +1264,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile: the snake follows your finger',
         ctrlKeys: '⌨️ Esc or P: pause · Enter / Space: play',
         welcomeText: 'Eat the pellets, grow, avoid snakes bigger than you — and devour the smaller ones. Touch their body to cut them. The game never ends: when you die, you respawn straight away in the same arena.',
+        rimTitle: 'THE SNAKE OUTLINE', rimDanger: 'It can devour you — run',
+        rimNeutral: 'Neither one can eat the other', rimPrey: 'It is your prey — charge',
         welcomeStart: "LET'S GO ▶",
         pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
         resume: '▶ RESUME', settings: 'Settings', abandon: 'GIVE UP',
@@ -1257,6 +1292,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Móvil: la serpiente sigue tu dedo',
         ctrlKeys: '⌨️ Esc o P: pausa · Intro / Espacio: jugar',
         welcomeText: 'Come las bolitas, crece, evita las serpientes más grandes que tú — y devora a las más pequeñas. Toca su cuerpo para cortarlas. El juego nunca termina: al morir, reapareces enseguida en la misma arena.',
+        rimTitle: 'EL BORDE DE LAS SERPIENTES', rimDanger: 'Puede devorarte — huye',
+        rimNeutral: 'Ninguna puede comerse a la otra', rimPrey: 'Es tu presa — a por ella',
         welcomeStart: '¡VAMOS! ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
         resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'ABANDONAR',
@@ -1283,6 +1320,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobil: Die Schlange folgt deinem Finger',
         ctrlKeys: '⌨️ Esc oder P: Pause · Enter / Leertaste: spielen',
         welcomeText: 'Friss die Kugeln, wachse, meide größere Schlangen — und verschlinge die kleineren. Berühre ihren Körper, um sie zu zerteilen. Das Spiel endet nie: Stirbst du, erscheinst du sofort in derselben Arena wieder.',
+        rimTitle: 'DER RAND DER SCHLANGEN', rimDanger: 'Sie kann dich fressen — flieh',
+        rimNeutral: 'Keine kann die andere fressen', rimPrey: 'Sie ist deine Beute — los',
         welcomeStart: "LOS GEHT'S ▶",
         pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
         resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'AUFGEBEN',
@@ -1309,6 +1348,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile: il serpente segue il tuo dito',
         ctrlKeys: '⌨️ Esc o P: pausa · Invio / Spazio: gioca',
         welcomeText: 'Mangia le palline, cresci, evita i serpenti più grandi di te — e divora i più piccoli. Tocca il loro corpo per tagliarli. Il gioco non finisce mai: quando muori, riappari subito nella stessa arena.',
+        rimTitle: 'IL BORDO DEI SERPENTI', rimDanger: 'Può divorarti — scappa',
+        rimNeutral: 'Nessuno dei due può mangiare', rimPrey: 'È la tua preda — attacca',
         welcomeStart: 'SI PARTE ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
         resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ABBANDONA',
@@ -1335,6 +1376,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Telemóvel: a cobra segue o teu dedo',
         ctrlKeys: '⌨️ Esc ou P: pausa · Enter / Espaço: jogar',
         welcomeText: 'Come as bolinhas, cresce, evita as cobras maiores do que tu — e devora as mais pequenas. Toca no corpo delas para as cortares. O jogo nunca acaba: ao morreres, reapareces logo na mesma arena.',
+        rimTitle: 'O CONTORNO DAS COBRAS', rimDanger: 'Pode devorar-te — foge',
+        rimNeutral: 'Nenhuma pode comer a outra', rimPrey: 'É a tua presa — avança',
         welcomeStart: 'VAMOS ▶',
         pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
         resume: '▶ RETOMAR', settings: 'Definições', abandon: 'DESISTIR',
