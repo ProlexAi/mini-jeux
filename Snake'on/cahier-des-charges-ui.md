@@ -152,6 +152,14 @@ adaptés en largeur plutôt qu'en hauteur, même contenu.
   différence d'une mort. Pause suit maintenant la couleur d'interface choisie comme le reste de
   l'UI (v0.2 la réservait au jaune — révisé, voir §2).
 
+#### 🌐 Salon (partie privée) — *nouveau*
+- **Rôle :** créer ou rejoindre une partie privée par code, avant de jouer.
+- **Contenu :** code de partie (généré ou saisi), liste des joueurs présents, badge hôte,
+  bouton **Lancer** (hôte uniquement).
+- **Actions :** créer un salon, rejoindre par code, lancer la partie, quitter le salon.
+- Accessible depuis l'Accueil via le bouton **Partie Privée** (code `A06`), même hachure de
+  bord droit, même cible tactile 44×44 px que le reste des CTA.
+
 ### B. HUD & superpositions non-bloquantes (visibles pendant une vie)
 
 | Élément | Position | Rôle | Contenu |
@@ -222,19 +230,15 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 
 ---
 
-## 6. À prévoir : Pause et multijoueur futur
+## 6. Pause en partie privée
 
-Aujourd'hui le jeu est **solo face à des bots** : mettre pause fige l'intégralité de la
-simulation, bots compris, sans conséquence pour personne d'autre.
+En solo, Pause fige l'intégralité de la simulation. En partie privée, ce comportement ne peut
+pas être conservé : la partie continue pour tout le monde.
 
-Si le jeu évolue vers du **multijoueur réel** (parties privées sur invitation, plusieurs amis
-mélangés à des bots), ce comportement ne pourra plus être conservé tel quel : mettre pause ne
-doit **jamais** figer la partie pour les autres joueurs. Deux pistes, à trancher le moment venu :
-
-- Pause ne fige plus que l'affichage et les contrôles du joueur qui l'utilise — la partie continue
-  pour tout le monde ; ou
-- Si figer sa propre présence est inévitable, un message doit prévenir clairement :
-  **« Toi seul es en pause — tu peux te faire manger pendant ce temps. »**
+**Décidé :** au clic sur Pause, le serpent du joueur bascule en pilotage automatique — le
+profil d'IA "peureux" déjà utilisé par les bots (fuit tôt, ne chasse jamais). Un message
+prévient : **« Toi seul es en pause — tu peux te faire manger pendant ce temps. »** Reprendre
+rend la main immédiatement.
 
 ---
 
