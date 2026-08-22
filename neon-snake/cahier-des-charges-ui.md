@@ -96,9 +96,8 @@ esprit — un vocabulaire de jeu, pas un manque de traduction.
     à l'Accueil — plus aucun risque de perdre sa vie en cours par un clic accidentel (résout
     l'ancien problème d'abandon silencieux).
 
-  *Proposition à valider :* l'abandon ne compte pas comme une vie terminée (pas de XP, pas
-  d'entrée à l'historique), à la différence d'une mort — cohérent avec l'idée qu'abandonner n'est
-  pas une performance. À corriger si ce n'est pas voulu.
+  L'abandon ne compte pas comme une vie terminée (pas de XP, pas d'entrée à l'historique), à la
+  différence d'une mort — cohérent avec l'idée qu'abandonner n'est pas une performance.
 
 ### B. HUD & superpositions non-bloquantes (visibles pendant une vie)
 
@@ -141,7 +140,8 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 3. **"Menu" de Pause : devient "Abandonner".** Icône drapeau blanc à contour rouge, en bas de
    l'écran Pause (pas d'élément permanent affiché pendant le jeu — cette option a été écartée).
    Confirmation obligatoire avant de quitter. Pour l'instant (jeu solo face à des bots), confirmer
-   relance simplement une nouvelle partie, comme aujourd'hui.
+   relance simplement une nouvelle partie, comme aujourd'hui. L'abandon ne compte pas comme une
+   vie terminée (pas de XP, pas d'entrée à l'historique) — validé.
 4. **"Kills" : conservé tel quel.** Pas de francisation.
 5. **Couleurs : clarifiées, pas de refonte.** Le jaune reste légitime pour Pause — ce n'était pas
    le vrai problème. Le rouge devient le contour de l'action Abandonner. Le violet reste
