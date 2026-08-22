@@ -54,6 +54,14 @@ n'est plus "décoratif hors interface" : c'est une des huit teintes sélectionna
 garde exactement son rôle de v0.2 (seule action destructrice) mais devient la seule couleur qui
 échappe totalement au choix du joueur.
 
+### Skins du serpent *(nouveau, v0.4)*
+
+Un skin change l'apparence physique du serpent en jeu — trait du corps et forme de la tête —
+jamais sa couleur d'interface (indépendante, voir ci-dessus), jamais sa hitbox. Le trait "cœur"
+du corps (opacité et largeur pleines) reste identique sur tous les skins : c'est le repère de
+lisibilité qui permet de juger en un coup d'œil qui est plus gros. Un skin animé a toujours une
+version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin.
+
 ### Typographie *(nouveau, v0.3)*
 
 - **Titres et libellés HUD** : police **Tektur**, contre-inclinée de 8°.
@@ -106,7 +114,7 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 | Entrée | Code | Rôle | Contenu |
 |---|---|---|---|
-| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de couleurs, verrouillées selon le niveau |
+| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 10 skins (trait + tête), verrouillés selon le niveau |
 | 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
 | 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
 | 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
@@ -219,6 +227,15 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     `prefers-reduced-motion` respecté.
 14. **Langue du jeu personnalisable : posé en principe**, 6 langues prévues — liste et périmètre
     exact à trancher, voir §7.
+
+### V0.4 — addendum "Skins qui changent le serpent"
+15. **Skin = trait du corps + tête, jamais une couleur seule.** 10 skins, mêmes paliers de
+    déblocage qu'avant. Silhouette et opacité du trait cœur non négociables (lisibilité).
+16. **Indépendant de la couleur d'interface.** Les deux systèmes restent étanches.
+17. **Pas de pièces combinables.** Un skin est un tout, identifié par un id court (coût de
+    réplication multijoueur futur).
+18. **Bots sans skin**, gardent leurs couleurs actuelles — préserve la distinction joueur/bot.
+19. **Noms de skins non traduits** (texte de jeu, français partout, cf. §7).
 
 ---
 
