@@ -374,6 +374,12 @@
         .tab-content { display: none; width: 100%; max-width: 450px; }
         .tab-content.active { display: block; }
 
+        /* ===== ECLAT NEON AU CLIC ===== */
+        #neonFxCanvas {
+            position: fixed; inset: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 25;
+        }
+
         /* ===== TOAST ===== */
         #toastContainer {
             position: absolute; bottom: calc(80px + var(--safe-b)); left: 50%;
@@ -428,6 +434,7 @@
     </div>
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
+    <canvas id="neonFxCanvas"></canvas>
 
     <!-- MENU -->
     <div id="menuScreen" class="overlay">
@@ -512,14 +519,14 @@
             <div class="btn-row">
                 <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
             </div>
-            <button id="abandonBtn" class="flag-btn" type="button" aria-label="Abandonner la partie">🏳</button>
+            <button id="abandonBtn" class="flag-btn" type="button" data-role="danger" aria-label="Abandonner la partie">🏳</button>
         </div>
         <div id="pauseConfirm" class="hidden">
             <h1>Abandonner ?</h1>
             <p class="hint">Cette vie ne sera pas comptée.</p>
             <div class="btn-row">
                 <button id="abandonNoBtn" class="btn-primary">NON, CONTINUER</button>
-                <button id="abandonYesBtn" class="btn-secondary">🏳 ABANDONNER</button>
+                <button id="abandonYesBtn" class="btn-secondary" data-role="danger">🏳 ABANDONNER</button>
             </div>
         </div>
     </div>
@@ -2282,6 +2289,150 @@ function gameLoop(ts) {
 
     render();
 }
+
+// ============================================================
+//  ÉCLAT NÉON AU CLIC (menus uniquement, jamais en jeu)
+// ============================================================
+const neonCanvas = $('neonFxCanvas');
+const neonCtx = neonCanvas.getContext('2d');
+let neonDPR = 1, neonBursts = [], neonLast = 0;
+
+function resizeNeonCanvas() {
+    neonDPR = Math.min(window.devicePixelRatio || 1, 2);
+    neonCanvas.width = Math.round(window.innerWidth * neonDPR);
+    neonCanvas.height = Math.round(window.innerHeight * neonDPR);
+}
+resizeNeonCanvas();
+window.addEventListener('resize', resizeNeonCanvas);
+window.addEventListener('orientationchange', () => setTimeout(resizeNeonCanvas, 300));
+
+function neonRgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+function neonBlob(ctx, x, y, r, color, a) {
+    if (r <= 0 || a <= 0) return;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,' + Math.min(1, a) + ')');
+    g.addColorStop(0.3, neonRgba(color, Math.min(1, a * 0.85)));
+    g.addColorStop(1, neonRgba(color, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+}
+
+function neonReducedMotion() {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e) { return false; }
+}
+
+// Aucun -> Low (flash seul) · Léger -> Medium (anneau + moitié des éclats, pas de vol) ·
+// Complet -> High (vol + anneau + 14 éclats). Reduced-motion force Low, comme "Aucun" —
+// un flash minimal reste un retour utile, une suppression totale en priverait le joueur.
+function neonTier() {
+    if (neonReducedMotion()) return 'Low';
+    const fx = save.settings.clickEffects;
+    return fx === 'NONE' ? 'Low' : fx === 'LIGHT' ? 'Medium' : 'High';
+}
+
+function neonSpawn(x, y, color) {
+    const tier = neonTier();
+    const base = 14;
+    const n = tier === 'High' ? base : tier === 'Medium' ? Math.max(2, Math.round(base / 2)) : 0;
+    const thrown = tier === 'High';
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * TAU + Math.random() * 0.5;
+        const s = 260 + Math.random() * 360;
+        parts.push({ x: 0, y: 0, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 280 + Math.random() * 150, age: 0 });
+    }
+    const dur = tier === 'Low' ? 160 : tier === 'Medium' ? 380 : 480;
+    neonBursts.push({ x, y, fx: x - 40, fy: y - 46, color, t0: rnow(), throwMs: thrown ? 110 : 0, dur, parts, ring: tier !== 'Low' });
+    if (neonBursts.length > 6) neonBursts.shift();
+}
+
+function neonFrame(ts) {
+    requestAnimationFrame(neonFrame);
+    if (!neonBursts.length) return;
+    const dt = Math.min(34, neonLast ? ts - neonLast : 16);
+    neonLast = ts;
+    neonCtx.setTransform(neonDPR, 0, 0, neonDPR, 0, 0);
+    neonCtx.clearRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+    neonCtx.globalCompositeOperation = 'lighter';
+    const now = rnow();
+    for (const b of neonBursts) {
+        const age = now - b.t0;
+        if (age < b.throwMs) {
+            const p = age / b.throwMs, e = p * p;
+            const bx = b.fx + (b.x - b.fx) * e, by = b.fy + (b.y - b.fy) * e - Math.sin(p * Math.PI) * 12;
+            for (let i = 3; i >= 0; i--) {
+                const q = Math.max(0, p - i * 0.16), qe = q * q;
+                neonBlob(neonCtx, b.fx + (b.x - b.fx) * qe, b.fy + (b.y - b.fy) * qe - Math.sin(q * Math.PI) * 12, 3 + i * 1.6, b.color, (0.5 - i * 0.12) * 0.8);
+            }
+            neonBlob(neonCtx, bx, by, 7, b.color, 0.95);
+            continue;
+        }
+        const t = age - b.throwMs;
+        const kf = Math.max(0, 1 - t / 150);
+        if (kf > 0) {
+            neonBlob(neonCtx, b.x, b.y, 4 + 26 * (1 - kf), b.color, kf);
+            neonBlob(neonCtx, b.x, b.y, 30 + 58 * (1 - kf), b.color, kf * 0.3);
+        }
+        if (b.ring) {
+            const rp = t / 260;
+            if (rp < 1) {
+                const r = 6 + 56 * (1 - Math.pow(1 - rp, 2.4));
+                neonCtx.strokeStyle = neonRgba(b.color, 0.8 * (1 - rp));
+                neonCtx.lineWidth = 2.4 * (1 - rp) + 0.4;
+                neonCtx.beginPath(); neonCtx.arc(b.x, b.y, r, 0, TAU); neonCtx.stroke();
+                neonCtx.strokeStyle = neonRgba(b.color, 0.16 * (1 - rp));
+                neonCtx.lineWidth = 7 * (1 - rp) + 1;
+                neonCtx.beginPath(); neonCtx.arc(b.x, b.y, r, 0, TAU); neonCtx.stroke();
+            }
+        }
+        for (const s of b.parts) {
+            s.age += dt;
+            if (s.age > s.life) continue;
+            const f = Math.pow(0.955, dt / 16);
+            s.vx *= f; s.vy = s.vy * f + 0.1 * dt;
+            s.x += s.vx * dt / 1000; s.y += s.vy * dt / 1000;
+            const a = 1 - s.age / s.life;
+            const px = b.x + s.x, py = b.y + s.y;
+            neonCtx.strokeStyle = neonRgba(b.color, a * 0.95);
+            neonCtx.lineWidth = 1.8 * a + 0.4;
+            neonCtx.beginPath(); neonCtx.moveTo(px, py); neonCtx.lineTo(px - s.vx * 0.05, py - s.vy * 0.05); neonCtx.stroke();
+            neonBlob(neonCtx, px, py, 3 * a + 0.8, b.color, a * 0.75);
+        }
+    }
+    neonBursts = neonBursts.filter(b => now - b.t0 < b.throwMs + b.dur);
+    neonCtx.globalCompositeOperation = 'source-over';
+}
+requestAnimationFrame(neonFrame);
+
+function neonColorOf(el) {
+    return el.closest('[data-role="danger"]') ? '#ff0055' : save.settings.uiColor;
+}
+
+function neonFlashBtn(btn) {
+    const prev = btn.style.boxShadow;
+    const c = neonColorOf(btn);
+    btn.style.boxShadow = '0 0 22px ' + neonRgba(c, 0.85) + ', 0 0 60px ' + neonRgba(c, 0.35);
+    clearTimeout(btn._neonFlash);
+    btn._neonFlash = setTimeout(() => { btn.style.boxShadow = prev; }, 190);
+}
+
+// Délégué sur chaque écran de menu (jamais sur le canvas de jeu ni le HUD) : garantit par
+// construction qu'aucun éclat ne se déclenche pendant une vie (cf. cahier des charges UI §2/§3).
+function bindNeonClicks(root) {
+    if (!root) return;
+    root.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const btn = e.target.closest('button');
+        if (!btn || btn.hasAttribute('data-noneon')) return;
+        neonSpawn(e.clientX, e.clientY, neonColorOf(btn));
+        neonFlashBtn(btn);
+    });
+}
+['menuScreen', 'welcomeScreen', 'pauseScreen'].forEach(id => bindNeonClicks($(id)));
 
 // ============================================================
 //  ÉVÉNEMENTS
