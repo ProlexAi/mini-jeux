@@ -893,6 +893,11 @@ const CONFIG = {
         { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
             hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
             head:'predator', glowBoost:true } },
+        // Auras elementaires : silhouettes vivantes qui epousent le contour et debordent du
+        // corps. Elles passent SOUS le coeur (cf. ordre de dessin dans Snake.draw).
+        { name:'Flamme Ardente', color:'#ff4500', unlockLevel:25, style:{ aura:'flame', head:'predator' } },
+        { name:'Orage', color:'#00c8ff', unlockLevel:30, style:{ aura:'bolt' } },
+        { name:'Volutes', color:'#c8d4e0', unlockLevel:35, style:{ aura:'smoke' } },
     ],
     KILL_EFFECTS: [
         { kills:5, effects:['smoke'], label:'💨 Fumée' },
@@ -932,6 +937,104 @@ const MAX_STEPS_PER_FRAME = 5;
 // et les halos (shadowBlur) ; High les augmente. Medium = comportement d'avant ce réglage.
 const QUALITY_DPR = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
+
+// ============================================================
+//  AURAS ELEMENTAIRES (skins Flamme / Foudre / Fumee)
+// ============================================================
+// Une aura est une SILHOUETTE VIVANTE qui epouse le contour du serpent : un polygone construit
+// le long du corps, deforme dans le temps, rempli en degrade translucide. Elle deborde
+// franchement de la silhouette, et c'est l'ORDRE DE DESSIN qui preserve la lisibilite —
+// les couches passent sous le coeur du corps, qui reste trace a alpha 1 par-dessus.
+// Seule une passe de "lechage" repasse devant le coeur, plafonnee a LICK_MAX_ALPHA.
+const AURA_MAX_EXTENT = 1.8;    // debordement max, en multiples de r (borne dure, cf. clamp)
+const LICK_MAX_ALPHA = 0.25;    // plafond de la passe repassee DEVANT le coeur
+// Pas d'echantillonnage du corps, en multiples de r. A 1.5 le corps ne donnait qu'une quinzaine
+// d'ancrages : bien trop peu pour dessiner des langues, l'aura sortait lisse. A 0.6 on a le
+// detail voulu, et AURA_MAX_POINTS borne le cout dans le pire cas (serpent tres long et fin).
+const AURA_STEP = 0.6;
+const AURA_MAX_POINTS = 90;
+
+// Inclinaison des excroissances vers la queue, en fraction de la tangente. Le feu est couche
+// par la course, la fumee s'etire mollement derriere, la foudre ne se couche pas — elle jaillit
+// perpendiculairement.
+const AURA_LEAN = { flame: 0.85, smoke: 0.55, bolt: 0 };
+
+// amp est en multiples de r. Les couches vont de la plus large et la plus froide (dessous)
+// a la plus etroite et la plus chaude (au contact du corps).
+const AURA_PRESETS = {
+    flame: {
+        layers: [
+            { amp: 1.20, alpha: 0.30, from: '#ff2d00', to: '#cc1500' },
+            { amp: 0.80, alpha: 0.38, from: '#ff9500', to: '#ff6a00' },
+            { amp: 0.38, alpha: 0.50, from: '#fff6d0', to: '#ffe066' },
+        ],
+        lick: { amp: 0.30, alpha: 0.20, from: '#fff6d0', to: '#ffe066' },
+    },
+    bolt: {
+        // Aura volontairement plus serree que la flamme : c'est la nervosite du contour qui
+        // caracterise la foudre, pas son ampleur. Les arcs font le reste.
+        layers: [
+            { amp: 0.95, alpha: 0.22, from: '#2a3a4a', to: '#16202c' },
+            { amp: 0.62, alpha: 0.34, from: '#0080ff', to: '#0a4a8f' },
+            { amp: 0.28, alpha: 0.46, from: '#7fe8ff', to: '#00c8ff' },
+        ],
+        lick: { amp: 0.22, alpha: 0.18, from: '#ffffff', to: '#7fe8ff' },
+    },
+    smoke: {
+        // La plus etendue des trois, et la seule sans aucune arete : l'effet naît de la
+        // superposition de nappes tres peu opaques, jamais d'une couche dense.
+        layers: [
+            { amp: 1.45, alpha: 0.10, from: '#ffffff', to: '#c8d4e0' },
+            { amp: 1.05, alpha: 0.13, from: '#f2f6fa', to: '#c8d4e0' },
+            { amp: 0.65, alpha: 0.16, from: '#ffffff', to: '#dfe7ef' },
+        ],
+        lick: { amp: 0.45, alpha: 0.12, from: '#ffffff', to: '#dfe7ef' },
+    },
+};
+
+// Profil de deformation : distance vers l'exterieur, en multiples de r, au-dela du corps.
+// C'est lui SEUL qui distingue une flamme d'un eclair ou d'une volute.
+// k = index d'ancrage, n = nombre d'ancrages, phase = horloge du skin, side = +1 / -1.
+// La phase est decalee par ancrage : en phase, toute l'aura pulserait d'un bloc au lieu de
+// se deformer organiquement.
+// `seed` decorrele les couches entre elles. Sans lui, toutes partagent la meme forme a des
+// amplitudes differentes et se nichent en RUBANS PARALLELES — l'effet lit alors comme un
+// serpent rayure, pas comme du feu. Chaque couche doit avoir sa propre decoupe.
+function auraProfile(kind, k, n, phase, side, seed) {
+    const t = n > 1 ? k / (n - 1) : 0;      // 0 = tete, 1 = queue
+    if (kind === 'flame') {
+        // Langues un peu plus longues vers la queue : un feu couche par la course. Le gradient
+        // reste MODERE — a 0.30 + t l'ecart tete/queue etait tel que toutes les langues se
+        // concentraient sur la queue et la moitie avant sortait lisse.
+        const trail = 0.62 + t * 0.5;
+        // Puissance impaire elevee = pics ETROITS separes par des creux larges, soit des
+        // langues. Une sinusoide nue donne une ondulation lisse, qui ne lit jamais "feu".
+        const s = Math.sin(k * 1.35 + phase * 5.5 + side * 3.3 + seed * 2.4);
+        const spike = Math.pow(Math.abs(s), 3) * Math.sign(s);
+        const lo = Math.sin(k * 0.4 - phase * 2.1 + seed * 1.1);
+        // Longueur variable d'une langue a l'autre : sans cette variation les pics sortaient
+        // tous identiques et l'aura lisait comme une dent de scie, pas comme du feu.
+        const vary = 0.55 + ((k * 2654435761 + seed * 40503) % 100) / 100 * 0.9;
+        return trail * (0.30 + 0.95 * spike * vary + 0.30 * lo);
+    }
+    if (kind === 'bolt') {
+        // Marche d'escalier deterministe : ruptures d'angle vives, aucune interpolation douce.
+        // Une courbe douce ne lit pas comme de la foudre, elle lit comme une racine.
+        const tick = Math.floor(phase * 11);
+        const jag = ((k * 7919 + tick * 104729 + seed * 31337) % 7) / 7;
+        const jag2 = ((k * 15485863 + tick * 2038074743) % 3) / 3;
+        return 0.15 + jag * 0.75 + jag2 * 0.35;
+    }
+    // smoke : basse frequence, forte amplitude, phase qui tourne le long du corps —
+    // c'est cette rotation qui donne l'enroulement des volutes, pas un simple gonflement.
+    const swirl = Math.sin(k * 0.30 + phase * 0.8 + side * 1.4 + t * 3.4 + seed * 2.0);
+    const swirl2 = Math.sin(k * 0.62 - phase * 0.5 + seed * 3.1);
+    const lobe = Math.sin(k * 0.13 + phase * 0.35 + seed * 1.7);   // grosses boursouflures
+    // Variation par ancrage : sans elle les nappes sortent trop regulieres et l'ensemble lit
+    // comme un ruban, pas comme de la fumee.
+    const vary = ((k * 374761393 + seed * 668265263) % 100) / 100;
+    return 0.30 + 0.34 * swirl + 0.24 * swirl2 + 0.55 * lobe + 0.45 * vary;
+}
 
 // Le rouge d'Abandonner n'est pas ici : c'est la seule couleur que le joueur ne choisit jamais.
 const UI_COLORS = [
@@ -1766,6 +1869,20 @@ class Snake {
         // juste en dessous) : jamais de coût ou de mouvement supplémentaire sur ces deux réglages.
         const animated = style && save.settings.quality !== 'LOW' && !neonReducedMotion();
 
+        // AURA ELEMENTAIRE, dessinee EN PREMIER — donc sous tout le reste. C'est cet ordre,
+        // et lui seul, qui autorise l'aura a deborder franchement sans nuire a la lisibilite :
+        // le coeur du corps est trace par-dessus a alpha 1 et ressort toujours net, quelle que
+        // soit la densite de l'aura. Ne jamais deplacer ce bloc apres le trace du coeur.
+        const preset = style && style.aura ? AURA_PRESETS[style.aura] : null;
+        let auraPts = null;
+        if (preset) {
+            // Phase gelee quand l'animation est coupee : l'aura reste, seule sa deformation
+            // s'arrete. Une aura qui disparaitrait en reduced-motion rendrait le skin invisible.
+            const phase = animated ? this.skinPhase : 0;
+            auraPts = this.sampleBody(r * AURA_STEP);
+            preset.layers.forEach((layer, li) => this.drawAuraLayer(ctx, auraPts, style.aura, layer, phase, li + 1));
+        }
+
         // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
         // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments. Aucun style de
         // skin ne doit repasser par un dessin par segment (cf. cahier des charges UI §2 "Skins").
@@ -1820,6 +1937,39 @@ class Snake {
         ctx.stroke();
         ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
+
+        // LECHAGE : la seule passe autorisee DEVANT le coeur, plafonnee a LICK_MAX_ALPHA.
+        // C'est elle qui donne les langues qui passent devant la lame. Au-dela du plafond on
+        // noierait le coeur, donc le reperage de la taille — ce qui decide de la vie ou de la
+        // mort, la predation se comparant sur le rayon.
+        if (preset && auraPts) {
+            const phase = animated ? this.skinPhase : 0;
+            const lick = preset.lick;
+            this.drawAuraLayer(ctx, auraPts, style.aura,
+                { amp: lick.amp, alpha: Math.min(LICK_MAX_ALPHA, lick.alpha), from: lick.from, to: lick.to },
+                phase + 1.7, 9);   // phase et graine decalees : le lechage ne doit se caler sur aucune couche
+            // Arcs : uniquement animes. En reduced-motion l'intermittence est precisement ce
+            // qui est proscrit, il ne reste que les nappes.
+            if (style.aura === 'bolt' && animated) this.drawBolts(ctx, auraPts, this.skinPhase);
+        }
+
+        // Etincelles de la flamme : accent secondaire, detache de l'aura. Rares et breves —
+        // elles ponctuent, elles ne portent pas l'effet, que l'aura assure deja seule.
+        if (preset && style.aura === 'flame' && animated && particles.room
+            && gnow() - this.lastTrailEmit > 90) {
+            this.lastTrailEmit = gnow();
+            const back = this.angle + Math.PI;
+            const tail = segs[segs.length - 1];
+            const spread = (Math.random() - 0.5) * 1.2;
+            particles.push(new Particle(
+                tail.x + Math.cos(back) * r * 1.2 + (Math.random()-0.5) * r,
+                tail.y + Math.sin(back) * r * 1.2 + (Math.random()-0.5) * r, {
+                vx: Math.cos(back + spread) * (1 + Math.random()),
+                vy: Math.sin(back + spread) * (1 + Math.random()),
+                life: 1, decay: 0.05, size: Math.max(1, r * 0.12),
+                color: '#ffe066', type: 'spark', friction: 0.99
+            }));
+        }
 
         // Traînée : émise à la QUEUE, pas à la tête — le corps est un tube opaque qui repasse
         // exactement sur la position de la tête à chaque pas ; une particule posée là serait
@@ -1877,6 +2027,125 @@ class Snake {
         else this.drawRoundEyes(ctx, head, eo, er);
         if (style && style.head === 'viper') this.drawHorns(ctx, head, r);
         if (style && style.head === 'predator') this.drawFangs(ctx, head, r);
+    }
+
+    // Parcourt le corps a PAS CONSTANT EN PIXELS, jamais segment par segment. Le nombre
+    // d'ancrages reste de l'ordre de quelques dizaines quelle que soit la longueur, la ou un
+    // parcours par segment couterait jusqu'a MAX_LENGTH iterations par couche et par frame.
+    // Le pas etant proportionnel a r, le compte se borne tout seul : le rayon croit avec la
+    // longueur (grow()), donc un serpent long est forcement epais, donc echantillonne plus
+    // grossierement. Chaque ancrage porte sa position et sa normale au corps.
+    sampleBody(step) {
+        const segs = this.segments;
+        const pts = [];
+        // Plafond dur sur le compte : au-dela on elargit le pas plutot que d'ajouter des points.
+        // Garantit un cout borne meme sur un serpent long et fin, ou r*AURA_STEP est petit.
+        const bodyLen = segs.length * CONFIG.BASE_SPEED;
+        step = Math.max(step, bodyLen / AURA_MAX_POINTS);
+        let acc = step;                     // force l'emission du premier ancrage (la tete)
+        for (let i = 0; i < segs.length; i++) {
+            if (i > 0) acc += Math.hypot(segs[i].x - segs[i-1].x, segs[i].y - segs[i-1].y);
+            if (acc < step && i !== segs.length - 1) continue;
+            acc = 0;
+            const prev = segs[Math.max(0, i - 1)];
+            const next = segs[Math.min(segs.length - 1, i + 1)];
+            let tx = next.x - prev.x, ty = next.y - prev.y;
+            const len = Math.hypot(tx, ty) || 1;
+            tx /= len; ty /= len;
+            // tx,ty pointe de la tete vers la queue ; nx,ny lui est perpendiculaire.
+            pts.push({ x: segs[i].x, y: segs[i].y, nx: -ty, ny: tx, tx, ty });
+        }
+        return pts;
+    }
+
+    // Construit UNE couche d'aura : on longe le corps d'un cote a la distance r + profil, on
+    // contourne la queue, on revient par l'autre cote, on ferme et on remplit en degrade.
+    // Le debordement est borne dur a AURA_MAX_EXTENT * r : sans ce plafond, un serpent au rayon
+    // max couvrirait une fraction de l'ecran et masquerait le terrain.
+    drawAuraLayer(ctx, pts, kind, layer, phase, seed) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const maxOff = r * AURA_MAX_EXTENT;
+        // Inclinaison des langues vers la QUEUE : la direction de sortie n'est pas la normale
+        // pure mais la normale melangee a la tangente. Sans cela les langues sortent
+        // perpendiculairement et l'aura lit comme une dent de scie, jamais comme un feu couche
+        // par la course. lean = 0 garde la sortie perpendiculaire (foudre).
+        const lean = AURA_LEAN[kind] || 0;
+        const off = (k, side) => {
+            const d = auraProfile(kind, k, pts.length, phase, side, seed) * layer.amp * r;
+            return r + Math.max(0, Math.min(maxOff, d));
+        };
+        const pt = (k, side) => {
+            const p = pts[k], d = off(k, side);
+            let dx = p.nx * side + p.tx * lean, dy = p.ny * side + p.ty * lean;
+            const l = Math.hypot(dx, dy) || 1;
+            return { x: p.x + dx / l * d, y: p.y + dy / l * d };
+        };
+        ctx.beginPath();
+        for (let k = 0; k < pts.length; k++) {
+            const q = pt(k, 1);
+            if (k === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+        }
+        for (let k = pts.length - 1; k >= 0; k--) {
+            const q = pt(k, -1);
+            ctx.lineTo(q.x, q.y);
+        }
+        ctx.closePath();
+        const head = pts[0], tail = pts[pts.length - 1];
+        const g = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
+        g.addColorStop(0, layer.to);
+        g.addColorStop(1, layer.from);
+        ctx.globalAlpha = layer.alpha;
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Arcs de foudre : partent perpendiculairement au corps depuis quelques ancrages tires au
+    // sort, avancent par segments courts et bifurquent. Chaque rupture est ANGULEUSE.
+    // Intermittents par construction : le tirage depend d'un pas de temps discret, donc il
+    // existe de vrais instants sans aucun arc — un arc permanent lirait comme un tentacule.
+    drawBolts(ctx, pts, phase) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const tick = Math.floor(phase * 9);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        for (let k = 1; k < pts.length; k++) {
+            // Tirage deterministe par (ancrage, pas de temps) : pas de Math.random, donc pas
+            // de scintillement incoherent d'une frame a l'autre a l'interieur d'un meme pas.
+            if (((k * 2654435761 + tick * 40503) % 17) > 2) continue;
+            const p = pts[k];
+            const side = ((k + tick) % 2) ? 1 : -1;
+            this.boltBranch(ctx, p.x + p.nx * side * r, p.y + p.ny * side * r,
+                            Math.atan2(p.ny * side, p.nx * side), r * 0.9, 2, k + tick);
+        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+
+    boltBranch(ctx, x, y, ang, len, depth, seed) {
+        if (depth <= 0 || len < 1.5) return;
+        const r = this.radius;
+        let cx = x, cy = y, a = ang;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        const steps = 4;
+        for (let i = 0; i < steps; i++) {
+            // Rupture d'angle vive a chaque pas : c'est ce zigzag anguleux qui lit "foudre".
+            a += ((((seed * 31 + i * 17) % 11) / 11) - 0.5) * 1.5;
+            cx += Math.cos(a) * (len / steps);
+            cy += Math.sin(a) * (len / steps);
+            ctx.lineTo(cx, cy);
+        }
+        ctx.strokeStyle = depth === 2 ? '#ffffff' : '#7fe8ff';
+        ctx.globalAlpha = depth === 2 ? 0.85 : 0.55;
+        ctx.lineWidth = Math.max(1, r * (depth === 2 ? 0.10 : 0.06));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Une seule bifurcation par niveau, deux niveaux au total : au-dela, l'arc devient
+        // un buisson illisible et le cout grimpe pour rien.
+        this.boltBranch(ctx, cx, cy, a + 0.9, len * 0.55, depth - 1, seed + 7);
     }
 
     drawRoundEyes(ctx, head, eo, er) {
