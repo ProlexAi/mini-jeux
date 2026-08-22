@@ -115,6 +115,72 @@ un bot doit renoncer, et un poursuivant ne doit jamais être aussi rapide que sa
 
 ---
 
+## 2 bis. Rendre la masse lisible sans l'écrire
+
+*Recherché le 22/08/2026. Question : comment les concurrents font-ils comprendre au joueur qui
+est le plus lourd, sans afficher de chiffre au-dessus des personnages ?*
+
+### agar.io — l'aire est proportionnelle à la masse
+
+Le rapport est explicite : `masse = π × rayon²`, donc **le rayon croît comme la racine carrée de
+la masse**. Doubler sa masse ne double pas son rayon, il le multiplie par √2 ≈ 1,41. La taille
+visuelle est donc une lecture directe et honnête de la masse, et **il n'y a aucun plafond dur** :
+la croissance ralentit, elle ne s'arrête jamais.
+Source : [Agar.io Wiki — Cell Mass](https://agario.fandom.com/wiki/Cell_Mass)
+
+### slither.io — l'épaisseur croît, et la caméra recule
+
+Le serpent gagne en longueur **et en épaisseur** jusqu'à saturer vers 40 000 de masse. En
+parallèle, **la caméra dézoome à mesure qu'on grossit**, ce qui garde le champ de vision
+utilisable. Le jeu n'offre volontairement aucun zoom manuel : dézoomer plus que les autres est
+considéré comme de la triche, ce qui confirme que le zoom est un paramètre d'équilibrage, pas de
+confort.
+Sources : [Slither.io Wiki — Length](https://slitherio-archive.fandom.com/wiki/Length) ·
+[GameSkinny — zoom](https://www.gameskinny.com/tips/slitherio-how-to-zoom-out-and-in-for-maximum-snakedom/)
+
+### Le point que ces deux jeux ne résolvent pas pour nous
+
+**Aucun des deux n'est un jeu de serpent où la masse décide de la prédation.** agar.io compare des
+disques, dont le diamètre se lit d'un coup d'œil ; slither.io a des serpents, mais chez lui la
+masse ne protège de rien, donc la question de la comparer ne se pose jamais. Snake'on occupe un
+croisement que le marché ne couvre pas : **serpent + prédation par masse**. Il n'y a donc pas de
+solution à copier, il faut en concevoir une.
+
+### Ce que mesure Snake'on
+
+Écart d'épaisseur **à l'écran**, zoom caméra compris, entre deux serpents au seuil exact de
+prédation (+25 %) :
+
+| masse | loi actuelle (plafond dur) | loi agar.io (√masse) | loi amortie (exposant 0,34) |
+|---|---|---|---|
+| 300 | 1,65 px | 1,82 px | 0,86 px |
+| 650 | **0,00 px** | 2,34 px | 1,02 px |
+| 5 000 | **0,00 px** | 9,50 px | 1,60 px |
+| 20 000 | **0,00 px** | 19,0 px | 3,76 px |
+
+Deux enseignements :
+
+1. **Le plafond dur détruit l'information.** Au-delà de la masse où le rayon sature, l'écart
+   tombe à zéro : deux serpents dont l'un peut dévorer l'autre sont strictement identiques à
+   l'écran. C'est un défaut de conception, pas un réglage.
+2. **La loi agar.io pure ne se transpose pas.** À 20 000 de masse elle donne un rayon de 358, soit
+   161 px à l'écran — constaté en jeu le 22/08/2026 : un bot laissé croître 15 minutes remplissait
+   tout l'écran d'une masse dans laquelle il se noyait, et n'apparaissait même plus sur la
+   minimap. Ce qui marche pour un disque ne marche pas pour un corps qui s'enroule sur lui-même.
+
+**Conclusion.** Une courbe amortie supprime le plafond sans produire le blob, mais l'écart qu'elle
+laisse (1 à 4 px) reste trop ténu pour juger un rapport de force dans le feu de l'action. La
+taille seule ne peut donc pas porter cette information dans un jeu de serpent : il faut un
+**second canal**, et il devra être visuel et non textuel.
+
+Commande qui donne les valeurs en vigueur :
+
+```bash
+grep -n "MAX_RADIUS\|MIN_ZOOM\|MAX_ZOOM\|SPEED_REF_MASS" "Snake'on/index.html"
+```
+
+---
+
 ## 3. Longueur maximale d'un serpent
 
 *Recherché le 22/08/2026, entrée conservée pour éviter une quatrième recherche.*
