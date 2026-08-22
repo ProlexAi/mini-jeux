@@ -268,9 +268,6 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
 
 ## 8. Reste à faire
 
-- **Les barres HUD codées de l'Accueil** (§3 : entrées `A01`…`A06` en barres pleine largeur plutôt
-  qu'en onglets pilules) : la navigation utilise toujours les onglets pilules existants. C'est une
-  refonte de mise en page distincte du reste de la V0.3, à mener séparément.
 - **Variantes paysage mobile** (844×390) pour Accueil, Réglages et Pause : maquettées, non
   implémentées — le jeu reste pensé portrait d'abord.
 - **Curseur Musique sans moteur** : le réglage existe et se sauvegarde, mais aucune musique de fond
