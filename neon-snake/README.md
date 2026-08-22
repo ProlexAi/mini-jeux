@@ -33,13 +33,16 @@ La carte ne tient **pas** dans l'écran : la caméra suit le serpent, la carte d
 et on **dézoome en grossissant** pour continuer à voir venir le danger.
 
 Sa taille n'est pas fixe, elle est **calculée au début de chaque partie** : le monde vaut toujours
-**16 écrans de surface**. Un écran de téléphone voit 2,3× moins de surface qu'un écran d'ordinateur —
-un monde de taille fixe serait désert sur l'un ou étouffant sur l'autre. À l'arrivée :
+**16 écrans de surface** (au-delà de 6000 px sur un axe, le monde est plafonné en conservant son
+ratio — l'aire de 16 écrans n'est alors plus garantie, c'est le compromis qui protège la grille
+spatiale et le nombre de pastilles sur très grand écran). Un écran de téléphone voit 2,3× moins de
+surface qu'un écran d'ordinateur — un monde de taille fixe serait désert sur l'un ou étouffant sur
+l'autre. À l'arrivée :
 
 | Écran | Monde | Nourriture | Adversaires visibles en moyenne |
 |---|---|---|---|
-| Ordinateur 1100×700 | 4400 × 2800 | 684 | 2,6 |
-| iPhone 390×844 | 1800 × 2350 | 235 | 3,0 |
+| Ordinateur 1100×700 | 4400 × 2800 | 684 | ~1,9 |
+| iPhone 390×844 (plein écran) | 1987 × 2650 | 293 | ~1,8 |
 
 La **minimap** en bas à droite montre le monde entier, ta position, celle des 45 serpents,
 et le rectangle blanc = la portion que tu vois réellement.
@@ -99,8 +102,10 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | `MIN_ZOOM: 0.45` | jusqu'où on dézoome quand on devient énorme |
 | `POWERUPS` / `SKINS` | durées, couleurs, niveaux de déblocage |
 
-⚠️ **Après chaque modification**, change `CACHE_VERSION` dans `sw.js` (`'v1'` → `'v2'`…),
-sinon les joueurs qui ont déjà lancé le jeu garderont l'ancienne version en cache.
+⚠️ Le manifest et les icônes sont en cache-first : **après une modification de `manifest.webmanifest`
+ou de `icons/`**, change `CACHE_VERSION` dans `sw.js` (`'v1'` → `'v2'`…) sinon les joueurs gardent
+l'ancienne version en cache. `index.html` (donc `CONFIG`) est en network-first : il arrive à jour
+dès le rechargement, sans bump nécessaire.
 
 ---
 
