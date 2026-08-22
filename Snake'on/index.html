@@ -254,6 +254,8 @@
             -webkit-tap-highlight-color: transparent;
         }
         button:active { background: var(--accent); color: var(--bg); transform: scale(0.95); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        button:disabled:active { background: transparent; color: var(--accent); transform: none; }
         .btn-primary { font-size: 20px; padding: 14px 45px; margin-top: 15px; }
         .btn-secondary { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
         .btn-secondary:active { background: var(--warning); color: var(--bg); }
@@ -276,6 +278,11 @@
         }
         .cta-hachured > span:first-child { flex: 1; text-align: left; align-self: center; }
         .cta-hachured .hachure { align-self: stretch; }
+        .cta-hachured .cta-code {
+            font-family: var(--font-head); font-size: 10px; letter-spacing: 0.1em;
+            color: color-mix(in srgb, var(--accent) 45%, transparent);
+            transform: skewX(8deg); align-self: center; padding-right: 4px;
+        }
         #installBtn.cta-hachured { padding: 0 0 0 18px; min-height: 44px; }
         #installBtn { display: none; font-size: 14px; padding: 9px 20px; }
 
@@ -604,6 +611,34 @@
         @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
 
+        /* ===== SALON (partie privée) ===== */
+        .lobby-code-display {
+            font-family: var(--font-head); font-size: 34px; letter-spacing: 0.16em;
+            color: var(--accent); text-shadow: 0 0 10px var(--accent);
+            transform: skewX(8deg); margin: 10px 0; text-align: center;
+        }
+        .lobby-code-input {
+            display: block; margin: 10px auto; width: 160px;
+            padding: 10px 12px; min-height: 44px; text-align: center;
+            background: color-mix(in srgb, var(--accent) 6%, transparent);
+            border: 2px solid var(--accent); border-radius: 10px;
+            color: var(--accent); font-family: var(--font-head);
+            font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase;
+        }
+        .lobby-code-input::placeholder { color: #6c7676; letter-spacing: 0.1em; }
+        .lobby-status { font-size: 13px; color: #999; text-align: center; margin: 8px 0; min-height: 16px; }
+        .lobby-players { width: 100%; max-width: 340px; margin: 10px 0; }
+        .lobby-player {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 8px 14px; min-height: 44px;
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            border-radius: 8px; margin-bottom: 6px; font-size: 14px;
+        }
+        .lobby-player .host-badge { font-size: 10px; color: var(--accent); opacity: 0.7; letter-spacing: 0.08em; }
+        #lobbyChoice .hint, #lobbyRoom .hint { max-width: 320px; }
+        #lobbyChoice.hidden, #lobbyRoom.hidden, #lobbyJoinForm.hidden,
+        #lobbyCodeDisplay.hidden, #lobbyStartBtn.hidden, #privateGameHint.hidden { display: none; }
+
         /* ===== MOBILE ===== */
         @media (max-width: 480px) {
             h1 { font-size: 22px; }
@@ -766,6 +801,8 @@
             </div>
         </div>
         <button id="playBtn" class="btn-primary cta-hachured"><span data-i18n="play">▶ JOUER</span><span class="hachure" style="width:26px"></span></button>
+        <button id="privateGameBtn" class="cta-hachured"><span data-i18n="privateGame">🌐 PARTIE PRIVÉE</span><span class="cta-code">A06</span><span class="hachure" style="width:20px"></span></button>
+        <div class="hint hidden" id="privateGameHint" data-i18n="privateGameOffline"></div>
         <button id="installBtn" class="cta-hachured"><span data-i18n="install">📱 Installer l'appli</span><span class="hachure" style="width:20px"></span></button>
         <div class="hint" id="offlineHint"></div>
     </div>
@@ -829,6 +866,36 @@
                 <button id="abandonNoBtn" class="btn-primary" data-i18n="no">NON</button>
                 <button id="abandonYesBtn" class="btn-secondary" data-role="danger" data-i18n="yes">OUI</button>
             </div>
+        </div>
+    </div>
+
+    <!-- SALON (partie privée) -->
+    <div id="lobbyScreen" class="overlay hidden">
+        <h1 data-i18n="lobbyTitle">🌐 SALON</h1>
+
+        <div id="lobbyChoice">
+            <p class="hint" data-i18n="lobbyChoiceHint">Jouez à plusieurs, dans la même arène, avec un code.</p>
+            <div class="btn-row">
+                <button id="lobbyCreateBtn" class="btn-primary" data-i18n="lobbyCreate">CRÉER UN SALON</button>
+                <button id="lobbyShowJoinBtn" class="btn-primary" data-i18n="lobbyJoin">REJOINDRE</button>
+            </div>
+            <div id="lobbyJoinForm" class="hidden">
+                <input type="text" id="lobbyCodeInput" class="lobby-code-input" maxlength="5" data-i18n-ph="lobbyCodePlaceholder" placeholder="CODE">
+                <div class="btn-row">
+                    <button id="lobbyJoinConfirmBtn" class="btn-primary" data-i18n="lobbyJoinConfirm">REJOINDRE</button>
+                </div>
+            </div>
+            <button id="lobbyBackBtn" type="button" class="tab-btn" data-i18n="back">❮ Retour</button>
+        </div>
+
+        <div id="lobbyRoom" class="hidden">
+            <div id="lobbyCodeDisplay" class="lobby-code-display hidden"></div>
+            <div id="lobbyStatus" class="lobby-status"></div>
+            <div id="lobbyPlayers" class="lobby-players"></div>
+            <div class="btn-row">
+                <button id="lobbyStartBtn" class="btn-primary cta-hachured hidden"><span data-i18n="lobbyStart">▶ LANCER</span><span class="hachure" style="width:22px"></span></button>
+            </div>
+            <button id="lobbyLeaveBtn" type="button" class="tab-btn" data-i18n="lobbyLeave">❮ Quitter le salon</button>
         </div>
     </div>
 
@@ -996,6 +1063,17 @@ const TRANSLATIONS = {
         yes: 'OUI', no: 'NON',
         leaderboard: 'CLASSEMENT', you: 'TOI', size: 'Taille', time: 'Temps', kills: 'Kills',
         eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
+        privateGame: '🌐 PARTIE PRIVÉE', privateGameOffline: 'Hors ligne : la partie privée a besoin du réseau',
+        lobbyTitle: '🌐 SALON', lobbyChoiceHint: 'Jouez à plusieurs, dans la même arène, avec un code.',
+        lobbyCreate: 'CRÉER UN SALON', lobbyJoin: 'REJOINDRE', lobbyJoinConfirm: 'REJOINDRE',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ LANCER', lobbyLeave: '❮ Quitter le salon',
+        lobbyHostBadge: 'HÔTE', lobbyWaitingPlayers: 'En attente de joueurs…',
+        lobbyWaiting: 'En attente de l’hôte…', lobbyConnecting: 'Connexion…',
+        lobbyErrorOffline: 'Impossible de se connecter — vérifie ta connexion réseau.',
+        lobbyErrorCodeTaken: 'Code déjà utilisé, nouvelle tentative…',
+        lobbyErrorCodeNotFound: 'Aucun salon avec ce code.',
+        lobbyErrorHostLeft: 'L’hôte a quitté la partie.',
+        lobbyErrorGeneric: 'Connexion impossible.',
     },
     en: {
         tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 History',
@@ -2015,6 +2093,7 @@ function showScreen(screen) {
     $('menuScreen').classList.toggle('hidden', screen !== 'menu');
     $('welcomeScreen').classList.toggle('hidden', screen !== 'welcome');
     $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
+    $('lobbyScreen').classList.toggle('hidden', screen !== 'lobby');
 
     const inGame = (screen === 'game');
     const spectating = (screen === 'spectate');
@@ -3120,7 +3199,7 @@ function bindNeonClicks(root) {
         neonFlashBtn(btn);
     });
 }
-['menuScreen', 'welcomeScreen', 'pauseScreen'].forEach(id => bindNeonClicks($(id)));
+['menuScreen', 'welcomeScreen', 'pauseScreen', 'lobbyScreen'].forEach(id => bindNeonClicks($(id)));
 
 // ============================================================
 //  ÉVÉNEMENTS
@@ -3355,11 +3434,212 @@ if (isIOS && !isStandalone()) {
 }
 
 // ============================================================
+//  PARTIE PRIVÉE (réseau) — hôte autoritaire, PeerJS pour la connexion
+// ============================================================
+// PeerJS n'est chargé qu'à l'ouverture du salon : un joueur solo hors-ligne ne doit jamais
+// dépendre du réseau au chargement de la page (cf. cahier des charges UI §3 "Salon").
+const PEERJS_CDN = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+let peerJsLoadPromise = null;
+function loadPeerJS() {
+    if (window.Peer) return Promise.resolve();
+    if (peerJsLoadPromise) return peerJsLoadPromise;
+    peerJsLoadPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = PEERJS_CDN;
+        s.onload = () => resolve();
+        s.onerror = () => { peerJsLoadPromise = null; reject(new Error('peerjs_load_failed')); };
+        document.head.appendChild(s);
+    });
+    return peerJsLoadPromise;
+}
+
+// Sans 0/O, 1/I/L : un code qu'on se dicte à voix haute entre amis ne doit pas prêter à confusion.
+const PARTY_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generatePartyCode() {
+    let code = '';
+    for (let i = 0; i < 5; i++) code += PARTY_CODE_ALPHABET[Math.floor(Math.random() * PARTY_CODE_ALPHABET.length)];
+    return code;
+}
+// Le code EST l'identifiant de pair PeerJS de l'hôte : pas de registre séparé à tenir à jour,
+// la vie du salon se confond avec celle de la connexion de l'hôte au broker.
+function peerIdForCode(code) { return 'snakeon-party-' + code; }
+
+// party.players : id de connexion PeerJS -> { name, isHost }. 'host' désigne l'hôte lui-même.
+const party = {
+    active: false, isHost: false, code: '', peer: null,
+    conns: new Map(),    // hôte uniquement : peerId -> DataConnection
+    hostConn: null,      // client uniquement : DataConnection vers l'hôte
+    players: new Map(),
+    selfId: 'host',
+};
+
+function resetParty() {
+    if (party.peer) { try { party.peer.destroy(); } catch(e) {} }
+    party.active = false; party.isHost = false; party.code = '';
+    party.peer = null; party.conns.clear(); party.hostConn = null;
+    party.players.clear(); party.selfId = 'host';
+}
+
+function lobbySend(conn, msg) { try { conn.send(msg); } catch(e) {} }
+function hostBroadcast(msg, exceptId) {
+    party.conns.forEach((conn, id) => { if (id !== exceptId) lobbySend(conn, msg); });
+}
+function lobbySetStatus(key) { $('lobbyStatus').textContent = t(key); }
+
+function renderLobbyPlayers() {
+    const rows = [];
+    party.players.forEach((p) => {
+        rows.push('<div class="lobby-player"><span>' + (p.isHost ? '👑 ' : '') + escapeHtml(p.name) + '</span>' +
+            (p.isHost ? '<span class="host-badge">' + t('lobbyHostBadge') + '</span>' : '') + '</div>');
+    });
+    $('lobbyPlayers').innerHTML = rows.join('');
+    $('lobbyStartBtn').classList.toggle('hidden', !party.isHost);
+}
+
+function openLobbyChoice() {
+    resetParty();
+    $('lobbyChoice').classList.remove('hidden');
+    $('lobbyRoom').classList.add('hidden');
+    $('lobbyJoinForm').classList.add('hidden');
+    $('lobbyCodeInput').value = '';
+    showScreen('lobby');
+}
+
+function showLobbyJoinForm() {
+    $('lobbyJoinForm').classList.remove('hidden');
+    $('lobbyCodeInput').focus();
+}
+
+function enterLobbyRoom() {
+    $('lobbyChoice').classList.add('hidden');
+    $('lobbyRoom').classList.remove('hidden');
+    $('lobbyCodeDisplay').classList.toggle('hidden', !party.isHost);
+    if (party.isHost) $('lobbyCodeDisplay').textContent = party.code;
+    renderLobbyPlayers();
+}
+
+async function createParty() {
+    lobbySetStatus('lobbyConnecting');
+    enterLobbyRoom();
+    try { await loadPeerJS(); } catch(e) { lobbySetStatus('lobbyErrorOffline'); return; }
+
+    const code = generatePartyCode();
+    const peer = new Peer(peerIdForCode(code));
+    party.peer = peer; party.isHost = true; party.selfId = 'host';
+
+    peer.on('open', () => {
+        party.active = true; party.code = code;
+        party.players.set('host', { name: playerName(), isHost: true });
+        enterLobbyRoom();
+        lobbySetStatus('lobbyWaitingPlayers');
+    });
+
+    peer.on('connection', (conn) => {
+        conn.on('open', () => { party.conns.set(conn.peer, conn); });
+        conn.on('data', (msg) => handleHostMessage(conn, msg));
+        conn.on('close', () => {
+            party.conns.delete(conn.peer);
+            if (party.players.delete(conn.peer)) {
+                hostBroadcast({ type: 'PLAYER_LEFT', id: conn.peer });
+                renderLobbyPlayers();
+            }
+        });
+    });
+
+    peer.on('error', (err) => {
+        if (party.active) return;   // erreur tardive (ex: perte réseau) : pas une erreur de création
+        if (err && err.type === 'unavailable-id') { lobbySetStatus('lobbyErrorCodeTaken'); createParty(); return; }
+        lobbySetStatus('lobbyErrorGeneric');
+    });
+}
+
+function handleHostMessage(conn, msg) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'HELLO') {
+        const name = String(msg.name || '').slice(0, 14) || t('you');
+        party.players.set(conn.peer, { name, isHost: false });
+        lobbySend(conn, {
+            type: 'WELCOME', selfId: conn.peer,
+            players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, isHost: p.isHost })),
+        });
+        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name }, conn.peer);
+        renderLobbyPlayers();
+    }
+}
+
+async function joinParty() {
+    const code = $('lobbyCodeInput').value.trim().toUpperCase();
+    if (code.length !== 5) return;
+    lobbySetStatus('lobbyConnecting');
+    try { await loadPeerJS(); } catch(e) { lobbySetStatus('lobbyErrorOffline'); return; }
+
+    const peer = new Peer();
+    party.peer = peer; party.isHost = false;
+
+    peer.on('open', () => {
+        const conn = peer.connect(peerIdForCode(code));
+        party.hostConn = conn;
+        conn.on('open', () => { lobbySend(conn, { type: 'HELLO', name: playerName() }); });
+        conn.on('data', (msg) => handleClientMessage(msg, code));
+        conn.on('close', () => { lobbySetStatus(party.active ? 'lobbyErrorHostLeft' : 'lobbyErrorCodeNotFound'); });
+        conn.on('error', () => { lobbySetStatus('lobbyErrorCodeNotFound'); });
+    });
+    peer.on('error', () => { if (!party.active) lobbySetStatus('lobbyErrorCodeNotFound'); });
+}
+
+function handleClientMessage(msg, code) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'WELCOME') {
+        party.active = true; party.code = code; party.selfId = msg.selfId;
+        party.players.clear();
+        msg.players.forEach(p => party.players.set(p.id, { name: p.name, isHost: p.isHost }));
+        party.players.set(party.selfId, { name: playerName(), isHost: false });
+        enterLobbyRoom();
+        lobbySetStatus('lobbyWaiting');
+    } else if (msg.type === 'PLAYER_JOINED') {
+        party.players.set(msg.id, { name: msg.name, isHost: false });
+        renderLobbyPlayers();
+    } else if (msg.type === 'PLAYER_LEFT') {
+        party.players.delete(msg.id);
+        renderLobbyPlayers();
+    }
+}
+
+function leaveLobby() { resetParty(); showScreen('menu'); }
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+bindBtn('privateGameBtn', openLobbyChoice);
+bindBtn('lobbyShowJoinBtn', showLobbyJoinForm);
+bindBtn('lobbyCreateBtn', createParty);
+bindBtn('lobbyJoinConfirmBtn', joinParty);
+bindBtn('lobbyBackBtn', () => { resetParty(); showScreen('menu'); });
+bindBtn('lobbyLeaveBtn', leaveLobby);
+$('lobbyCodeInput').addEventListener('input', () => {
+    $('lobbyCodeInput').value = $('lobbyCodeInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+});
+// Lancement de la vraie partie partagée : lot suivant (monde commun + boucle réseau).
+bindBtn('lobbyStartBtn', () => showToast('🚧 Lancement de la partie : à venir'));
+
+// Hors-ligne : le bouton reste visible (pas masqué, cf. cahier des charges UI point 10) mais
+// désactivé, avec le motif affiché — cohérent avec l'indicateur hors-ligne déjà présent ici.
+function updatePrivateGameAvailability() {
+    const online = navigator.onLine;
+    $('privateGameBtn').disabled = !online;
+    $('privateGameHint').classList.toggle('hidden', online);
+}
+window.addEventListener('online', updatePrivateGameAvailability);
+window.addEventListener('offline', updatePrivateGameAvailability);
+
+// ============================================================
 //  INIT
 // ============================================================
 resizeCanvas();
 renderMenu();
 showScreen('menu');
+updatePrivateGameAvailability();
 requestAnimationFrame(gameLoop);
 </script>
 </body>
