@@ -40,12 +40,24 @@ Source : [Agar.io Wiki — Cell](https://agario.fandom.com/wiki/Cell)
 Matt, réaffirmée le 22/08/2026 — « si j'ai mangé plus que les autres, j'ai une plus grosse masse,
 c'est moi qui écrase les autres ».
 
-Deux écarts assumés avec agar.io :
+**La marge d'agar.io est reprise telle quelle : +25 % de masse pour absorber**, validé par Matt
+le 22/08/2026. Elle évite que deux serpents de masses quasi identiques ne s'absorbent au hasard
+des collisions.
 
-- **Aucune marge**, là où agar.io exige +25 %. Une marge, même faible, produit exactement la
-  frustration signalée : être visiblement plus gros sans pouvoir manger. Snake'on tranche à
-  l'avantage du plus gros dès le premier gramme d'écart.
-- **La masse n'est pas le rayon.** Le rayon est plafonné, la masse ne l'est pas — voir §2.
+> *Historique, à ne pas rouvrir sans élément nouveau.* Une première version avait supprimé toute
+> marge, pour corriger un blocage où être plus gros ne suffisait pas à manger. Le diagnostic
+> était incomplet : la vraie cause n'était pas la marge mais le fait qu'elle portait sur le
+> **rayon plafonné** (voir ci-dessous). La marge a donc été rétablie à 1,25 une fois la
+> comparaison passée sur la masse.
+
+**La masse n'est ni le rayon, ni la longueur affichée.** C'est le cumul de tout ce qui a été
+mangé, et elle n'a **aucun plafond**. La longueur affichée et le rayon, eux, sont plafonnés :
+ce sont des contraintes de rendu, pas de jeu. Au-delà du plafond, le serpent continue donc de
+prendre de la masse sans s'allonger à l'écran — même principe que slither.io (§3).
+
+**Le ralentissement suit la masse**, jamais le rayon : au rayon plafonné, deux masses très
+différentes donnaient exactement la même vitesse. La courbe sature à une masse de référence,
+faute de quoi un serpent très lourd finirait immobile.
 
 ### Piège à ne pas rouvrir : le rayon plafonné
 
@@ -57,8 +69,13 @@ prédation ne doit jamais porter sur une grandeur plafonnée : elle porte sur la
 Commande qui donne les valeurs en vigueur :
 
 ```bash
-grep -n "MAX_RADIUS\|MAX_LENGTH\|BOT_MAX_LENGTH\|EAT_MARGIN" "Snake'on/index.html"
+grep -n "MAX_RADIUS\|MAX_LENGTH\|BOT_MAX_LENGTH\|EAT_MASS_RATIO\|SPEED_REF_MASS\|BASE_MASS" "Snake'on/index.html"
 ```
+
+**Conséquence à ne pas perdre de vue.** Le rayon étant plafonné et la masse ne l'étant pas, deux
+serpents au plafond ont la même épaisseur à l'écran alors que l'un peut dévorer l'autre. Le
+joueur ne peut donc plus juger le rapport de force à l'œil seul une fois le plafond atteint.
+C'est un écart avec la contrainte de lisibilité du §2 du cahier des charges, et il reste ouvert.
 
 ---
 
