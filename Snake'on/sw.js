@@ -1,6 +1,6 @@
 /* Service worker — Snake'on
    Bump CACHE_VERSION à chaque déploiement pour forcer la mise à jour côté joueurs. */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE = 'snakeon-' + CACHE_VERSION;
 
 const ASSETS = [
@@ -10,7 +10,12 @@ const ASSETS = [
   './icons/icon-512.png',
   './icons/maskable-512.png',
   './icons/apple-touch-icon.png',
-  './icons/favicon-64.png'
+  './icons/favicon-64.png',
+  './fonts/tektur-var.woff2',
+  './fonts/rajdhani-400.woff2',
+  './fonts/rajdhani-500.woff2',
+  './fonts/rajdhani-600.woff2',
+  './fonts/rajdhani-700.woff2'
 ];
 
 self.addEventListener('install', (event) => {

@@ -3,8 +3,9 @@
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
 et leurs actions — pas d'implémentation, pas de code. Version 0.3 : intègre l'addendum
 *« L'éclat néon au clic »* (maquette interactive déposée par Matt) — révise le système de
-couleurs, les Réglages et Pause, ajoute un effet transverse, la typographie et une réserve pour
-la traduction. Rien n'est encore implémenté depuis la V0.2 initiale.
+couleurs, les Réglages et Pause, ajoute un effet transverse, la typographie et la traduction.
+La V0.3 est implémentée ; le §7 consigne les arbitrages pris à cette occasion et le §8 ce qui
+reste ouvert.
 
 ---
 
@@ -237,25 +238,45 @@ doit **jamais** figer la partie pour les autres joueurs. Deux pistes, à tranche
 
 ---
 
-## 7. Reste à trancher (ouvert par l'addendum v0.3)
+## 7. Points tranchés à l'implémentation de la V0.3
 
-- **Les 6 langues** : lesquelles, précisément ? Le français reste-t-il la langue de référence pour
-  tous les textes de jeu (achievements, toasts…), ou seule l'interface (menus/boutons) se traduit ?
-  Impact réel : c'est un chantier d'internationalisation à part entière, pas un simple réglage.
-- **Qualité graphique vs performance** : la version implémentée avant cet addendum pilotait déjà
-  la résolution (DPR), le budget de particules et les halos lumineux via 3 niveaux. Ce cahier des
-  charges retient la présentation en **résolution native** (1280×720/1600×900/1920×1080) comme
-  langage utilisateur ; l'implémentation devra faire correspondre chaque résolution à un budget
-  d'effets cohérent, pas seulement changer le nombre de pixels.
-- **"Hachures"** citées comme élément suivant la couleur d'interface — motif visuel à préciser
-  (où, à quelle échelle) avant implémentation.
-- **Réglages dans Pause** : aperçu "vivant" inline (chips Effets, curseur Musique) — faut-il le
-  panneau complet identique à celui de l'Accueil, ou une version condensée propre à Pause ?
+Les quatre points laissés ouverts par l'addendum sont désormais arbitrés :
+
+- **Les 6 langues : Français, Anglais, Espagnol, Allemand, Italien, Portugais**, chacune nommée
+  dans sa propre langue. **Seule l'interface se traduit** (menus, HUD, classement, Réglages,
+  Pause, bannière spectateur, écran de bienvenue). Les **textes de jeu restent en français dans
+  toutes les langues** : noms et descriptions des succès, toasts, kill streaks, dates de
+  l'historique. « Kills » reste « Kills » partout (§5.4).
+- **Qualité graphique** : les trois niveaux existants (DPR + budget de particules + halos) sont
+  conservés tels quels, seuls leurs **libellés** deviennent des résolutions — 1280×720 « économe »,
+  1600×900 « équilibré », 1920×1080 « natif ». Le comportement de rendu est inchangé : ce sont les
+  mêmes paliers, présentés dans le langage de l'utilisateur.
+- **Hachures** : bandeau vertical de 18 à 26 px collé au **bord droit** d'un élément, rempli de
+  hachures diagonales fines (`repeating-linear-gradient` à 135°, trait de 2 px, pas de 6 px) à la
+  couleur d'interface. Appliqué à : JOUER, INSTALLER L'APPLI, la ligne LANGUE, REPRENDRE et
+  ABANDONNER — cette dernière en rouge fixe.
+- **Réglages dans Pause** : **version condensée fixe**, pas le panneau complet. Elle contient
+  uniquement le sélecteur Effets, le curseur Musique et les 8 pastilles de couleur, branchés sur
+  les mêmes réglages que l'Accueil. Qualité graphique, Sons, Langue et Commandes restent
+  accessibles depuis l'Accueil seulement.
+
+**Ajout hors addendum : le pseudo.** L'Accueil porte un champ de pseudo librement modifiable
+(14 caractères), placé au-dessus du niveau. Il remplace le nom du joueur en jeu (HUD, classement,
+bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selon la langue choisie.
+
+---
+
+## 8. Reste à faire
+
+- **Les barres HUD codées de l'Accueil** (§3 : entrées `A01`…`A06` en barres pleine largeur plutôt
+  qu'en onglets pilules) : la navigation utilise toujours les onglets pilules existants. C'est une
+  refonte de mise en page distincte du reste de la V0.3, à mener séparément.
+- **Variantes paysage mobile** (844×390) pour Accueil, Réglages et Pause : maquettées, non
+  implémentées — le jeu reste pensé portrait d'abord.
+- **Curseur Musique sans moteur** : le réglage existe et se sauvegarde, mais aucune musique de fond
+  n'est produite par le jeu à ce jour. Le curseur Sons, lui, pilote réellement le volume des sons.
 
 ---
 
 *Ce document est la référence pour tout nouvel écran ou composant d'interface ajouté au jeu.
-Rien de la V0.3 n'est encore implémenté : le jeu tourne aujourd'hui sur les décisions "Réglages"
-d'origine (Audio ON/OFF, Qualité Low/Medium/High, pas de couleur personnalisable, pas d'éclat de
-clic). Prochaine étape suggérée : confirmer les points du §7, puis passer la V0.3 à
-l'implémentation.*
+La V0.3 est implémentée, à l'exception des points listés au §8.*
