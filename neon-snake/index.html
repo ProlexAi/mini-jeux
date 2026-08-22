@@ -456,6 +456,8 @@ const CONFIG = {
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
     FOOD_CORPSE_MAX: 14,     // nombre max de pastilles existantes reutilisees pour une decoupe
+    FOOD_CORPSE_MAX_RADIUS: 14,   // rayon max d'une pastille issue d'une decoupe (4 = pastille normale)
+    FOOD_CORPSE_RADIUS_SCALE: 2.2, // rayon ~ 4 + sqrt(valeur)*scale : aire perçue ~ proportionnelle a la valeur
     BODY_CUT_SKIP_RADIUS: 1.5, // marge pres de la tete de la cible exclue du test de decoupe (x son rayon)
     SAVE_KEY: 'neonSnakeUltimate_v1',
     BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
@@ -700,16 +702,37 @@ class Particle {
         this.friction = opts.friction || 1;
     }
     update() {
+        if (this.curl) {
+            // Fait tourner progressivement le vecteur vitesse : une derive en spirale plutot
+            // qu'une ligne droite, pour evoquer une volute qui s'enroule sur elle-meme.
+            const ang = Math.atan2(this.vy, this.vx) + this.curl;
+            const spd = Math.hypot(this.vx, this.vy);
+            this.vx = Math.cos(ang) * spd; this.vy = Math.sin(ang) * spd;
+        }
         this.x += this.vx; this.y += this.vy;
         this.vy += this.gravity;
         this.vx *= this.friction; this.vy *= this.friction;
         this.life -= this.decay;
+        if (this.trail) {
+            this.trail.push({ x: this.x, y: this.y });
+            if (this.trail.length > this.trailMax) this.trail.shift();
+        }
     }
     draw(ctx) {
         if (this.life <= 0) return;
         const a = Math.max(0, Math.min(1, this.life));
         ctx.globalAlpha = a;
-        if (this.type === 'smoke') {
+        if (this.type === 'wisp') {
+            if (this.trail && this.trail.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                for (let i = 1; i < this.trail.length; i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = Math.max(0.4, this.size * a);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.stroke();
+            }
+        } else if (this.type === 'smoke') {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size * (2 - this.life), 0, TAU);
             ctx.fillStyle = this.color;
@@ -740,10 +763,13 @@ class ParticleSystem {
         for (let i = 0; i < count; i++) this.push(new Particle(x, y, opts));
     }
     emitSmoke(x, y) {
+        const a = Math.random() * TAU;
         this.push(new Particle(x, y, {
-            vx: (Math.random()-0.5)*1.5, vy: -Math.random()*2-0.5,
-            life: 1, decay: 0.015, size: Math.random()*6+3,
-            color: 'rgba(180,180,180,0.4)', type: 'smoke', gravity: -0.02
+            vx: Math.cos(a) * 0.5, vy: -Math.random()*0.8 - 0.3,
+            life: 1, decay: 0.011, size: Math.random()*2.5 + 2,
+            color: 'rgba(0,255,204,0.4)', type: 'wisp',
+            curl: (Math.random() - 0.5) * 0.18, gravity: -0.008,
+            trail: [{ x, y }], trailMax: 9
         }));
     }
     emitLightning(x, y) {
@@ -756,7 +782,7 @@ class ParticleSystem {
         }
     }
     emitFlame(x, y) {
-        const colors = ['#ff4400','#ff8800','#ffcc00','#ff2200'];
+        const colors = ['#ff0055','#ff3377','#ffcc00','#ff9900'];   // rouge/or du jeu, pas l'orange litteral
         this.push(new Particle(x, y, {
             vx: (Math.random()-0.5)*2, vy: -Math.random()*3-1,
             life: 1, decay: 0.03, size: Math.random()*5+2,
@@ -913,6 +939,7 @@ class Food {
             this.y = Math.random() * (CONFIG.WORLD_HEIGHT - 40) + 20;
         }
         this.radius = 4;
+        this.value = CONFIG.FOOD_GROWTH;
         this.color = '#ff00ff';
         this.pulseOffset = Math.random() * TAU;
         this.pulseSpeed = 0.05 + Math.random() * 0.05;
@@ -1140,6 +1167,16 @@ class Snake {
     grow(amount) {
         this.length = Math.min(this.maxLength, this.length + amount);
         this.radius = Math.min(CONFIG.MAX_RADIUS, this.radius + amount * 0.05);
+    }
+
+    // Toucher le CORPS ampute : le serpent perd la partie coupee mais reste vivant (raccourci),
+    // contrairement a kill() qui le detruit entierement (toucher la TETE). Symetrique de grow().
+    cut(atIndex) {
+        const removed = this.length - atIndex;
+        this.segments.length = Math.max(1, atIndex);
+        this.length = this.segments.length;
+        this.radius = Math.max(CONFIG.BASE_RADIUS, this.radius - removed * 0.05);
+        return removed;
     }
 
     kill() { this.alive = false; }
@@ -1627,16 +1664,24 @@ function pickRandomFoods(n) {
     return picked;
 }
 
-function scatterCorpseFood(snake, fromIndex) {
+// totalValue : somme de croissance distribuee sur les pastilles generees, proportionnelle a ce
+// qui a ete amputé (longueur retiree) — pas un montant invente, une redistribution de ce qui a
+// ete perdu. La taille visuelle de chaque pastille suit sa valeur (aire ~ proportionnelle).
+function scatterCorpseFood(snake, fromIndex, totalValue) {
     const segs = snake.segments;
-    if (fromIndex >= segs.length) return;
+    if (fromIndex >= segs.length || totalValue <= 0) return;
     const stride = Math.max(1, Math.round(CONFIG.FOOD_CORPSE_SPACING / CONFIG.BASE_SPEED));
     const positions = [];
     for (let i = fromIndex; i < segs.length; i += stride) positions.push(segs[i]);
     const dropped = pickRandomFoods(Math.min(positions.length, CONFIG.FOOD_CORPSE_MAX));
+    if (!dropped.length) return;
+    const valuePerPellet = totalValue / dropped.length;
+    const radius = Math.min(CONFIG.FOOD_CORPSE_MAX_RADIUS, 4 + Math.sqrt(valuePerPellet) * CONFIG.FOOD_CORPSE_RADIUS_SCALE);
     for (let k = 0; k < dropped.length; k++) {
         dropped[k].x = positions[k].x;
         dropped[k].y = positions[k].y;
+        dropped[k].value = valuePerPellet;
+        dropped[k].radius = radius;
         dropped[k].pulseOffset = Math.random() * TAU;
     }
 }
@@ -1649,7 +1694,7 @@ function killSnake(winner, loser, cutFromIndex) {
     winner.grow(Math.floor(loser.length / 2));
     winner.addKill();
     particles.emitDeath(loser.x, loser.y, loser.color);
-    scatterCorpseFood(loser, cutFromIndex);
+    scatterCorpseFood(loser, cutFromIndex, loser.length - cutFromIndex);
 
     if (winner.isPlayer) {
         sessionKills++;
@@ -1671,6 +1716,22 @@ function killSnake(winner, loser, cutFromIndex) {
 }
 
 function devour(winner, loser) { killSnake(winner, loser, 0); }
+
+// Toucher le CORPS d'un serpent plus petit le "coupe" : il perd la partie amputee mais SURVIT,
+// raccourci — contrairement a toucher sa TETE qui le detruit entierement (killSnake/devour ci-
+// dessus). La partie amputee devient des ressources (scatterCorpseFood) dont la valeur/taille est
+// proportionnelle a ce qui a ete coupe. Pas de croissance instantanee pour l'attaquant : il doit
+// aller manger les ressources comme une pastille normale, exactement comme sur slither.io.
+function cutSnake(attacker, target, atIndex) {
+    const removed = target.length - atIndex;
+    if (removed <= 0) return;
+    const cutPoint = target.segments[atIndex] || { x: target.x, y: target.y };
+    scatterCorpseFood(target, atIndex, removed);
+    target.cut(atIndex);
+    particles.emitDeath(cutPoint.x, cutPoint.y, target.color);
+    if (attacker.isPlayer) { audio.play('kill'); screenShake.trigger(5); }
+    if (target.isPlayer) screenShake.trigger(6);
+}
 
 // ============================================================
 //  MODE SPECTATEUR — après la mort, on continue de voir la partie depuis le point de
@@ -1742,7 +1803,7 @@ function checkCollisions() {
                 lastComboTime = gnow();
             }
 
-            snake.grow(CONFIG.FOOD_GROWTH * (snake.isPlayer ? comboMultiplier : 1));
+            snake.grow(f.value * (snake.isPlayer ? comboMultiplier : 1));
             particles.emitFoodEat(f.x, f.y);
             if (snake.isPlayer) audio.play('eat');
             f.respawn();   // la pastille reapparait ailleurs : le tableau garde une taille constante
@@ -1827,7 +1888,7 @@ function checkCollisions() {
             hitIndex = bestIndex;
 
             if (attacker.radius > target.radius * 1.1) {
-                killSnake(attacker, target, hitIndex);
+                cutSnake(attacker, target, hitIndex);
             } else {
                 // Mur : on repousse juste la tete hors du corps touché.
                 const seg = segs[hitIndex];
@@ -1865,16 +1926,22 @@ function spawnPowerups() {
 function emitSnakeEffects(snake) {
     if (!snake.alive || snake.segments.length === 0) return;
     const effects = snake.getActiveEffects();
-    const head = snake.segments[0];
+    const segs = snake.segments;
 
-    if (effects.includes('smoke') && Math.random() < 0.3) {
-        const seg = snake.segments[Math.floor(Math.random() * Math.min(snake.segments.length, 10))];
+    // Les trois effets emanent de TOUTE la surface du serpent, pas seulement de la tete : un
+    // point tire au hasard le long du corps entier a chaque declenchement.
+    if (effects.includes('smoke') && Math.random() < 0.35) {
+        const seg = segs[Math.floor(Math.random() * segs.length)];
         particles.emitSmoke(seg.x, seg.y);
     }
-    if (effects.includes('lightning') && Math.random() < 0.2) particles.emitLightning(head.x, head.y);
-    if (effects.includes('flame') && Math.random() < 0.4) {
-        const seg = snake.segments[Math.floor(Math.random() * snake.segments.length)];
+    if (effects.includes('lightning') && Math.random() < 0.35) {
+        const seg = segs[Math.floor(Math.random() * segs.length)];
+        particles.emitLightning(seg.x, seg.y);
+    }
+    if (effects.includes('flame') && Math.random() < 0.5) {
+        const seg = segs[Math.floor(Math.random() * segs.length)];
         particles.emitFlame(seg.x, seg.y);
+        if (Math.random() < 0.5) particles.emitFlame(segs[Math.floor(Math.random() * segs.length)].x, segs[Math.floor(Math.random() * segs.length)].y);
     }
     if (snake.hasPowerUp('speed') && Math.random() < 0.5) {
         const tail = snake.segments[snake.segments.length-1];
@@ -1888,22 +1955,54 @@ function emitSnakeEffects(snake) {
 function drawAuras(snake) {
     if (!snake.alive || snake.segments.length === 0) return;
     const head = snake.segments[0];
+    const segs = snake.segments;
+    const n = segs.length;
     const t = rnow();
+    const effects = snake.getActiveEffects();
+    const glow = save.settings.quality !== 'LOW';
 
-    if (snake.getActiveEffects().includes('lightning')) {
+    // Eclairs qui RAMPENT le long de tout le corps : chaque arc oscille (phase sinusoidale,
+    // decalee par arc) entre la tete et la queue au lieu d'etre fige autour de la tete.
+    if (effects.includes('lightning') && n > 1) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(0,204,255,0.5)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
-            const a = (t/200 + i*2.1) % TAU;
-            const r = snake.radius + 10 + Math.sin(t/100+i)*5;
-            const sx = head.x + Math.cos(a)*r, sy = head.y + Math.sin(a)*r;
-            const ex = head.x + Math.cos(a+0.5)*(r+15), ey = head.y + Math.sin(a+0.5)*(r+15);
+        ctx.strokeStyle = 'rgba(200,245,255,0.85)';
+        ctx.lineWidth = 1.6;
+        if (glow) { ctx.shadowBlur = 8; ctx.shadowColor = '#00e5ff'; }
+        const arcCount = Math.min(5, Math.max(2, Math.floor(n / 35)));
+        for (let i = 0; i < arcCount; i++) {
+            const phase = t / 260 + i * (TAU / arcCount);
+            const centerT = Math.sin(phase) * 0.5 + 0.5;   // va-et-vient 0..1 le long du corps
+            const idx = Math.min(n - 2, Math.max(0, Math.floor(centerT * (n - 2))));
+            const p0 = segs[idx], p1 = segs[Math.min(n - 1, idx + 2 + Math.floor(Math.random()*3))];
+            const mx = (p0.x + p1.x) / 2 + (Math.random()-0.5) * 14;
+            const my = (p0.y + p1.y) / 2 + (Math.random()-0.5) * 14;
             ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo((sx+ex)/2 + (Math.random()-0.5)*10, (sy+ey)/2 + (Math.random()-0.5)*10);
-            ctx.lineTo(ex, ey);
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(mx, my);
+            ctx.lineTo(p1.x, p1.y);
             ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // Enveloppe de flamme : des lueurs degradees (rouge/or du jeu) reparties le long du corps,
+    // qui vacillent chacune a un rythme different (dephasage par index) pour un effet organique.
+    if (effects.includes('flame') && n > 1) {
+        ctx.save();
+        const flameCount = Math.min(7, Math.max(3, Math.floor(n / 25)));
+        for (let i = 0; i < flameCount; i++) {
+            const idx = Math.floor((i / flameCount) * n);
+            const seg = segs[idx];
+            const flicker = Math.sin(t/90 + idx*1.7) * 0.5 + 0.5;
+            const r = 5 + flicker * 6;
+            const grad = ctx.createRadialGradient(seg.x, seg.y - r*0.5, 0, seg.x, seg.y - r*0.5, r*2);
+            grad.addColorStop(0, 'rgba(255,204,0,0.55)');
+            grad.addColorStop(0.5, 'rgba(255,0,85,0.32)');
+            grad.addColorStop(1, 'rgba(255,0,85,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y - r*0.5, r*2, 0, TAU);
+            ctx.fill();
         }
         ctx.restore();
     }

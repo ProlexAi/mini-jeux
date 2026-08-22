@@ -18,10 +18,11 @@ Installable comme une vraie appli (**PWA**) et **jouable hors-ligne**.
 | Clavier | `Échap` ou `P` = pause · `Entrée` / `Espace` = jouer |
 
 **But :** grossir le plus possible, **sans fin** — comme sur slither.io, il n'y a pas de victoire.
-Face à 45 adversaires, tête contre tête, le plus gros mange le plus petit (il faut être ~10 % plus
-gros) ; toucher le **corps** d'un serpent plus petit le découpe aussi (le tronçon du point d'impact
-jusqu'à la queue devient de la nourriture) — toucher un corps plus gros ou égal agit comme un mur.
-Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
+Face à 45 adversaires, seul un coup sur la **tête** détruit complètement un serpent (~10 % plus
+gros suffit) ; toucher son **corps** ne le tue pas — ça le "coupe" : il perd la partie amputée
+mais **survit**, raccourci. Le tronçon amputé devient des pastilles de nourriture, dont la taille
+et le gain sont proportionnels à ce qui a été coupé. Toucher un corps plus gros ou égal agit comme
+un mur. Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
 4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**. Une
 pop-up explique tout ça en quelques secondes à la toute première partie — jamais revue ensuite.
 
@@ -152,9 +153,14 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
 - **Boucle sans fin** : 100 s simulées, 7 morts du joueur, l'état de jeu ne quitte jamais
   `PLAYING`/`SPECTATING` (pas d'écran de fin) — le monde, les bots et la nourriture restent les
   mêmes d'une vie à l'autre, seul le serpent du joueur est recréé
-- **Découpe corps-à-corps** : mort de la cible, croissance de l'attaquant, pastilles du pool
-  repositionnées aux bons indices le long de la queue ; mur testé à l'approche verticale, diagonale
-  et en bout de corps, sans traversée sur 300 pas
+- **Découpe corps-à-corps** : la cible survit, raccourcie exactement de ce qui a été amputé,
+  l'attaquant ne grandit pas instantanément ; les pastilles générées ont une valeur totale égale
+  à l'amputation (conservation vérifiée à l'exact) et un rayon qui grandit avec leur valeur ;
+  toucher la **tête**, elle, détruit toujours entièrement (croissance instantanée inchangée) ;
+  mur testé à l'approche verticale, diagonale et en bout de corps, sans traversée sur 300 pas
+- **Effets de kills** : fumée, éclair et flamme émanent bien de points tirés sur toute la longueur
+  du corps (vérifié : la dispersion des points dessinés couvre toute la longueur, pas seulement
+  la tête), zéro erreur avec les trois effets actifs simultanément sur 46 serpents
 - Pause qui **fige réellement** l'horloge de jeu, nourriture, combo ×2, les 3 bonus, kill + réapparition,
   sauvegarde persistée, **rechargement hors-ligne**, zéro erreur console
 - **Pop-up de bienvenue** : affichée une seule fois à la toute première partie, jamais aux
