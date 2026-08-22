@@ -1074,6 +1074,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Aucun salon avec ce code.',
         lobbyErrorHostLeft: 'L’hôte a quitté la partie.',
         lobbyErrorGeneric: 'Connexion impossible.',
+        lobbyWorldReady: 'Monde généré ✓', lobbyWorldReceived: 'Monde reçu ✓',
     },
     en: {
         tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 History',
@@ -3602,7 +3603,51 @@ function handleClientMessage(msg, code) {
     } else if (msg.type === 'PLAYER_LEFT') {
         party.players.delete(msg.id);
         renderLobbyPlayers();
+    } else if (msg.type === 'WORLD_INIT') {
+        applyWorldInit(msg);
     }
+}
+
+// Envoi initial complet (une fois), pas de deltas pour l'instant : ~150 à 1600 pastilles selon
+// la taille du monde, un seul message à la connexion, jamais répété.
+function serializeFoods() {
+    return foods.map(f => ({ x: f.x, y: f.y, value: f.value, radius: f.radius }));
+}
+
+// Le monde n'est calculé QUE par l'hôte, sur SON écran (cf. cahier des charges — problème n°1 à
+// résoudre) : deux joueurs sur deux écrans différents doivent voir le même monde, pas chacun le
+// sien. Réutilise exactement le calcul solo (computeWorld, génération des pastilles).
+function hostGenerateWorld() {
+    computeWorld();
+    foods = [];
+    for (let i = 0; i < CONFIG.FOOD_COUNT; i++) foods.push(new Food());
+    foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
+    foodGrid.build(foods);
+}
+
+function launchPrivateGame() {
+    if (!party.active || !party.isHost) return;
+    hostGenerateWorld();
+    hostBroadcast({
+        type: 'WORLD_INIT',
+        width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
+        foodClusters, foods: serializeFoods(),
+    });
+    // Étape suivante (lot 4) : ici, transition vers la boucle de jeu partagée. Pour l'instant,
+    // seule la génération et la diffusion du monde sont vérifiées.
+    $('lobbyStatus').textContent = t('lobbyWorldReady') + ' (' + CONFIG.WORLD_WIDTH + '×' + CONFIG.WORLD_HEIGHT + ', ' + foods.length + ' pastilles)';
+}
+
+// Applique le monde reçu de l'hôte : mêmes dimensions, mêmes pastilles, quel que soit l'écran
+// du client — remplace computeWorld() côté client, qui ne doit plus jamais tourner en partie privée.
+function applyWorldInit(msg) {
+    CONFIG.WORLD_WIDTH = msg.width;
+    CONFIG.WORLD_HEIGHT = msg.height;
+    foodClusters = msg.foodClusters;
+    foods = msg.foods.map(f => Object.assign(new Food(), f));
+    foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
+    foodGrid.build(foods);
+    $('lobbyStatus').textContent = t('lobbyWorldReceived') + ' (' + CONFIG.WORLD_WIDTH + '×' + CONFIG.WORLD_HEIGHT + ', ' + foods.length + ' pastilles)';
 }
 
 function leaveLobby() { resetParty(); showScreen('menu'); }
@@ -3620,8 +3665,7 @@ bindBtn('lobbyLeaveBtn', leaveLobby);
 $('lobbyCodeInput').addEventListener('input', () => {
     $('lobbyCodeInput').value = $('lobbyCodeInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
 });
-// Lancement de la vraie partie partagée : lot suivant (monde commun + boucle réseau).
-bindBtn('lobbyStartBtn', () => showToast('🚧 Lancement de la partie : à venir'));
+bindBtn('lobbyStartBtn', launchPrivateGame);
 
 // Hors-ligne : le bouton reste visible (pas masqué, cf. cahier des charges UI point 10) mais
 // désactivé, avec le motif affiché — cohérent avec l'indicateur hors-ligne déjà présent ici.
