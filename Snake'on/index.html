@@ -168,6 +168,10 @@
         }
         #spectateBanner.hidden { display: none; }
         #spectateBanner button { margin: 0; padding: 6px 14px; font-size: 12px; white-space: nowrap; }
+        /* Quitter reste irréversible (on ne revient pas dans la même arène), donc rouge — mais
+           ce n'est plus une punition : l'XP de la vie est encaissé dans les deux cas. */
+        #spectateQuitBtn { border-color: var(--danger); color: var(--danger-text); box-shadow: none; }
+        #spectateQuitBtn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); }
         #killStreak {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -674,7 +678,8 @@
     <canvas id="minimap" width="100" height="70"></canvas>
     <div id="spectateBanner" class="hidden">
         <span><span data-i18n="eatenBy">💀 Mangé par</span> <span id="spectateName" class="accent"></span></span>
-        <button id="spectateSkipBtn" data-i18n="seeResults">Voir mes résultats ▶</button>
+        <button id="spectateSkipBtn" data-i18n="continueLife">Continuer ▶</button>
+        <button id="spectateQuitBtn" data-role="danger" data-i18n="quitLife">Quitter</button>
     </div>
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
@@ -858,15 +863,15 @@
 
             <div class="abandon-row" id="abandonRow">
                 <span class="abandon-warn" data-warn>⚠</span>
-                <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
-                    <span id="abandonLabel" data-i18n="abandon">ABANDONNER</span><span class="abandon-code">A00</span><span id="abandonHachure" class="hachure danger" style="width:20px"></span>
+                <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Quitter la partie">
+                    <span id="abandonLabel" data-i18n="abandon">QUITTER LA PARTIE</span><span class="abandon-code">A00</span><span id="abandonHachure" class="hachure danger" style="width:20px"></span>
                 </button>
                 <span class="abandon-warn" data-warn>⚠</span>
             </div>
         </div>
         <div id="pauseConfirm" class="hidden">
-            <h1 id="abandonConfirmTitle" data-i18n="abandonTitle">Abandonner ?</h1>
-            <p class="hint" id="abandonConfirmHint" data-i18n="abandonHint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
+            <h1 id="abandonConfirmTitle" data-i18n="abandonTitle">Quitter la partie ?</h1>
+            <p class="hint" id="abandonConfirmHint" data-i18n="abandonHint">La vie en cours s’arrête ici. Tu gardes ton XP, tes stats et ton entrée à l’historique.</p>
             <div class="btn-row">
                 <button id="abandonNoBtn" class="btn-primary" data-i18n="no">NON</button>
                 <button id="abandonYesBtn" class="btn-secondary" data-role="danger" data-i18n="yes">OUI</button>
@@ -1062,13 +1067,14 @@ const TRANSLATIONS = {
         welcomeStart: "C'EST PARTI ▶",
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
         pausePartyHint: '⚠ Toi seul es en pause — tu peux te faire manger pendant ce temps.',
-        resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
-        abandonTitle: 'Abandonner ?', abandonHint: 'La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.',
+        resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'QUITTER LA PARTIE',
+        abandonTitle: 'Quitter la partie ?', abandonHint: 'La vie en cours s’arrête ici. Tu gardes ton XP, tes stats et ton entrée à l’historique.',
         finish: 'TERMINER LA PARTIE', finishTitle: 'Terminer en tête ?',
         finishHint: "Tu es n°1 : la partie s’arrête ici et tout est gardé — XP, bonus de victoire, entrée à l’historique.",
         yes: 'OUI', no: 'NON',
         leaderboard: 'CLASSEMENT', you: 'TOI', size: 'Taille', time: 'Temps', kills: 'Kills',
-        eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
+        eatenBy: '💀 Mangé par', continueLife: 'Continuer', quitLife: 'Quitter',
+        offlineReady: 'Jouable hors-ligne ✓',
         privateGame: '🌐 PARTIE PRIVÉE', privateGameOffline: 'Hors ligne : la partie privée a besoin du réseau',
         lobbyTitle: '🌐 SALON', lobbyChoiceHint: 'Jouez à plusieurs, dans la même arène, avec un code.',
         lobbyCreate: 'CRÉER UN SALON', lobbyJoin: 'REJOINDRE', lobbyJoinConfirm: 'REJOINDRE',
@@ -1101,13 +1107,26 @@ const TRANSLATIONS = {
         welcomeText: 'Eat the pellets, grow, avoid snakes bigger than you — and devour the smaller ones. Touch their body to cut them. The game never ends: when you die, you respawn straight away in the same arena.',
         welcomeStart: "LET'S GO ▶",
         pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
-        resume: '▶ RESUME', settings: 'Settings', abandon: 'GIVE UP',
-        abandonTitle: 'Give up?', abandonHint: 'The current life ends. No XP, no history entry.',
+        pausePartyHint: '⚠ Only you are paused — you can still get eaten meanwhile.',
+        resume: '▶ RESUME', settings: 'Settings', abandon: 'LEAVE THE GAME',
+        abandonTitle: 'Leave the game?', abandonHint: 'The current life ends here. You keep your XP, your stats and your history entry.',
         finish: 'FINISH ON TOP', finishTitle: 'Finish in first place?',
         finishHint: "You are #1: the game ends here and everything is kept — XP, victory bonus, history entry.",
         yes: 'YES', no: 'NO',
         leaderboard: 'LEADERBOARD', you: 'YOU', size: 'Size', time: 'Time', kills: 'Kills',
-        eatenBy: '💀 Eaten by', seeResults: 'See my results ▶', offlineReady: 'Playable offline ✓',
+        eatenBy: '💀 Eaten by', continueLife: 'Continue', quitLife: 'Leave',
+        offlineReady: 'Playable offline ✓',
+        privateGame: '🌐 PRIVATE GAME', privateGameOffline: 'Offline: a private game needs the network',
+        lobbyTitle: '🌐 LOBBY', lobbyChoiceHint: 'Play together, in the same arena, with a code.',
+        lobbyCreate: 'CREATE A LOBBY', lobbyJoin: 'JOIN', lobbyJoinConfirm: 'JOIN',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ START', lobbyLeave: '❮ Leave the lobby',
+        lobbyHostBadge: 'HOST', lobbyWaitingPlayers: 'Waiting for players…',
+        lobbyWaiting: 'Waiting for the host…', lobbyConnecting: 'Connecting…',
+        lobbyErrorOffline: 'Cannot connect — check your network connection.',
+        lobbyErrorCodeTaken: 'Code already in use, trying again…',
+        lobbyErrorCodeNotFound: 'No lobby with that code.',
+        lobbyErrorHostLeft: 'The host has left the game.',
+        lobbyErrorGeneric: 'Connection failed.',
     },
     es: {
         tabSkins: '🎨 Aspectos', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
@@ -1129,13 +1148,26 @@ const TRANSLATIONS = {
         welcomeText: 'Come las bolitas, crece, evita las serpientes más grandes que tú — y devora a las más pequeñas. Toca su cuerpo para cortarlas. El juego nunca termina: al morir, reapareces enseguida en la misma arena.',
         welcomeStart: '¡VAMOS! ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
-        resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'ABANDONAR',
-        abandonTitle: '¿Abandonar?', abandonHint: 'La vida actual termina. Sin XP, sin entrada en el historial.',
+        pausePartyHint: '⚠ Solo tú estás en pausa — pueden devorarte mientras tanto.',
+        resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'SALIR DE LA PARTIDA',
+        abandonTitle: '¿Salir de la partida?', abandonHint: 'La vida actual termina aquí. Conservas tu XP, tus estadísticas y tu entrada en el historial.',
         finish: 'TERMINAR EN CABEZA', finishTitle: '¿Terminar en primer puesto?',
         finishHint: "Eres el n.º 1: la partida termina aquí y se conserva todo: XP, bonus de victoria y entrada en el historial.",
         yes: 'SÍ', no: 'NO',
         leaderboard: 'CLASIFICACIÓN', you: 'TÚ', size: 'Tamaño', time: 'Tiempo', kills: 'Kills',
-        eatenBy: '💀 Devorado por', seeResults: 'Ver mis resultados ▶', offlineReady: 'Jugable sin conexión ✓',
+        eatenBy: '💀 Devorado por', continueLife: 'Continuar', quitLife: 'Salir',
+        offlineReady: 'Jugable sin conexión ✓',
+        privateGame: '🌐 PARTIDA PRIVADA', privateGameOffline: 'Sin conexión: la partida privada necesita red',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Jugad juntos, en la misma arena, con un código.',
+        lobbyCreate: 'CREAR UNA SALA', lobbyJoin: 'UNIRSE', lobbyJoinConfirm: 'UNIRSE',
+        lobbyCodePlaceholder: 'CÓDIGO', lobbyStart: '▶ EMPEZAR', lobbyLeave: '❮ Salir de la sala',
+        lobbyHostBadge: 'ANFITRIÓN', lobbyWaitingPlayers: 'Esperando jugadores…',
+        lobbyWaiting: 'Esperando al anfitrión…', lobbyConnecting: 'Conectando…',
+        lobbyErrorOffline: 'No se puede conectar — comprueba tu conexión de red.',
+        lobbyErrorCodeTaken: 'Código ya en uso, reintentando…',
+        lobbyErrorCodeNotFound: 'No hay ninguna sala con ese código.',
+        lobbyErrorHostLeft: 'El anfitrión ha salido de la partida.',
+        lobbyErrorGeneric: 'No se pudo conectar.',
     },
     de: {
         tabSkins: '🎨 Skins', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
@@ -1157,13 +1189,26 @@ const TRANSLATIONS = {
         welcomeText: 'Friss die Kugeln, wachse, meide größere Schlangen — und verschlinge die kleineren. Berühre ihren Körper, um sie zu zerteilen. Das Spiel endet nie: Stirbst du, erscheinst du sofort in derselben Arena wieder.',
         welcomeStart: "LOS GEHT'S ▶",
         pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
-        resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'AUFGEBEN',
-        abandonTitle: 'Aufgeben?', abandonHint: 'Das laufende Leben endet. Kein XP, kein Verlaufseintrag.',
+        pausePartyHint: '⚠ Nur du bist pausiert — du kannst währenddessen gefressen werden.',
+        resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'SPIEL VERLASSEN',
+        abandonTitle: 'Spiel verlassen?', abandonHint: 'Das laufende Leben endet hier. Du behältst dein XP, deine Statistiken und deinen Verlaufseintrag.',
         finish: 'ALS ERSTER BEENDEN', finishTitle: 'Als Erster beenden?',
         finishHint: "Du bist Nr. 1: Das Spiel endet hier und alles bleibt erhalten — XP, Siegbonus, Verlaufseintrag.",
         yes: 'JA', no: 'NEIN',
         leaderboard: 'RANGLISTE', you: 'DU', size: 'Größe', time: 'Zeit', kills: 'Kills',
-        eatenBy: '💀 Gefressen von', seeResults: 'Meine Ergebnisse ▶', offlineReady: 'Offline spielbar ✓',
+        eatenBy: '💀 Gefressen von', continueLife: 'Weiter', quitLife: 'Verlassen',
+        offlineReady: 'Offline spielbar ✓',
+        privateGame: '🌐 PRIVATE PARTIE', privateGameOffline: 'Offline: Die private Partie braucht das Netzwerk',
+        lobbyTitle: '🌐 LOBBY', lobbyChoiceHint: 'Spielt gemeinsam, in derselben Arena, mit einem Code.',
+        lobbyCreate: 'LOBBY ERSTELLEN', lobbyJoin: 'BEITRETEN', lobbyJoinConfirm: 'BEITRETEN',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ STARTEN', lobbyLeave: '❮ Lobby verlassen',
+        lobbyHostBadge: 'GASTGEBER', lobbyWaitingPlayers: 'Warte auf Spieler…',
+        lobbyWaiting: 'Warte auf den Gastgeber…', lobbyConnecting: 'Verbinde…',
+        lobbyErrorOffline: 'Verbindung nicht möglich — prüfe deine Netzwerkverbindung.',
+        lobbyErrorCodeTaken: 'Code bereits vergeben, neuer Versuch…',
+        lobbyErrorCodeNotFound: 'Keine Lobby mit diesem Code.',
+        lobbyErrorHostLeft: 'Der Gastgeber hat die Partie verlassen.',
+        lobbyErrorGeneric: 'Verbindung fehlgeschlagen.',
     },
     it: {
         tabSkins: '🎨 Skin', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
@@ -1185,13 +1230,26 @@ const TRANSLATIONS = {
         welcomeText: 'Mangia le palline, cresci, evita i serpenti più grandi di te — e divora i più piccoli. Tocca il loro corpo per tagliarli. Il gioco non finisce mai: quando muori, riappari subito nella stessa arena.',
         welcomeStart: 'SI PARTE ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
-        resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ABBANDONA',
-        abandonTitle: 'Abbandonare?', abandonHint: 'La vita in corso termina. Nessun XP, nessuna voce in cronologia.',
+        pausePartyHint: '⚠ Solo tu sei in pausa — nel frattempo puoi essere mangiato.',
+        resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ESCI DALLA PARTITA',
+        abandonTitle: 'Uscire dalla partita?', abandonHint: 'La vita in corso termina qui. Mantieni i tuoi XP, le tue statistiche e la tua voce in cronologia.',
         finish: 'CHIUDI DA PRIMO', finishTitle: 'Chiudere da primo?',
         finishHint: "Sei il n. 1: la partita finisce qui e viene conservato tutto: XP, bonus vittoria, voce in cronologia.",
         yes: 'SÌ', no: 'NO',
         leaderboard: 'CLASSIFICA', you: 'TU', size: 'Taglia', time: 'Tempo', kills: 'Kills',
-        eatenBy: '💀 Mangiato da', seeResults: 'Vedi i miei risultati ▶', offlineReady: 'Giocabile offline ✓',
+        eatenBy: '💀 Mangiato da', continueLife: 'Continua', quitLife: 'Esci',
+        offlineReady: 'Giocabile offline ✓',
+        privateGame: '🌐 PARTITA PRIVATA', privateGameOffline: 'Offline: la partita privata richiede la rete',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Giocate insieme, nella stessa arena, con un codice.',
+        lobbyCreate: 'CREA UNA SALA', lobbyJoin: 'ENTRA', lobbyJoinConfirm: 'ENTRA',
+        lobbyCodePlaceholder: 'CODICE', lobbyStart: '▶ AVVIA', lobbyLeave: '❮ Esci dalla sala',
+        lobbyHostBadge: 'HOST', lobbyWaitingPlayers: 'In attesa di giocatori…',
+        lobbyWaiting: 'In attesa dell’host…', lobbyConnecting: 'Connessione…',
+        lobbyErrorOffline: 'Impossibile connettersi — controlla la tua connessione di rete.',
+        lobbyErrorCodeTaken: 'Codice già in uso, nuovo tentativo…',
+        lobbyErrorCodeNotFound: 'Nessuna sala con questo codice.',
+        lobbyErrorHostLeft: 'L’host ha lasciato la partita.',
+        lobbyErrorGeneric: 'Connessione non riuscita.',
     },
     pt: {
         tabSkins: '🎨 Skins', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
@@ -1213,13 +1271,26 @@ const TRANSLATIONS = {
         welcomeText: 'Come as bolinhas, cresce, evita as cobras maiores do que tu — e devora as mais pequenas. Toca no corpo delas para as cortares. O jogo nunca acaba: ao morreres, reapareces logo na mesma arena.',
         welcomeStart: 'VAMOS ▶',
         pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
-        resume: '▶ RETOMAR', settings: 'Definições', abandon: 'DESISTIR',
-        abandonTitle: 'Desistir?', abandonHint: 'A vida atual termina. Sem XP, sem entrada no histórico.',
+        pausePartyHint: '⚠ Só tu estás em pausa — podes ser comido entretanto.',
+        resume: '▶ RETOMAR', settings: 'Definições', abandon: 'SAIR DO JOGO',
+        abandonTitle: 'Sair do jogo?', abandonHint: 'A vida atual termina aqui. Mantens o teu XP, as tuas estatísticas e a tua entrada no histórico.',
         finish: 'TERMINAR EM PRIMEIRO', finishTitle: 'Terminar em primeiro?',
         finishHint: "És o n.º 1: a partida termina aqui e fica tudo guardado — XP, bónus de vitória, entrada no histórico.",
         yes: 'SIM', no: 'NÃO',
         leaderboard: 'CLASSIFICAÇÃO', you: 'TU', size: 'Tamanho', time: 'Tempo', kills: 'Kills',
-        eatenBy: '💀 Comido por', seeResults: 'Ver os meus resultados ▶', offlineReady: 'Jogável offline ✓',
+        eatenBy: '💀 Comido por', continueLife: 'Continuar', quitLife: 'Sair',
+        offlineReady: 'Jogável offline ✓',
+        privateGame: '🌐 JOGO PRIVADO', privateGameOffline: 'Offline: o jogo privado precisa de rede',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Joguem juntos, na mesma arena, com um código.',
+        lobbyCreate: 'CRIAR UMA SALA', lobbyJoin: 'ENTRAR', lobbyJoinConfirm: 'ENTRAR',
+        lobbyCodePlaceholder: 'CÓDIGO', lobbyStart: '▶ COMEÇAR', lobbyLeave: '❮ Sair da sala',
+        lobbyHostBadge: 'ANFITRIÃO', lobbyWaitingPlayers: 'À espera de jogadores…',
+        lobbyWaiting: 'À espera do anfitrião…', lobbyConnecting: 'A ligar…',
+        lobbyErrorOffline: 'Não foi possível ligar — verifica a tua ligação de rede.',
+        lobbyErrorCodeTaken: 'Código já em uso, a tentar de novo…',
+        lobbyErrorCodeNotFound: 'Nenhuma sala com esse código.',
+        lobbyErrorHostLeft: 'O anfitrião saiu do jogo.',
+        lobbyErrorGeneric: 'Não foi possível ligar.',
     },
 };
 
@@ -2469,12 +2540,15 @@ function pauseGame() {
     showScreen('pause');
 }
 
-// Sortie confirmee depuis Pause : en tete, la partie est GAGNEE et tout est garde (endGame) ;
-// sinon c'est l'abandon d'origine, qui ne compte pas comme une vie terminee.
+// Sortie confirmee depuis Pause. Quitter n'est PLUS une punition : la vie en cours est comptee
+// dans tous les cas, exactement comme une mort. En tete du classement elle est meme majoree
+// (WIN_XP_MULTIPLIER). Motif : devoir s'arreter en cours de partie — un rendez-vous qui arrive —
+// ne doit jamais effacer ce qu'on vient de jouer. Seule reste l'irreversibilite : on ne revient
+// pas dans la meme arene, d'ou le rouge conserve sur le bouton.
 function confirmPauseExit() {
-    if (pauseVictory && player && player.alive) {
+    if (player && player.alive) {
         gameState = 'PLAYING';        // endGame() n'accepte que cet etat (cf. finishSpectate)
-        endGame({ won: true });
+        endGame({ won: pauseVictory });
     }
     pauseVictory = false;
     goToMenu();
@@ -2688,6 +2762,16 @@ function finishSpectate() {
     respawnPlayer();
 }
 
+// L'autre issue de la bannière spectateur : on s'arrête là. La vie est comptée exactement comme
+// si on avait continué — même XP, mêmes stats, même entrée d'historique. Devoir partir (un
+// rendez-vous qui arrive) ne doit jamais coûter la partie qu'on vient de jouer.
+function quitFromSpectate() {
+    if (gameState !== 'SPECTATING') return;
+    gameState = 'PLAYING';
+    endGame();
+    goToMenu();
+}
+
 // Réapparition dans la MÊME arène (monde, bots, nourriture inchangés) : seul le serpent du
 // joueur est recréé. C'est ce qui rend la partie infinie — startGame() reste le seul point
 // qui régénère un monde entier, depuis le menu.
@@ -2713,7 +2797,9 @@ function updateSpectateBanner() {
     if (gameState !== 'SPECTATING') return;
     $('spectateName').textContent = (spectateTarget && spectateTarget.name) || '?';
     const left = Math.max(0, Math.ceil((spectateEndsAt - gnow()) / 1000));
-    $('spectateSkipBtn').textContent = 'Voir mes résultats (' + left + 's) ▶';
+    // Passe par t() : ce libelle etait ecrit en francais en dur et restait donc francais dans
+    // les six langues, contrairement a tout le reste de l'interface.
+    $('spectateSkipBtn').textContent = t('continueLife') + ' (' + left + 's) ▶';
 }
 
 function checkCollisions() {
@@ -3367,6 +3453,7 @@ bindBtn('abandonBtn', showAbandonConfirm);
 bindBtn('abandonNoBtn', hideAbandonConfirm);
 bindBtn('abandonYesBtn', confirmPauseExit);
 bindBtn('spectateSkipBtn', finishSpectate);
+bindBtn('spectateQuitBtn', quitFromSpectate);
 
 document.querySelectorAll('[data-vol]').forEach(slider => {
     slider.addEventListener('input', () => {

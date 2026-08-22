@@ -1,8 +1,9 @@
 # 🐍 Snake'on
 
 Arène survivor-like néon dans un **grand monde qui défile** : mange, grossis, dévore les serpents
-plus petits que toi. **100 % HTML/JS/CSS**, aucune dépendance, aucun build, aucun serveur.
-Installable comme une vraie appli (**PWA**) et **jouable hors-ligne**.
+plus petits que toi. Seul face à 45 bots, ou **à plusieurs dans la même arène** en s'échangeant un
+code. **100 % HTML/JS/CSS**, aucun build, aucun serveur. Installable comme une vraie appli
+(**PWA**) et **jouable hors-ligne** en solo.
 
 ▶️ **Jouer : https://prolexai.github.io/mini-jeux/Snake'on/**
 *(ce jeu fait partie du dépôt [mini-jeux](../README.md), qui en regroupe plusieurs)*
@@ -17,7 +18,9 @@ Installable comme une vraie appli (**PWA**) et **jouable hors-ligne**.
 | Ordinateur | Le serpent suit la **souris** |
 | Clavier | `Échap` ou `P` = pause · `Entrée` / `Espace` = jouer |
 
-**But :** grossir le plus possible, **sans fin** — comme sur slither.io, il n'y a pas de victoire.
+**But :** grossir le plus possible, **sans fin** — comme sur slither.io, la partie ne s'arrête
+jamais d'elle-même. Une seule façon de « gagner » : arriver **en tête du classement** et choisir
+de t'arrêter là, depuis Pause, pour empocher le bonus de victoire.
 Face à 45 adversaires, seul un coup sur la **tête** détruit complètement un serpent (~10 % plus
 gros suffit) ; toucher son **corps** ne le tue pas — ça le "coupe" : il perd la partie amputée
 mais **survit**, raccourci. Le tronçon amputé devient des pastilles de nourriture, dont la taille
@@ -26,9 +29,35 @@ un mur. Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. 
 4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**. Une
 pop-up explique tout ça en quelques secondes à la toute première partie — jamais revue ensuite.
 
-Le bouton pause propose **🏳 Abandonner** (contour rouge, confirmation obligatoire) pour retourner
-à l'accueil sans attendre la mort — l'abandon ne compte pas comme une vie (pas de XP, pas
-d'entrée à l'historique), à la différence d'une mort.
+**Quitter ne coûte jamais rien.** Deux sorties existent : **🏳 Quitter la partie** depuis Pause
+(contour rouge, confirmation obligatoire) et **Quitter** sur la bannière qui suit ta mort. Les
+deux comptent la vie en cours exactement comme si tu avais continué — XP, stats, entrée à
+l'historique. Une partie commencée en attendant quelqu'un ne se perd donc pas quand cette
+personne arrive. Le rouge signale seulement que c'est **irréversible** : on ne revient pas dans
+la même arène. Si tu es **en tête du classement**, le bouton devient **Terminer la partie** et
+l'XP est majoré d'un bonus de victoire.
+
+---
+
+## 🌐 Jouer à plusieurs (partie privée)
+
+Le bouton **🌐 Partie Privée** de l'accueil ouvre un **salon** : l'un crée un salon et reçoit un
+**code de 5 caractères** (sans `0`/`O` ni `1`/`I`/`L`, pour qu'il se dicte à voix haute sans
+confusion), les autres le saisissent pour le rejoindre. Tout le monde joue alors dans **la même
+arène**, mêlé aux bots. On peut rejoindre **en cours de partie** : on apparaît aussitôt, protégé
+par le bouclier d'apparition.
+
+C'est du **pair-à-pair (WebRTC)** : la partie ne transite par aucun serveur, seule la mise en
+relation passe par un annuaire public. Celui qui crée le salon fait autorité sur la partie ; s'il
+quitte, la partie s'arrête pour tout le monde — mais chacun **garde l'XP** de la vie en cours,
+personne ne paie une coupure qu'il n'a pas causée. Aucun compte, aucune donnée qui sort de ton
+appareil : la progression reste dans ton navigateur, comme en solo.
+
+⚠️ **Mettre pause ne fige pas la partie des autres.** Pendant ta pause, ton serpent passe en
+pilotage automatique (il fuit, il ne chasse pas) — **tu peux te faire manger pendant ce temps**,
+et le jeu te le dit. Le bouton Partie Privée est désactivé hors ligne, avec le motif affiché.
+
+---
 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
 **Progression :** XP, niveaux, 10 skins à débloquer, 8 succès, historique des 10 dernières vies.
@@ -90,12 +119,16 @@ Une fois installé : plein écran, sans barre de navigateur, **et ça marche san
 ## 📁 Ce qu'il y a dans le dépôt
 
 ```
-index.html            le jeu entier : HTML + CSS + JS + sons générés (aucune image, aucune lib)
-manifest.webmanifest  carte d'identité de l'appli (nom, icônes, couleurs, plein écran)
-sw.js                 service worker : met le jeu en cache pour le hors-ligne
-icons/                icônes de l'appli (192, 512, maskable, Apple, favicon)
-.nojekyll             dit à GitHub Pages de servir les fichiers tels quels
+index.html              le jeu entier : HTML + CSS + JS + sons générés (aucune image, aucune lib)
+manifest.webmanifest    carte d'identité de l'appli (nom, icônes, couleurs, plein écran)
+sw.js                   service worker : met le jeu en cache pour le hors-ligne
+icons/                  icônes de l'appli (192, 512, maskable, Apple, favicon)
+verifie-traductions.js  contrôle : les 6 langues sont complètes (node, hors jeu)
+.nojekyll               dit à GitHub Pages de servir les fichiers tels quels
 ```
+
+La partie privée charge **PeerJS** depuis un CDN, à l'ouverture du salon seulement : le jeu solo
+ne dépend de rien et reste jouable hors-ligne.
 
 Pourquoi pas **un seul** fichier HTML ? Le jeu, lui, l'est : tout tient dans `index.html`.
 Mais une PWA impose que le **manifest** et le **service worker** soient des fichiers séparés —
@@ -112,7 +145,7 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | `FOOD_GROWTH: 2` | taille gagnée par pastille |
 | `WORLD_SCREENS: 16` | taille du monde, en écrans de surface — monte-le pour une carte plus vaste |
 | `BOT_COUNT: 45` | nombre d'adversaires (la densité de rencontres) |
-| `BOT_MAX_LENGTH: 300` | plafond des bots, pour qu'aucun ne finisse par dominer toute l'arène |
+| `EAT_RATIO: 1.1` | de combien il faut être plus long que l'autre pour le manger (aucun plafond de longueur n'existe) |
 | `SPAWN_SHIELD_MS: 3000` | invincibilité à l'apparition (et à chaque réapparition) |
 | `SPECTATE_MS: 4000` | durée de la vue sur le tueur avant de réapparaître |
 | `FOOD_AREA_PER_ITEM` | densité de nourriture (px² par pastille) |
@@ -161,12 +194,21 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
 - **Effets de kills** : fumée, éclair et flamme émanent bien de points tirés sur toute la longueur
   du corps (vérifié : la dispersion des points dessinés couvre toute la longueur, pas seulement
   la tête), zéro erreur avec les trois effets actifs simultanément sur 46 serpents
-- Pause qui **fige réellement** l'horloge de jeu, nourriture, combo ×2, les 3 bonus, kill + réapparition,
-  sauvegarde persistée, **rechargement hors-ligne**, zéro erreur console
+- Pause qui **fige réellement** l'horloge de jeu **en solo** (nourriture, combo ×2, les 3 bonus),
+  et qui **ne fige rien** en partie privée : le serpent passe sous IA et reste mangeable (vérifié
+  — mangé par un bot pendant la pause). Kill + réapparition, sauvegarde persistée, **rechargement
+  hors-ligne**, zéro erreur console
+- **Partie privée**, vérifiée à deux et trois navigateurs : même monde chez tous (dimensions,
+  nombre et positions des pastilles), cap d'un joueur appliqué chez l'hôte, cycle complet
+  mort → spectateur → XP → réapparition, arrivée en cours de partie sur une partie déjà vieille de
+  10 s, et perte de l'hôte encaissée comme une mort
+- **Les 6 langues sont complètes**, par un contrôle rejouable et saboté :
+  `node "Snake'on/verifie-traductions.js"`
 - **Pop-up de bienvenue** : affichée une seule fois à la toute première partie, jamais aux
   suivantes (vérifié sur une sauvegarde vidée puis rejouée)
-- **Abandon (Pause → 🏳)** : confirmation obligatoire (Oui repart au menu sans compter la vie —
-  ni XP ni historique —, Non revient à la pause normale), testé aussi après une reprise
+- **Quitter (Pause → 🏳, ou bannière spectateur)** : confirmation obligatoire côté Pause, et les
+  deux sorties comptent la vie — mesuré : taille 102 → +51 XP hors du top 1, taille 2100 → +1575
+  en tête (bonus de victoire ×1,5), avec dans les deux cas +1 partie et +1 entrée d'historique
 - **Réglages** : les interrupteurs Musique/Effets et le choix de qualité graphique se
   sauvegardent et survivent à un rechargement ; couper les effets coupe bien tous les sons
   (vérifié sur `AudioManager.play()`) ; les trois niveaux de qualité (résolution, budget de

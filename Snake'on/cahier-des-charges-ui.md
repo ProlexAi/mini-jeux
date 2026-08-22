@@ -1,11 +1,11 @@
 # Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
-et leurs actions — pas d'implémentation, pas de code. Version 0.3 : intègre l'addendum
-*« L'éclat néon au clic »* (maquette interactive déposée par Matt) — révise le système de
-couleurs, les Réglages et Pause, ajoute un effet transverse, la typographie et la traduction.
-La V0.3 est implémentée ; le §7 consigne les arbitrages pris à cette occasion et le §8 ce qui
-reste ouvert.
+et leurs actions — pas d'implémentation, pas de code. Version 0.4 : ajoute la **partie privée**
+(écran de Salon, bouton `A06`, pause qui ne fige plus le monde des autres) et **renverse la
+punition de l'abandon** — quitter une partie compte désormais la vie en cours, où qu'on parte
+(§5.15). La V0.3 (addendum *« L'éclat néon au clic »*) reste décrite telle quelle ; le §7
+consigne ses arbitrages et le §8 ce qui reste ouvert.
 
 ---
 
@@ -16,13 +16,15 @@ Accueil ──[Jouer, 1ère partie]──> Pop-up de bienvenue ──> En jeu
 Accueil ──[Jouer, parties suivantes]──────────────────────> En jeu
 
 En jeu ──[bouton Pause]──> Pause ──[Reprendre]──> En jeu
-Pause ──[🏳 Abandonner, confirmé]──> Accueil
+Pause ──[🏳 Quitter la partie, confirmé]──> Accueil
 
-En jeu ──[mort]──> Spectateur ──[4s ou "Passer"]──> En jeu (nouvelle vie, même arène)
+En jeu ──[mort]──> Spectateur ──[4s ou "Continuer"]──> En jeu (nouvelle vie, même arène)
+Spectateur ──["Quitter"]──> Accueil
 ```
 
-Il n'y a pas de fin de partie : la boucle En jeu ⇄ Spectateur peut se répéter indéfiniment. Seul
-**Abandonner** (depuis Pause) ramène à l'Accueil. La pop-up de bienvenue n'apparaît qu'une seule
+Il n'y a pas de fin de partie : la boucle En jeu ⇄ Spectateur peut se répéter indéfiniment. Deux
+sorties ramènent à l'Accueil : **Quitter la partie** (depuis Pause) et **Quitter** (depuis la
+bannière spectateur). **Les deux comptent la vie en cours** — voir §5.15. La pop-up de bienvenue n'apparaît qu'une seule
 fois, à la toute première partie du joueur. **Réglages** est accessible de façon identique depuis
 l'Accueil et depuis Pause (v0.3) — ce n'est plus réservé à l'Accueil.
 
@@ -33,8 +35,9 @@ l'Accueil et depuis Pause (v0.3) — ce n'est plus réservé à l'Accueil.
 ### Couleurs — révisé en v0.3 (remplace la table de la V0.2)
 
 Huit teintes au choix du joueur ; toute l'interface suit — bordures, onglets, hachures, titre,
-éclat de clic. **Une seule exception, fixe, qui ne suit jamais le choix du joueur : Abandonner,
-toujours rouge, encadré de deux ⚠.**
+éclat de clic. **Une seule exception, fixe, qui ne suit jamais le choix du joueur : Quitter la
+partie, toujours rouge, encadré de deux ⚠.** Le rouge y signale l'**irréversibilité** — on ne
+revient pas dans la même arène — et non une punition : la vie quittée est comptée normalement.
 
 | Teinte | Hex | Statut |
 |---|---|---|
@@ -46,7 +49,7 @@ toujours rouge, encadré de deux ⚠.**
 | 🟪 Rose | `#ff4d9d` | Au choix |
 | 🟣 Violet | `#b06bff` | Au choix |
 | 🔵 Bleu | `#3ba9ff` | Au choix |
-| 🟥 Rouge | `#ff5c8a` | **Fixe — Abandonner uniquement, jamais choisissable** |
+| 🟥 Rouge | `#ff5c8a` | **Fixe — sorties irréversibles uniquement, jamais choisissable** |
 
 Ce que ça change par rapport à la V0.2 (tranchée en §5.5) : le **jaune n'a plus de rôle réservé** —
 Pause suivait le jaune, elle suit maintenant la couleur choisie comme le reste. Le **violet**
@@ -77,7 +80,7 @@ Anatomie (séquence, ≤ 600 ms au total) :
 | Anneau | 260 ms | anneau, 6 → 62 px |
 | Éclats | 430 ms | 14 traînées qui se dispersent |
 
-Prend la couleur d'interface choisie ; toujours rouge sur Abandonner. Son **intensité** est
+Prend la couleur d'interface choisie ; toujours rouge sur Quitter la partie. Son **intensité** est
 réglable — voir "Effets" dans Réglages ci-dessous.
 
 ### Tailles tactiles
@@ -141,16 +144,17 @@ adaptés en largeur plutôt qu'en hauteur, même contenu.
 - **Rôle :** interrompre temporairement sans perdre la vie en cours.
 - **Contenu :** titre `PAUSE` avec sous-titre stylé `SYS//HALT`, Réglages accessible **directement
   depuis cet écran** avec un aperçu vivant (puces Effets, curseur Musique visibles inline), icône
-  **🏳 Abandonner** (A00) en bas, encadrée de deux ⚠, contour rouge fixe.
+  **🏳 Quitter la partie** (A00) en bas, encadrée de deux ⚠, contour rouge fixe.
 - **Actions :**
   - **Reprendre** : retour immédiat au jeu.
   - **Réglages** : ouvre le même panneau qu'à l'Accueil.
-  - **🏳 Abandonner** : ouvre une confirmation ("Abandonner la partie ?" Oui/Non) avant de revenir
-    à l'Accueil.
+  - **🏳 Quitter la partie** : ouvre une confirmation ("Quitter la partie ?" Oui/Non) avant de
+    revenir à l'Accueil. En tête du classement, le libellé devient **Terminer la partie** et le
+    bouton quitte le rouge pour la couleur d'interface (les ⚠ deviennent des 🏆).
 
-  L'abandon ne compte pas comme une vie terminée (pas de XP, pas d'entrée à l'historique), à la
-  différence d'une mort. Pause suit maintenant la couleur d'interface choisie comme le reste de
-  l'UI (v0.2 la réservait au jaune — révisé, voir §2).
+  **Quitter compte la vie en cours** exactement comme une mort — XP, stats et entrée à
+  l'historique (§5.15) ; en tête, l'XP est majoré du bonus de victoire. Pause suit maintenant la
+  couleur d'interface choisie comme le reste de l'UI (v0.2 la réservait au jaune — révisé, §2).
 
 #### 🌐 Salon (partie privée) — *nouveau*
 - **Rôle :** créer ou rejoindre une partie privée par code, avant de jouer.
@@ -176,7 +180,7 @@ adaptés en largeur plutôt qu'en hauteur, même contenu.
 
 | Élément | Position | Rôle | Déclencheur / durée |
 |---|---|---|---|
-| Bannière spectateur | Haut-centre | Accompagner la mort, montrer le tueur | Mort du joueur → 4s ou clic sur "Voir mes résultats" |
+| Bannière spectateur | Haut-centre | Accompagner la mort, montrer le tueur, offrir la sortie | Mort du joueur → **Continuer** (défaut au bout de 4s) ou **Quitter** (rouge) |
 | Toasts | Bas-centre | Notifications empilables | Succès débloqué, bonus ramassé, combo activé, résumé de fin de vie — chacun ~3s |
 
 ---
@@ -200,10 +204,9 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 1. **Écran Réglages : oui.** Contenu révisé en v0.3, voir §3.
 2. **Onboarding : oui, minimal.** Une pop-up unique à la toute première partie, sans tutoriel
    pas-à-pas. Le détail des commandes vit dans Réglages, pas dans la pop-up.
-3. **"Menu" de Pause : devient "Abandonner".** Icône drapeau, contour rouge fixe, confirmation
-   obligatoire avant de quitter. Pour l'instant (jeu solo face à des bots), confirmer relance
-   simplement une nouvelle partie. Ne compte pas comme une vie terminée (pas de XP, pas
-   d'historique).
+3. **"Menu" de Pause : devient une sortie confirmée.** Icône drapeau, contour rouge fixe,
+   confirmation obligatoire avant de quitter. *Libellé et comptabilité révisés en v0.4 — voir
+   §5.15 : "Abandonner" devient "Quitter la partie", et la vie en cours est désormais comptée.*
 4. **"Kills" : conservé tel quel.** Pas de francisation.
 5. **Couleurs : rôle clarifié.** Révisé en v0.3, voir §2 — le principe (une couleur, un rôle net)
    reste le même, la table change.
@@ -212,7 +215,7 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 
 ### V0.3 — addendum "L'éclat néon au clic"
 7. **Couleur d'interface personnalisable : oui.** 8 teintes, cyan par défaut, propagée à toute
-   l'UI. Seule exception fixe : Abandonner reste rouge, encadré de deux ⚠. Jaune et violet
+   l'UI. Seule exception fixe : la sortie irréversible reste rouge, encadrée de deux ⚠. Jaune et violet
    perdent leur statut spécial de la v0.2 (voir §2).
 8. **Éclat néon au clic : oui, dans les menus uniquement.** Jamais pendant une vie — HUD,
    classement, bouton pause et toasts restent nets. Anatomie et durée fixées en §2.
@@ -227,6 +230,26 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     `prefers-reduced-motion` respecté.
 14. **Langue du jeu personnalisable : posé en principe**, 6 langues prévues — liste et périmètre
     exact à trancher, voir §7.
+
+### V0.4 — partie privée
+15. **Quitter ne coûte plus rien. Renverse le §5.3.** Toute sortie compte la vie en cours —
+    XP, stats, entrée à l'historique — qu'on parte depuis Pause ou depuis la bannière spectateur.
+    En tête du classement, l'XP reste majoré du bonus de victoire.
+    *Motif :* une partie brève commencée en attendant quelqu'un devait pouvoir s'interrompre
+    quand cette personne arrive. Punir ce départ effaçait une partie réellement jouée, alors que
+    le joueur n'avait rien à se reprocher. La punition n'apportait rien : le jeu n'a pas de fin,
+    donc rien à protéger d'une sortie anticipée.
+    *Conséquences :* « ABANDONNER » devient « **QUITTER LA PARTIE** » (le mot portait la
+    punition qu'on retire) ; la confirmation dit désormais ce qu'on garde au lieu de ce qu'on
+    perd ; le rouge et les deux ⚠ **restent**, mais signalent l'irréversibilité — on ne revient
+    pas dans la même arène — et non une sanction.
+16. **Bannière spectateur : deux issues.** « **Continuer** » (défaut au bout de 4 s, comme avant)
+    et « **Quitter** » (rouge). Les deux encaissent la vie identiquement ; seule diffère la
+    destination — nouvelle vie dans la même arène, ou retour à l'Accueil.
+17. **Partie privée : bouton d'Accueil `A06`**, désactivé hors ligne avec son motif affiché
+    plutôt que masqué — un bouton absent ne s'explique pas.
+18. **Sortie subie ≠ sortie choisie.** Perdre l'hôte ou le réseau en pleine partie encaisse la
+    vie comme une mort : on ne fait pas payer au joueur une panne qu'il n'a pas causée.
 
 ---
 
@@ -258,7 +281,7 @@ Les quatre points laissés ouverts par l'addendum sont désormais arbitrés :
 - **Hachures** : bandeau vertical de 18 à 26 px collé au **bord droit** d'un élément, rempli de
   hachures diagonales fines (`repeating-linear-gradient` à 135°, trait de 2 px, pas de 6 px) à la
   couleur d'interface. Appliqué à : JOUER, INSTALLER L'APPLI, la ligne LANGUE, REPRENDRE et
-  ABANDONNER — cette dernière en rouge fixe.
+  QUITTER LA PARTIE — cette dernière en rouge fixe.
 - **Réglages dans Pause** : **version condensée fixe**, pas le panneau complet. Elle contient
   uniquement le sélecteur Effets, le curseur Musique et les 8 pastilles de couleur, branchés sur
   les mêmes réglages que l'Accueil. Qualité graphique, Sons, Langue et Commandes restent
@@ -276,8 +299,26 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
   implémentées — le jeu reste pensé portrait d'abord.
 - **Curseur Musique sans moteur** : le réglage existe et se sauvegarde, mais aucune musique de fond
   n'est produite par le jeu à ce jour. Le curseur Sons, lui, pilote réellement le volume des sons.
+- **Partie privée à effectif plein** : l'hôte diffuse aujourd'hui l'état de TOUS les serpents à
+  TOUS les clients. Mesuré à 47 serpents, c'est confortable à quelques joueurs mais dépasse une
+  montée modeste à effectif plein. Un filtrage par intérêt (n'envoyer à chacun que ce qu'il voit)
+  reste à faire avant d'ouvrir la dizaine de joueurs. La commande qui remesure le budget vit dans
+  le journal de la session du 22/08/2026.
+- **Écran de Salon en paysage mobile** : non maquetté, comme les autres écrans (voir premier point).
+
+---
+
+## 9. Contrôles rejouables
+
+| Ce qui est vérifié | Commande |
+|---|---|
+| Les 6 langues sont complètes, aucune clé morte ni orpheline | `node "Snake'on/verifie-traductions.js"` |
+
+Ce contrôle échoue si une langue perd une clé, si le HTML cite une clé inexistante, ou si une clé
+n'est plus utilisée nulle part. Il a été saboté dans les trois sens pour vérifier qu'il sait
+encore échouer.
 
 ---
 
 *Ce document est la référence pour tout nouvel écran ou composant d'interface ajouté au jeu.
-La V0.3 est implémentée, à l'exception des points listés au §8.*
+La V0.4 est implémentée, à l'exception des points listés au §8.*
