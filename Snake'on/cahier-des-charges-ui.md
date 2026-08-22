@@ -324,6 +324,16 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
      l'hôte, à pleine précision.
   4. **Le champ transporté est `massValue`, pas `mass`** : ce dernier est un accesseur, qui ne
      survivrait pas à une sérialisation.
+  5. **La minimap reçoit la RÉPONSE, pas la donnée.** Elle montre *tous* les serpents, y compris
+     ceux que le filtrage par intérêt exclut de l'instantané : ceux-là n'ont donc aucune masse à
+     jour côté client, et c'est justement d'eux qu'il s'agit — la menace lointaine qu'on veut
+     repérer sur la carte avant de la croiser. Plutôt que d'y transporter la masse, l'hôte y
+     transporte ce qu'il est seul à pouvoir calculer : un octet par serpent portant le **niveau de
+     menace** (2 bits) et l'**amplitude** du point en échelle log (4 bits). Le client peint, il
+     n'arbitre pas — c'est la ligne de toute la partie privée.
+     *Conséquence :* le paquet minimap, aujourd'hui construit une fois et diffusé tel quel, devient
+     **propre à chaque destinataire**, puisque la menace se juge par rapport au serpent de celui
+     qui regarde. Le coût reste négligeable (un octet de plus par serpent, à 3 Hz).
 
 ---
 
