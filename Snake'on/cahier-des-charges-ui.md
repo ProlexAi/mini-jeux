@@ -1,9 +1,10 @@
 # Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
-et leurs actions — pas d'implémentation, pas de code. Version 2 : les 6 points ouverts de la V1
-sont tranchés (§5), deux nouvelles interfaces sont ajoutées (Réglages, Pop-up de bienvenue), et
-la contrainte du futur multijoueur est posée par écrit (§6).
+et leurs actions — pas d'implémentation, pas de code. Version 0.3 : intègre l'addendum
+*« L'éclat néon au clic »* (maquette interactive déposée par Matt) — révise le système de
+couleurs, les Réglages et Pause, ajoute un effet transverse, la typographie et une réserve pour
+la traduction. Rien n'est encore implémenté depuis la V0.2 initiale.
 
 ---
 
@@ -21,20 +22,62 @@ En jeu ──[mort]──> Spectateur ──[4s ou "Passer"]──> En jeu (nouv
 
 Il n'y a pas de fin de partie : la boucle En jeu ⇄ Spectateur peut se répéter indéfiniment. Seul
 **Abandonner** (depuis Pause) ramène à l'Accueil. La pop-up de bienvenue n'apparaît qu'une seule
-fois, à la toute première partie du joueur.
+fois, à la toute première partie du joueur. **Réglages** est accessible de façon identique depuis
+l'Accueil et depuis Pause (v0.3) — ce n'est plus réservé à l'Accueil.
 
 ---
 
 ## 2. Langage visuel commun
 
-### Couleurs — rôle sémantique (tranché, §5.5)
+### Couleurs — révisé en v0.3 (remplace la table de la V0.2)
 
-| Couleur | Rôle | Où |
+Huit teintes au choix du joueur ; toute l'interface suit — bordures, onglets, hachures, titre,
+éclat de clic. **Une seule exception, fixe, qui ne suit jamais le choix du joueur : Abandonner,
+toujours rouge, encadré de deux ⚠.**
+
+| Teinte | Hex | Statut |
 |---|---|---|
-| 🟦 Cyan (accent) | Action principale, progression, identité du joueur | Boutons principaux, titres, XP, classement |
-| 🟨 Jaune (warning) | Récompense / accomplissement / Pause | XP, succès débloqué, combo, écran Pause |
-| 🟥 Rouge (danger) | La seule action destructrice de l'interface | Contour de l'icône **Abandonner** |
-| 🟪 Violet | Décoratif, hors interface | Reste côté configuration du jeu (bonus aimant, un skin) — aucun rôle UI, et ce n'est pas un manque |
+| 🟦 Cyan | `#00ffcc` | Par défaut à l'installation |
+| 🟩 Vert | `#39ff88` | Au choix |
+| 🟢 Citron | `#d8ff3c` | Au choix |
+| 🟧 Ambre | `#ffb020` | Au choix |
+| 🟠 Corail | `#ff7a4d` | Au choix |
+| 🟪 Rose | `#ff4d9d` | Au choix |
+| 🟣 Violet | `#b06bff` | Au choix |
+| 🔵 Bleu | `#3ba9ff` | Au choix |
+| 🟥 Rouge | `#ff5c8a` | **Fixe — Abandonner uniquement, jamais choisissable** |
+
+Ce que ça change par rapport à la V0.2 (tranchée en §5.5) : le **jaune n'a plus de rôle réservé** —
+Pause suivait le jaune, elle suit maintenant la couleur choisie comme le reste. Le **violet**
+n'est plus "décoratif hors interface" : c'est une des huit teintes sélectionnables. Le **rouge**
+garde exactement son rôle de v0.2 (seule action destructrice) mais devient la seule couleur qui
+échappe totalement au choix du joueur.
+
+### Typographie *(nouveau, v0.3)*
+
+- **Titres et libellés HUD** : police **Tektur**, contre-inclinée de 8°.
+- **Texte courant** : police **Rajdhani**.
+- Le titre `SNAKE'ON` ajoute deux tranches décalées et un clignotement néon fatigué.
+- `prefers-reduced-motion` fige toutes ces animations (contre-inclinaison, clignotement, éclat de
+  clic) — accessibilité non négociable.
+
+### L'éclat néon au clic *(nouveau, v0.3 — comportement transverse, pas un écran)*
+
+Une bille de lumière jetée sous le doigt/curseur, qui éclate au point de contact. Se déclenche
+sur **chaque interaction dans les menus** (Accueil, Réglages, Pause…) — **jamais pendant une
+vie** : HUD, classement, bouton pause et toasts restent nets en jeu, aucun éclat ne s'y déclenche.
+
+Anatomie (séquence, ≤ 600 ms au total) :
+
+| Phase | Durée | Effet |
+|---|---|---|
+| Vol | 110 ms | la bille arrive du haut-gauche vers le point de contact |
+| Cœur | 150 ms | flash blanc, 4 → 30 px |
+| Anneau | 260 ms | anneau, 6 → 62 px |
+| Éclats | 430 ms | 14 traînées qui se dispersent |
+
+Prend la couleur d'interface choisie ; toujours rouge sur Abandonner. Son **intensité** est
+réglable — voir "Effets" dans Réglages ci-dessous.
 
 ### Tailles tactiles
 Cible minimale **44×44px** sur tout élément interactif — mobile est la plateforme prioritaire.
@@ -45,9 +88,7 @@ Cible minimale **44×44px** sur tout élément interactif — mobile est la plat
   pause, kill streak, bannière spectateur, toasts.
 
 ### Terminologie
-Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4). La qualité graphique
-peut elle aussi utiliser des libellés anglais courts (**Low / Medium / High**), dans le même
-esprit — un vocabulaire de jeu, pas un manque de traduction.
+Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 ---
 
@@ -55,49 +96,60 @@ esprit — un vocabulaire de jeu, pas un manque de traduction.
 
 ### A. Écrans plein cadre (bloquants)
 
-#### Accueil (écran de démarrage)
+#### Accueil (écran de démarrage) — *style révisé en v0.3*
 - **Rôle :** point d'entrée unique, hub de progression entre deux vies.
-- **Contenu :** titre du jeu, niveau + barre XP, 5 onglets (voir ci-dessous), bouton Jouer, bouton
+- **Contenu :** titre du jeu (voir Typographie), niveau + XP (`LVL 07 · 2140/3000`), 5 entrées de
+  navigation en **barres HUD codées** (`A01`…`A06`, pas des onglets pilules), bouton Jouer, bouton
   d'installation (PWA, conditionnel), indicateur hors-ligne.
-- **Actions :** Jouer, changer d'onglet, installer l'appli.
+- **Actions :** Jouer, ouvrir une entrée, installer l'appli.
 
-| Onglet | Rôle | Contenu |
-|---|---|---|
-| 🎨 Skins | Personnalisation de l'apparence | Grille de couleurs, verrouillées selon le niveau |
-| 📊 Stats | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
-| 📜 Historique | Les 10 dernières vies | # / taille / kills / durée |
-| 🏅 Succès | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
-| ⚙️ Réglages | *(nouveau, §5.1)* | Voir ci-dessous |
+| Entrée | Code | Rôle | Contenu |
+|---|---|---|---|
+| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de couleurs, verrouillées selon le niveau |
+| 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
+| 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
+| 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
+| ⚙️ Réglages | A05 | Confort de jeu | Voir ci-dessous |
 
-#### ⚙️ Réglages *(nouvelle interface)*
-- **Rôle :** régler le confort de jeu (son, image) et retrouver les commandes à tout moment —
-  pas seulement au premier lancement.
+Une **variante paysage mobile** (844×390) existe pour l'Accueil, Réglages et Pause — layouts
+adaptés en largeur plutôt qu'en hauteur, même contenu.
+
+#### ⚙️ Réglages — *contenu révisé en v0.3*
+- **Rôle :** régler le confort de jeu et retrouver les commandes, **à tout moment** — accessible
+  identiquement depuis l'Accueil et depuis Pause (pas juste au premier lancement).
 - **Contenu :**
-  - **Audio** : Musique et Effets sonores réglés **séparément** (deux curseurs ou interrupteurs)
-  - **Qualité graphique** : Low / Medium / High
-  - **Commandes** : rappel permanent des gestes tactiles et touches clavier (le même contenu que
-    la pop-up de bienvenue, disponible à la demande, en permanence)
+  - **Audio** — deux curseurs numériques indépendants : **Musique** et **Sons** (0–100 chacun,
+    pas de simple ON/OFF)
+  - **Effets** — sélecteur à 3 choix, pas une jauge : **Aucun** (flash seul) · **Léger** (anneau +
+    moitié) · **Complet** (bille lancée) — règle l'intensité de l'éclat de clic (§2)
+  - **Qualité graphique** — résolution de rendu en pixels : **1280×720** (économe) ·
+    **1600×900** (équilibré) · **1920×1080** (natif)
+  - **Langue** — ouvre une sous-page listant 6 langues, chacune nommée dans sa propre langue
+    *(nouvelle fonctionnalité, voir §7 — le jeu est aujourd'hui français uniquement)*
+  - **Couleur de l'interface** — les 8 teintes du §2
+  - **Commandes** — rappel permanent des gestes tactiles et touches clavier
 - **Actions :** ajuster chaque réglage (effet immédiat, pas de bouton "valider").
 
-#### Pop-up de bienvenue *(nouvelle interface)*
+#### Pop-up de bienvenue
 - **Rôle :** expliquer le but du jeu en quelques secondes, une seule fois — jamais revue ensuite.
 - **Déclencheur :** automatique, seulement à la toute première partie du joueur.
-- **Contenu :** but du jeu, brièvement — pas un tutoriel pas-à-pas, pas de commentaires. Le ton
-  des pop-up d'accroche habituelles du genre.
+- **Contenu :** but du jeu, brièvement — pas un tutoriel pas-à-pas, pas de commentaires.
 - **Actions :** fermer / commencer à jouer.
 
-#### Pause
+#### Pause — *révisé en v0.3*
 - **Rôle :** interrompre temporairement sans perdre la vie en cours.
-- **Contenu :** titre, message de réassurance, icône **🏳 Abandonner** en bas de l'écran (petite,
-  discrète, contour rouge).
+- **Contenu :** titre `PAUSE` avec sous-titre stylé `SYS//HALT`, Réglages accessible **directement
+  depuis cet écran** avec un aperçu vivant (puces Effets, curseur Musique visibles inline), icône
+  **🏳 Abandonner** (A00) en bas, encadrée de deux ⚠, contour rouge fixe.
 - **Actions :**
   - **Reprendre** : retour immédiat au jeu.
+  - **Réglages** : ouvre le même panneau qu'à l'Accueil.
   - **🏳 Abandonner** : ouvre une confirmation ("Abandonner la partie ?" Oui/Non) avant de revenir
-    à l'Accueil — plus aucun risque de perdre sa vie en cours par un clic accidentel (résout
-    l'ancien problème d'abandon silencieux).
+    à l'Accueil.
 
   L'abandon ne compte pas comme une vie terminée (pas de XP, pas d'entrée à l'historique), à la
-  différence d'une mort — cohérent avec l'idée qu'abandonner n'est pas une performance.
+  différence d'une mort. Pause suit maintenant la couleur d'interface choisie comme le reste de
+  l'UI (v0.2 la réservait au jaune — révisé, voir §2).
 
 ### B. HUD & superpositions non-bloquantes (visibles pendant une vie)
 
@@ -109,6 +161,8 @@ esprit — un vocabulaire de jeu, pas un manque de traduction.
 | Bouton pause | Bas-gauche | Accès à l'écran Pause | — |
 | Kill streak | Centre, transitoire (1,5s) | Célébrer un enchaînement de kills | "DOUBLE KILL !", etc. |
 
+**Aucun éclat de clic ici** (§2) : le HUD reste net pendant une vie, par design.
+
 ### C. Notifications transitoires
 
 | Élément | Position | Rôle | Déclencheur / durée |
@@ -118,7 +172,7 @@ esprit — un vocabulaire de jeu, pas un manque de traduction.
 
 ---
 
-## 4. Historique — incohérences relevées en V1
+## 4. Historique — incohérences relevées en V0.1
 
 Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 
@@ -133,22 +187,37 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 
 ## 5. Décisions actées
 
-1. **Écran Réglages : oui.** Contenu détaillé en §3 (Audio séparé Musique/Effets, Qualité
-   graphique Low/Medium/High, Commandes en rappel permanent).
+### V0.2
+1. **Écran Réglages : oui.** Contenu révisé en v0.3, voir §3.
 2. **Onboarding : oui, minimal.** Une pop-up unique à la toute première partie, sans tutoriel
    pas-à-pas. Le détail des commandes vit dans Réglages, pas dans la pop-up.
-3. **"Menu" de Pause : devient "Abandonner".** Icône drapeau blanc à contour rouge, en bas de
-   l'écran Pause (pas d'élément permanent affiché pendant le jeu — cette option a été écartée).
-   Confirmation obligatoire avant de quitter. Pour l'instant (jeu solo face à des bots), confirmer
-   relance simplement une nouvelle partie, comme aujourd'hui. L'abandon ne compte pas comme une
-   vie terminée (pas de XP, pas d'entrée à l'historique) — validé.
+3. **"Menu" de Pause : devient "Abandonner".** Icône drapeau, contour rouge fixe, confirmation
+   obligatoire avant de quitter. Pour l'instant (jeu solo face à des bots), confirmer relance
+   simplement une nouvelle partie. Ne compte pas comme une vie terminée (pas de XP, pas
+   d'historique).
 4. **"Kills" : conservé tel quel.** Pas de francisation.
-5. **Couleurs : clarifiées, pas de refonte.** Le jaune reste légitime pour Pause — ce n'était pas
-   le vrai problème. Le rouge devient le contour de l'action Abandonner. Le violet reste
-   volontairement hors interface. Voir tableau §2.
-6. **Portée du document : confirmée propre à Snake'on.** Sa structure (les sections, la
-   méthode) pourra servir de gabarit pour de futurs mini-jeux du dépôt `mini-jeux`, mais le
-   contenu de chaque futur cahier des charges sera spécifique à son jeu.
+5. **Couleurs : rôle clarifié.** Révisé en v0.3, voir §2 — le principe (une couleur, un rôle net)
+   reste le même, la table change.
+6. **Portée du document : confirmée propre à Snake'on.** Sa structure pourra servir de gabarit
+   aux futurs mini-jeux du dépôt `mini-jeux` ; le contenu de chacun sera spécifique.
+
+### V0.3 — addendum "L'éclat néon au clic"
+7. **Couleur d'interface personnalisable : oui.** 8 teintes, cyan par défaut, propagée à toute
+   l'UI. Seule exception fixe : Abandonner reste rouge, encadré de deux ⚠. Jaune et violet
+   perdent leur statut spécial de la v0.2 (voir §2).
+8. **Éclat néon au clic : oui, dans les menus uniquement.** Jamais pendant une vie — HUD,
+   classement, bouton pause et toasts restent nets. Anatomie et durée fixées en §2.
+9. **Réglage Effets (intensité de l'éclat) : oui.** Sélecteur à 3 niveaux (Aucun/Léger/Complet),
+   distinct de la Qualité graphique.
+10. **Qualité graphique : redéfinie en résolution de rendu** (1280×720 / 1600×900 / 1920×1080)
+    plutôt qu'en niveaux abstraits Low/Medium/High.
+11. **Audio : deux curseurs numériques** (Musique, Sons, 0–100) plutôt que deux interrupteurs
+    ON/OFF.
+12. **Réglages accessible depuis Pause, pas seulement l'Accueil.**
+13. **Typographie fixée :** Tektur (titres/HUD, contre-inclinée 8°) + Rajdhani (texte courant),
+    `prefers-reduced-motion` respecté.
+14. **Langue du jeu personnalisable : posé en principe**, 6 langues prévues — liste et périmètre
+    exact à trancher, voir §7.
 
 ---
 
@@ -168,5 +237,25 @@ doit **jamais** figer la partie pour les autres joueurs. Deux pistes, à tranche
 
 ---
 
-*Ce document est maintenant la référence pour tout nouvel écran ou composant d'interface ajouté
-au jeu. Prochaine étape suggérée : passer les décisions du §5 à l'implémentation.*
+## 7. Reste à trancher (ouvert par l'addendum v0.3)
+
+- **Les 6 langues** : lesquelles, précisément ? Le français reste-t-il la langue de référence pour
+  tous les textes de jeu (achievements, toasts…), ou seule l'interface (menus/boutons) se traduit ?
+  Impact réel : c'est un chantier d'internationalisation à part entière, pas un simple réglage.
+- **Qualité graphique vs performance** : la version implémentée avant cet addendum pilotait déjà
+  la résolution (DPR), le budget de particules et les halos lumineux via 3 niveaux. Ce cahier des
+  charges retient la présentation en **résolution native** (1280×720/1600×900/1920×1080) comme
+  langage utilisateur ; l'implémentation devra faire correspondre chaque résolution à un budget
+  d'effets cohérent, pas seulement changer le nombre de pixels.
+- **"Hachures"** citées comme élément suivant la couleur d'interface — motif visuel à préciser
+  (où, à quelle échelle) avant implémentation.
+- **Réglages dans Pause** : aperçu "vivant" inline (chips Effets, curseur Musique) — faut-il le
+  panneau complet identique à celui de l'Accueil, ou une version condensée propre à Pause ?
+
+---
+
+*Ce document est la référence pour tout nouvel écran ou composant d'interface ajouté au jeu.
+Rien de la V0.3 n'est encore implémenté : le jeu tourne aujourd'hui sur les décisions "Réglages"
+d'origine (Audio ON/OFF, Qualité Low/Medium/High, pas de couleur personnalisable, pas d'éclat de
+clic). Prochaine étape suggérée : confirmer les points du §7, puis passer la V0.3 à
+l'implémentation.*
