@@ -1,0 +1,21 @@
+{
+  "name": "Neon Snake.io Ultimate",
+  "short_name": "Neon Snake",
+  "description": "Arène survivor-like néon : mange, grossis, dévore les autres serpents. Jouable au doigt ou à la souris, hors-ligne.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

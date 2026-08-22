@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini-jeux</title>
+<style>
+  :root { --bg:#0f0f13; --accent:#00ffcc; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:#fff; min-height:100vh;
+    font-family:'Segoe UI', system-ui, sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:40px 20px;
+  }
+  h1 { text-shadow:0 0 10px var(--accent); margin-bottom:8px; }
+  p.sub { color:#888; margin-bottom:32px; text-align:center; }
+  .grid { display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:800px; }
+  a.card {
+    display:block; width:220px; padding:20px; border-radius:12px;
+    border:1px solid rgba(0,255,204,0.3); background:rgba(255,255,255,0.03);
+    text-decoration:none; color:#fff; transition:transform 0.15s, border-color 0.15s;
+  }
+  a.card:hover { transform:translateY(-3px); border-color:var(--accent); }
+  a.card .icon { font-size:32px; }
+  a.card .name { font-weight:bold; margin-top:8px; color:var(--accent); }
+  a.card .desc { font-size:13px; color:#aaa; margin-top:4px; }
+</style>
+</head>
+<body>
+  <h1>🎮 Mini-jeux</h1>
+  <p class="sub">HTML/JS/CSS purs, sans dépendance. Installables, jouables hors-ligne.</p>
+  <div class="grid">
+    <a class="card" href="neon-snake/">
+      <div class="icon">🐍</div>
+      <div class="name">Neon Snake.io Ultimate</div>
+      <div class="desc">Arène survivor-like néon : mange, grossis, dévore.</div>
+    </a>
+  </div>
+</body>
+</html>

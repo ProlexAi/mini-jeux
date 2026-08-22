@@ -1,0 +1,1935 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f0f13">
+    <meta name="description" content="Neon Snake.io Ultimate - arène survivor-like jouable au doigt ou à la souris, installable et jouable hors-ligne.">
+    <title>Neon Snake.io Ultimate</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/favicon-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Neon Snake">
+
+    <style>
+        :root {
+            --bg: #0f0f13;
+            --accent: #00ffcc;
+            --danger: #ff0055;
+            --warning: #ffcc00;
+            --purple: #cc00ff;
+            --safe-t: env(safe-area-inset-top, 0px);
+            --safe-b: env(safe-area-inset-bottom, 0px);
+            --safe-l: env(safe-area-inset-left, 0px);
+            --safe-r: env(safe-area-inset-right, 0px);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+        #gameCanvas { display: block; width: 100%; height: 100%; }
+
+        /* ===== HUD ===== */
+        #hud {
+            position: absolute;
+            top: calc(10px + var(--safe-t)); left: calc(10px + var(--safe-l));
+            color: white; pointer-events: none;
+            text-shadow: 0 0 5px rgba(0,255,204,0.8);
+            font-size: 14px; display: none; z-index: 5;
+        }
+        #hud .powerup-indicators { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+        #hud .pu-badge {
+            padding: 2px 6px; border-radius: 4px;
+            font-size: 11px; background: rgba(0,0,0,0.5);
+            border: 1px solid;
+        }
+        #comboDisplay { color: var(--warning); font-weight: bold; margin-top: 4px; display: none; }
+        #killStreak {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px; font-weight: bold;
+            color: var(--warning); pointer-events: none;
+            text-shadow: 0 0 20px var(--warning);
+            opacity: 0; transition: opacity 0.3s, transform 0.3s;
+            z-index: 15; text-align: center;
+        }
+        #leaderboard {
+            position: absolute;
+            top: calc(10px + var(--safe-t)); right: calc(10px + var(--safe-r));
+            color: white; text-align: right;
+            pointer-events: none; font-size: 13px;
+            background: rgba(0,0,0,0.6); padding: 10px;
+            border-radius: 8px; border: 1px solid rgba(0,255,204,0.3);
+            display: none; z-index: 5;
+            max-width: 200px;
+        }
+        #leaderboard h3 { margin: 0 0 5px 0; font-size: 14px; color: var(--accent); }
+        .lb-entry { margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-player { color: var(--accent); font-weight: bold; }
+
+        /* ===== MINIMAP ===== */
+        #minimap {
+            position: absolute;
+            bottom: calc(10px + var(--safe-b)); right: calc(10px + var(--safe-r));
+            width: 104px; height: 78px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(0,255,204,0.3);
+            border-radius: 4px; display: none; z-index: 5;
+        }
+
+        /* ===== PAUSE ===== */
+        #pauseBtn {
+            position: absolute;
+            bottom: calc(10px + var(--safe-b)); left: calc(10px + var(--safe-l));
+            display: none; z-index: 6;
+            padding: 8px 16px; font-size: 14px; border-radius: 20px;
+            opacity: 0.55;
+        }
+
+        /* ===== OVERLAYS ===== */
+        .overlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15,15,19,0.95);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            color: white; z-index: 20;
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
+            padding: calc(20px + var(--safe-t)) calc(20px + var(--safe-r)) calc(20px + var(--safe-b)) calc(20px + var(--safe-l));
+            touch-action: pan-y;
+        }
+        .overlay.hidden { display: none !important; }
+        h1 { text-shadow: 0 0 10px var(--accent); margin-bottom: 10px; font-size: 26px; text-align: center; }
+        h2 { color: var(--accent); margin: 12px 0 6px 0; font-size: 16px; }
+        .accent { color: var(--accent); font-weight: bold; }
+        .hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
+
+        /* ===== BUTTONS ===== */
+        button {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 12px 30px; font-size: 16px; font-weight: bold;
+            border-radius: 30px; cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,255,204,0.3);
+            transition: all 0.2s; margin: 5px;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active { background: var(--accent); color: var(--bg); transform: scale(0.95); }
+        .btn-primary { font-size: 20px; padding: 14px 45px; margin-top: 15px; }
+        .btn-secondary { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
+        .btn-secondary:active { background: var(--warning); color: var(--bg); }
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        #installBtn { display: none; font-size: 14px; padding: 9px 20px; }
+
+        /* ===== XP ===== */
+        .xp-bar-container {
+            width: 250px; max-width: 80vw; height: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px; overflow: hidden; margin: 8px auto;
+        }
+        .xp-bar-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #00ffcc, #00ccff);
+            border-radius: 6px; transition: width 0.5s;
+        }
+        .xp-text { font-size: 12px; color: #aaa; }
+        .xp-gain { color: var(--warning); font-size: 18px; margin: 5px 0; text-align: center; }
+
+        /* ===== STATS ===== */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 8px; margin: 10px 0; font-size: 13px;
+            max-width: 400px; width: 100%;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 8px; border-radius: 8px; text-align: center;
+        }
+        .stat-box .val { font-size: 18px; font-weight: bold; color: var(--accent); }
+        .stat-box .label { font-size: 10px; color: #aaa; }
+
+        /* ===== SKINS ===== */
+        .skins-row {
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 10px; margin: 10px 0; max-width: 400px;
+        }
+        .skin-btn {
+            width: 42px; height: 42px; border-radius: 50%; padding: 0;
+            border: 3px solid transparent; cursor: pointer;
+            position: relative; transition: transform 0.15s;
+        }
+        .skin-btn.selected { border-color: white; transform: scale(1.15); }
+        .skin-btn.locked { opacity: 0.3; cursor: not-allowed; }
+        .skin-btn.locked::after {
+            content: '\1F512'; position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%,-50%);
+            font-size: 14px;
+        }
+        .skin-btn .unlock-level {
+            position: absolute; bottom: -5px; right: -5px;
+            background: rgba(0,0,0,0.8); color: white;
+            font-size: 9px; padding: 1px 3px; border-radius: 3px;
+        }
+
+        /* ===== HISTORY ===== */
+        .history-table {
+            width: 100%; max-width: 420px; font-size: 12px;
+            border-collapse: collapse; margin: 10px 0;
+        }
+        .history-table th {
+            color: var(--accent); border-bottom: 1px solid rgba(0,255,204,0.3);
+            padding: 4px; text-align: left;
+        }
+        .history-table td { padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .win-text { color: #00ff66; }
+        .lose-text { color: var(--danger); }
+
+        /* ===== ACHIEVEMENTS ===== */
+        .achievements-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; max-width: 420px; width: 100%;
+        }
+        .achievement {
+            background: rgba(255,255,255,0.03);
+            padding: 8px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+        .achievement.unlocked { border-color: var(--warning); background: rgba(255,204,0,0.05); }
+        .achievement .ach-icon { font-size: 20px; }
+        .achievement .ach-name { font-weight: bold; color: white; }
+        .achievement .ach-desc { color: #888; }
+        .achievement.unlocked .ach-name { color: var(--warning); }
+        .achievement.unlocked .ach-desc { color: #aaa; }
+
+        /* ===== TABS ===== */
+        .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
+        .tab-btn {
+            padding: 7px 14px; font-size: 12px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: transparent; color: #aaa; cursor: pointer;
+            font-family: inherit; box-shadow: none; margin: 0;
+        }
+        .tab-btn:active { background: rgba(255,255,255,0.1); color: #fff; }
+        .tab-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,204,0.1); }
+        .tab-content { display: none; width: 100%; max-width: 450px; }
+        .tab-content.active { display: block; }
+
+        /* ===== TOAST ===== */
+        #toastContainer {
+            position: absolute; bottom: calc(80px + var(--safe-b)); left: 50%;
+            transform: translateX(-50%);
+            z-index: 30; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .toast {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--warning);
+            color: white; padding: 8px 16px;
+            border-radius: 20px; margin: 5px 0;
+            font-size: 13px; text-align: center;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
+
+        /* ===== MOBILE ===== */
+        @media (max-width: 480px) {
+            h1 { font-size: 22px; }
+            .btn-primary { font-size: 18px; padding: 12px 35px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .achievements-grid { grid-template-columns: 1fr; }
+            #leaderboard { max-width: 150px; font-size: 11px; }
+            #minimap { width: 84px; height: 63px; }
+            #killStreak { font-size: 26px; }
+        }
+        @media (max-height: 520px) {
+            .overlay { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="scoreDisplay">Taille: 10</div>
+        <div id="timerDisplay">Temps: 0s</div>
+        <div id="killsDisplay">Kills: 0</div>
+        <div class="powerup-indicators" id="puIndicators"></div>
+        <div id="comboDisplay"></div>
+    </div>
+    <div id="killStreak"></div>
+    <div id="leaderboard"><h3>CLASSEMENT</h3><div id="lbContent"></div></div>
+    <canvas id="minimap" width="100" height="70"></canvas>
+    <button id="pauseBtn">II</button>
+    <div id="toastContainer"></div>
+
+    <!-- MENU -->
+    <div id="menuScreen" class="overlay">
+        <h1>🐍 NEON SNAKE.IO</h1>
+        <div style="text-align:center;">
+            <div style="font-size:16px;">Niveau <span id="menuLevel" class="accent">1</span></div>
+            <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
+            <div class="xp-text" id="menuXpText">0 / 100 XP</div>
+        </div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="skins">🎨 Skins</button>
+            <button class="tab-btn" data-tab="stats">📊 Stats</button>
+            <button class="tab-btn" data-tab="history">📜 Historique</button>
+            <button class="tab-btn" data-tab="achievements">🏅 Succès</button>
+        </div>
+        <div id="tab-skins" class="tab-content active">
+            <div class="skins-row" id="skinsRow"></div>
+            <div class="hint">Monte de niveau pour débloquer des skins !</div>
+        </div>
+        <div id="tab-stats" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-box"><div class="val" id="statBest">0</div><div class="label">Record</div></div>
+                <div class="stat-box"><div class="val" id="statWins">0</div><div class="label">Victoires</div></div>
+                <div class="stat-box"><div class="val" id="statLosses">0</div><div class="label">Défaites</div></div>
+                <div class="stat-box"><div class="val" id="statKills">0</div><div class="label">Kills</div></div>
+                <div class="stat-box"><div class="val" id="statGames">0</div><div class="label">Parties</div></div>
+                <div class="stat-box"><div class="val" id="statTime">0s</div><div class="label">Temps</div></div>
+            </div>
+        </div>
+        <div id="tab-history" class="tab-content">
+            <table class="history-table">
+                <thead><tr><th>#</th><th>Résultat</th><th>Taille</th><th>Kills</th><th>Durée</th></tr></thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+        <div id="tab-achievements" class="tab-content">
+            <div class="achievements-grid" id="achievementsGrid"></div>
+        </div>
+        <button id="playBtn" class="btn-primary">▶ JOUER</button>
+        <button id="installBtn">📱 Installer l'appli</button>
+        <div class="hint" id="offlineHint"></div>
+    </div>
+
+    <!-- PAUSE -->
+    <div id="pauseScreen" class="overlay hidden">
+        <h1>⏸ PAUSE</h1>
+        <p class="hint">La partie reprend où tu l’as laissée.</p>
+        <div class="btn-row">
+            <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
+            <button id="quitBtn" class="btn-secondary">🏠 MENU</button>
+        </div>
+    </div>
+
+    <!-- END -->
+    <div id="endScreen" class="overlay hidden">
+        <h1 id="endTitle">GAME OVER</h1>
+        <p id="endMessage"></p>
+        <div id="endXpGain" class="xp-gain"></div>
+        <div class="xp-bar-container" style="width:200px;"><div class="xp-bar-fill" id="endXpBar"></div></div>
+        <div id="endAchievements" style="margin:10px 0;font-size:13px;color:var(--warning);text-align:center;"></div>
+        <div class="btn-row">
+            <button id="replayBtn" class="btn-primary">🔄 REJOUER</button>
+            <button id="menuBtn" class="btn-secondary">🏠 MENU</button>
+        </div>
+    </div>
+
+<script>
+"use strict";
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+const CONFIG = {
+    // Le monde est bien plus grand que l'ecran : la camera suit le joueur et la carte defile.
+    // Sa taille est CALCULEE au depart de chaque partie (voir computeWorld) : un ecran de telephone
+    // voit 2,3x moins de surface qu'un ecran d'ordinateur, un monde fixe serait desert sur l'un
+    // ou etouffant sur l'autre. On fixe le nombre d'ECRANS, pas les pixels.
+    WORLD_SCREENS: 16,       // le monde fait 16 fois la surface visible
+    WORLD_MIN: 1800,         // jamais plus petit que ca sur un axe
+    WORLD_ASPECT_MIN: 0.75,  // un ecran de telephone est tres etroit : on garde un monde plus carre
+    WORLD_ASPECT_MAX: 1.6,   //   que lui, sinon on joue dans un couloir
+    WORLD_MAX: 6000,
+    WORLD_WIDTH: 4400,       // valeurs de depart, recalculees a chaque partie
+    WORLD_HEIGHT: 2800,
+    FOOD_AREA_PER_ITEM: 18000,   // une pastille par 18 000 px² de monde
+    FOOD_GROWTH: 2,              // taille gagnee par pastille : c'est CE reglage qui fixe la duree d'une partie
+    FOOD_COUNT: 680,             // recalcule a chaque partie
+    FOOD_CELL: 240,              // taille des cases de la grille spatiale
+    BOT_COUNT: 45,
+    BASE_SPEED: 3,
+    BASE_RADIUS: 8,
+    WIN_THRESHOLD: 300,
+    GRID_SIZE: 40,
+    MIN_ZOOM: 0.45,          // dezoom maximum quand on devient enorme
+    MAX_ZOOM: 1,
+    ZOOM_SMOOTH: 0.04,
+    CAMERA_SMOOTH: 0.15,
+    RESPAWN_DELAY: 2000,
+    MAX_HISTORY: 10,
+    MAX_LENGTH: 800,
+    SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
+    BOT_MAX_LENGTH: 300,     // les bots plafonnent AVANT le joueur : sinon « etre le plus gros » devient impossible
+    SAVE_KEY: 'neonSnakeUltimate_v1',
+    BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
+    BOT_COLORS: ['#ff0055','#00ccff','#ffcc00','#cc00ff','#00ff66','#ff6600','#ffffff','#ff00ff'],
+    SKINS: [
+        { name:'Cyan', color:'#00ffcc', unlockLevel:1 },
+        { name:'Rose', color:'#ff00ff', unlockLevel:2 },
+        { name:'Jaune', color:'#ffcc00', unlockLevel:3 },
+        { name:'Bleu', color:'#00ccff', unlockLevel:4 },
+        { name:'Vert', color:'#00ff66', unlockLevel:5 },
+        { name:'Orange', color:'#ff6600', unlockLevel:7 },
+        { name:'Rouge', color:'#ff0055', unlockLevel:9 },
+        { name:'Blanc', color:'#ffffff', unlockLevel:12 },
+        { name:'Violet', color:'#cc00ff', unlockLevel:15 },
+        { name:'Doré', color:'#ffd700', unlockLevel:20 },
+    ],
+    KILL_EFFECTS: [
+        { kills:5, effects:['smoke'], label:'💨 Fumée' },
+        { kills:10, effects:['lightning'], label:'⚡ Éclair' },
+        { kills:15, effects:['flame'], label:'🔥 Flamme' },
+        { kills:20, effects:['smoke','flame'], label:'💨🔥' },
+        { kills:25, effects:['lightning','smoke'], label:'⚡💨' },
+    ],
+    POWERUP_SPAWN_CHANCE: 0.33,
+    POWERUP_MAX_ON_MAP: 3,
+    POWERUP_SPAWN_INTERVAL: 5000,
+    POWERUPS: {
+        speed: { duration:5000, speedMultiplier:1.8, color:'#ffff00', icon:'⚡', label:'Vitesse' },
+        magnet: { duration:15000, radius:150, color:'#cc00ff', icon:'🧲', label:'Aimant' },
+        invincible: { duration:5000, color:'#ffd700', icon:'🛡️', label:'Invincible' },
+    },
+    KILL_STREAK_WINDOW: 3000,
+    COMBO_WINDOW: 3000,
+    COMBO_THRESHOLD: 5,
+    ACHIEVEMENTS: [
+        { id:'first_kill', name:'Premier Sang', desc:'Tuer ton premier serpent', icon:'🗡️' },
+        { id:'five_kills', name:'Chasseur', desc:'5 kills en une partie', icon:'🎯' },
+        { id:'ten_kills', name:'Prédateur', desc:'10 kills en une partie', icon:'💀' },
+        { id:'first_win', name:'Champion', desc:'Gagner ta première partie', icon:'🏆' },
+        { id:'big_snake', name:'Géant', desc:'Atteindre une taille de 200', icon:'🐍' },
+        { id:'speed_demon', name:'Éclair', desc:'Ramasser 3 bonus vitesse', icon:'⚡' },
+        { id:'survivor', name:'Survivant', desc:'Gagner sans se faire toucher', icon:'🛡️' },
+        { id:'combo_master', name:'Combo Master', desc:'Manger 5 pastilles sans interruption (combo x2)', icon:'🔥' },
+        { id:'level_5', name:'Vétéran', desc:'Atteindre le niveau 5', icon:'⭐' },
+        { id:'level_10', name:'Légende', desc:'Atteindre le niveau 10', icon:'👑' },
+    ]
+};
+
+const TAU = Math.PI * 2;
+const STEP_MS = 1000 / 60;           // pas de simulation fixe : même vitesse en 60 Hz et en 120 Hz
+const MAX_STEPS_PER_FRAME = 5;
+
+// Horloge de simulation : n'avance QUE pendant le jeu (donc pause exacte, aucun timer qui fuit).
+let gameClock = 0;
+const gnow = () => gameClock;
+const rnow = () => performance.now();
+
+// ============================================================
+//  AUDIO (Web Audio API — sons générés, zéro fichier)
+// ============================================================
+class AudioManager {
+    constructor() { this.ctx = null; this.initialized = false; this.enabled = true; }
+    init() {
+        if (this.initialized) return;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) throw new Error('no AudioContext');
+            this.ctx = new AC();
+            this.initialized = true;
+        } catch(e) { this.enabled = false; }
+    }
+    resume() {
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    }
+    play(type) {
+        if (!this.enabled || !this.initialized || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        switch(type) {
+            case 'eat':
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(900, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+                break;
+            case 'kill':
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+                break;
+            case 'death':
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+                break;
+            case 'powerup':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(600, now + 0.1);
+                osc.frequency.setValueAtTime(800, now + 0.2);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+                break;
+            case 'victory':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.15);
+                osc.frequency.setValueAtTime(784, now + 0.3);
+                osc.frequency.setValueAtTime(1047, now + 0.45);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+                osc.start(now); osc.stop(now + 0.7);
+                break;
+            case 'click':
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+                break;
+            case 'achievement':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1100, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+                break;
+        }
+    }
+}
+const audio = new AudioManager();
+
+// ============================================================
+//  SAUVEGARDE
+// ============================================================
+const DEFAULT_SAVE = {
+    level: 1, xp: 0, bestSize: 0, wins: 0, losses: 0,
+    kills: 0, games: 0, totalTime: 0, selectedSkin: 0,
+    history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 }
+};
+
+function loadSave() {
+    try {
+        const raw = localStorage.getItem(CONFIG.SAVE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw) || {};
+            return {
+                ...DEFAULT_SAVE,
+                ...parsed,
+                history: Array.isArray(parsed.history) ? parsed.history : [],
+                achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
+                powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected, ...(parsed.powerupsCollected || {}) }
+            };
+        }
+    } catch(e) { /* sauvegarde illisible : on repart propre */ }
+    return { ...DEFAULT_SAVE, history: [], achievements: [], powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected } };
+}
+
+function writeSave() {
+    try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(save)); } catch(e) { /* mode privé : on continue sans persister */ }
+}
+
+let save = loadSave();
+
+function xpForLevel(lvl) { return Math.floor(lvl * 100); }
+
+function addXP(amount) {
+    save.xp += amount;
+    let up = false;
+    while (save.xp >= xpForLevel(save.level)) {
+        save.xp -= xpForLevel(save.level);
+        save.level++;
+        up = true;
+        checkAchievement('level_5', save.level >= 5);
+        checkAchievement('level_10', save.level >= 10);
+    }
+    return up;
+}
+
+function currentSkin() {
+    const skin = CONFIG.SKINS[save.selectedSkin];
+    if (!skin || save.level < skin.unlockLevel) { save.selectedSkin = 0; return CONFIG.SKINS[0]; }
+    return skin;
+}
+
+// ============================================================
+//  SUCCÈS
+// ============================================================
+let sessionNewAch = [];
+
+function checkAchievement(id, condition) {
+    if (!condition || save.achievements.includes(id)) return;
+    save.achievements.push(id);
+    writeSave();
+    const ach = CONFIG.ACHIEVEMENTS.find(a => a.id === id);
+    if (ach) {
+        sessionNewAch.push(ach);
+        showToast('🏅 Succès débloqué : ' + ach.name + ' !');
+        audio.play('achievement');
+    }
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
+}
+
+// ============================================================
+//  PARTICULES
+// ============================================================
+class Particle {
+    constructor(x, y, opts = {}) {
+        this.x = x; this.y = y;
+        this.vx = opts.vx !== undefined ? opts.vx : (Math.random()-0.5)*2;
+        this.vy = opts.vy !== undefined ? opts.vy : (Math.random()-0.5)*2;
+        this.life = opts.life || 1;
+        this.decay = opts.decay || 0.02;
+        this.size = opts.size || 4;
+        this.color = opts.color || '#fff';
+        this.type = opts.type || 'circle';
+        this.gravity = opts.gravity || 0;
+        this.friction = opts.friction || 1;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        this.vy += this.gravity;
+        this.vx *= this.friction; this.vy *= this.friction;
+        this.life -= this.decay;
+    }
+    draw(ctx) {
+        if (this.life <= 0) return;
+        const a = Math.max(0, Math.min(1, this.life));
+        ctx.globalAlpha = a;
+        if (this.type === 'smoke') {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * (2 - this.life), 0, TAU);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        } else if (this.type === 'spark') {
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x - this.vx*3, this.y - this.vy*3);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = Math.max(0.5, this.size);
+            ctx.stroke();
+        } else {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * a, 0, TAU);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+    isDead() { return this.life <= 0; }
+}
+
+class ParticleSystem {
+    constructor() { this.particles = []; this.maxParticles = 400; }
+    get room() { return this.particles.length < this.maxParticles; }
+    push(p) { if (this.room) this.particles.push(p); }
+    emit(x, y, count, opts) {
+        for (let i = 0; i < count; i++) this.push(new Particle(x, y, opts));
+    }
+    emitSmoke(x, y) {
+        this.push(new Particle(x, y, {
+            vx: (Math.random()-0.5)*1.5, vy: -Math.random()*2-0.5,
+            life: 1, decay: 0.015, size: Math.random()*6+3,
+            color: 'rgba(180,180,180,0.4)', type: 'smoke', gravity: -0.02
+        }));
+    }
+    emitLightning(x, y) {
+        for (let i = 0; i < 2; i++) {
+            const a = Math.random()*TAU, s = Math.random()*6+3;
+            this.push(new Particle(x, y, {
+                vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                life: 1, decay: 0.08, size: 2, color: '#00ccff', type: 'spark', friction: 0.95
+            }));
+        }
+    }
+    emitFlame(x, y) {
+        const colors = ['#ff4400','#ff8800','#ffcc00','#ff2200'];
+        this.push(new Particle(x, y, {
+            vx: (Math.random()-0.5)*2, vy: -Math.random()*3-1,
+            life: 1, decay: 0.03, size: Math.random()*5+2,
+            color: colors[Math.floor(Math.random()*colors.length)],
+            type: 'circle', gravity: -0.05
+        }));
+    }
+    emitDeath(x, y, color) {
+        for (let i = 0; i < 20; i++) {
+            const a = (TAU/20)*i, s = Math.random()*5+2;
+            this.push(new Particle(x, y, {
+                vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                life: 1, decay: 0.02, size: Math.random()*4+2,
+                color, type: 'circle', friction: 0.96
+            }));
+        }
+    }
+    emitFoodEat(x, y) {
+        for (let i = 0; i < 5; i++) {
+            const a = Math.random()*TAU, s = Math.random()*3+1;
+            this.push(new Particle(x, y, {
+                vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                life: 1, decay: 0.05, size: 3, color: '#ff00ff', type: 'circle', friction: 0.94
+            }));
+        }
+    }
+    update() {
+        for (let i = this.particles.length-1; i >= 0; i--) {
+            this.particles[i].update();
+            if (this.particles[i].isDead()) this.particles.splice(i, 1);
+        }
+    }
+    draw(ctx) { for (const p of this.particles) p.draw(ctx); }
+    clear() { this.particles.length = 0; }
+}
+
+// ============================================================
+//  SCREEN SHAKE
+// ============================================================
+class ScreenShake {
+    constructor() { this.intensity = 0; this.decay = 0.9; }
+    trigger(amount) { this.intensity = Math.min(this.intensity + amount, 15); }
+    update() { this.intensity *= this.decay; if (this.intensity < 0.1) this.intensity = 0; }
+    reset() { this.intensity = 0; }
+    getOffset() {
+        if (this.intensity === 0) return { x: 0, y: 0 };
+        return { x: (Math.random()-0.5)*this.intensity*2, y: (Math.random()-0.5)*this.intensity*2 };
+    }
+}
+
+// ============================================================
+//  KILL STREAK
+// ============================================================
+class KillStreak {
+    constructor() { this.kills = []; this.display = document.getElementById('killStreak'); this.timeout = null; }
+    addKill() {
+        const t = gnow();
+        this.kills.push(t);
+        this.kills = this.kills.filter(k => t - k < CONFIG.KILL_STREAK_WINDOW);
+        const count = this.kills.length;
+        if (count >= 2) {
+            const labels = ['','','DOUBLE KILL !','TRIPLE KILL !','RAMPAGE !','UNSTOPPABLE !','GODLIKE !'];
+            this.show(count < labels.length ? labels[count] : count + 'x KILL SPREE !');
+        }
+    }
+    show(text) {
+        if (this.timeout) clearTimeout(this.timeout);
+        this.display.textContent = text;
+        this.display.style.opacity = '1';
+        this.display.style.transform = 'translate(-50%,-50%) scale(1.2)';
+        this.timeout = setTimeout(() => {
+            this.display.style.opacity = '0';
+            this.display.style.transform = 'translate(-50%,-50%) scale(1)';
+        }, 1500);
+    }
+    reset() {
+        this.kills.length = 0;
+        if (this.timeout) clearTimeout(this.timeout);
+        this.display.style.opacity = '0';
+    }
+}
+
+// ============================================================
+//  GRILLE SPATIALE
+//  600 pastilles x 21 serpents x 60 pas/s = 750 000 tests de distance par seconde
+//  en balayage naif. La grille ramene chaque recherche aux quelques cases voisines.
+// ============================================================
+class FoodGrid {
+    constructor(cell) {
+        this.cell = cell;
+        this.cols = Math.ceil(CONFIG.WORLD_WIDTH / cell);
+        this.rows = Math.ceil(CONFIG.WORLD_HEIGHT / cell);
+        this.cells = [];
+        for (let i = 0; i < this.cols * this.rows; i++) this.cells.push([]);
+    }
+    idx(cx, cy) { return cy * this.cols + cx; }
+    clampCol(v) { return Math.max(0, Math.min(this.cols-1, v | 0)); }
+    clampRow(v) { return Math.max(0, Math.min(this.rows-1, v | 0)); }
+    build(foods) {
+        for (let i = 0; i < this.cells.length; i++) this.cells[i].length = 0;
+        for (const f of foods) {
+            this.cells[this.idx(this.clampCol(f.x / this.cell), this.clampRow(f.y / this.cell))].push(f);
+        }
+    }
+    forEachNear(x, y, radius, fn) {
+        const x0 = this.clampCol((x-radius)/this.cell), x1 = this.clampCol((x+radius)/this.cell);
+        const y0 = this.clampRow((y-radius)/this.cell), y1 = this.clampRow((y+radius)/this.cell);
+        for (let cy = y0; cy <= y1; cy++) {
+            for (let cx = x0; cx <= x1; cx++) {
+                const arr = this.cells[this.idx(cx, cy)];
+                for (let i = 0; i < arr.length; i++) fn(arr[i]);
+            }
+        }
+    }
+    // Anneaux concentriques : on s'arrete des qu'une case en contient une.
+    nearest(x, y, maxRings) {
+        const bx = this.clampCol(x/this.cell), by = this.clampRow(y/this.cell);
+        for (let ring = 0; ring <= maxRings; ring++) {
+            let best = null, bestD = Infinity;
+            for (let cy = by-ring; cy <= by+ring; cy++) {
+                if (cy < 0 || cy >= this.rows) continue;
+                for (let cx = bx-ring; cx <= bx+ring; cx++) {
+                    if (cx < 0 || cx >= this.cols) continue;
+                    const onRing = ring === 0 || cx === bx-ring || cx === bx+ring || cy === by-ring || cy === by+ring;
+                    if (!onRing) continue;
+                    const arr = this.cells[this.idx(cx, cy)];
+                    for (let i = 0; i < arr.length; i++) {
+                        const f = arr[i];
+                        const d = (f.x-x)*(f.x-x) + (f.y-y)*(f.y-y);
+                        if (d < bestD) { bestD = d; best = f; }
+                    }
+                }
+            }
+            if (best) return best;
+        }
+        return null;
+    }
+}
+
+// ============================================================
+//  NOURRITURE
+// ============================================================
+class Food {
+    constructor() { this.respawn(); }
+    respawn() {
+        this.x = Math.random() * (CONFIG.WORLD_WIDTH - 40) + 20;
+        this.y = Math.random() * (CONFIG.WORLD_HEIGHT - 40) + 20;
+        this.radius = 4;
+        this.color = '#ff00ff';
+        this.pulseOffset = Math.random() * TAU;
+        this.pulseSpeed = 0.05 + Math.random() * 0.05;
+    }
+    draw(ctx) {
+        // Phase dérivée de l'horloge de simulation (fixe à 60 Hz), pas du nombre d'appels à
+        // draw() : sinon le clignotement va deux fois plus vite sur un écran 120 Hz.
+        const pulse = this.pulseOffset + (gnow() / STEP_MS) * this.pulseSpeed;
+        const r = this.radius + Math.sin(pulse);
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath(); ctx.arc(this.x, this.y, r * 2.4, 0, TAU);
+        ctx.fillStyle = this.color; ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, TAU);
+        ctx.fillStyle = this.color; ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x, this.y, r * 0.4, 0, TAU);
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+    }
+}
+
+// ============================================================
+//  POWER-UP
+// ============================================================
+class PowerUp {
+    constructor(x, y, type) {
+        this.x = x; this.y = y; this.type = type;
+        this.radius = 12;
+        this.config = CONFIG.POWERUPS[type];
+        this.pulse = Math.random() * TAU;
+        this.alive = true;
+        this.spawnTime = gnow();
+        this.lifetime = 15000;
+        this.warningTime = 5000;
+    }
+    update() {
+        this.pulse += 0.05;
+        if (gnow() - this.spawnTime > this.lifetime) this.alive = false;
+    }
+    draw(ctx) {
+        if (!this.alive) return;
+        const remaining = this.lifetime - (gnow() - this.spawnTime);
+        if (remaining < this.warningTime && Math.floor(rnow() / 200) % 2 === 0) return;
+        const r = this.radius + Math.sin(this.pulse) * 3;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r + 5, 0, TAU);
+        ctx.strokeStyle = this.config.color;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = this.config.color;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r, 0, TAU);
+        ctx.fillStyle = this.config.color + '33';
+        ctx.fill();
+        ctx.font = Math.floor(r) + 'px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.config.icon, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+// ============================================================
+//  SERPENT
+// ============================================================
+class Snake {
+    constructor(x, y, isPlayer, name, color) {
+        this.x = x; this.y = y;
+        this.angle = Math.random() * TAU;
+        this.speed = CONFIG.BASE_SPEED;
+        this.radius = CONFIG.BASE_RADIUS;
+        this.length = 10;
+        this.isPlayer = isPlayer;
+        this.name = name;
+        this.color = color;
+        this.segments = [];
+        this.alive = true;
+        this.targetAngle = this.angle;
+        this.kills = 0;
+        this.turnSmoothing = 0.1;
+        this.maxLength = isPlayer ? CONFIG.MAX_LENGTH : CONFIG.BOT_MAX_LENGTH;
+        // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
+        this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
+        for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
+    }
+
+    applyPowerUp(type) { this.powerupEnds[type] = gnow() + CONFIG.POWERUPS[type].duration; }
+    hasPowerUp(type) { return this.powerupEnds[type] > gnow(); }
+    getEffectiveSpeed() { return this.hasPowerUp('speed') ? this.speed * CONFIG.POWERUPS.speed.speedMultiplier : this.speed; }
+    addKill() { this.kills++; }
+    canBeEaten() { return !this.hasPowerUp('invincible'); }
+
+    getActiveEffects() {
+        let effects = [];
+        for (const tier of CONFIG.KILL_EFFECTS) if (this.kills >= tier.kills) effects = tier.effects;
+        return effects;
+    }
+
+    // target : point vise en coordonnees MONDE (le pointeur est converti par screenToWorld).
+    update(target, allSnakes, grid) {
+        if (!this.alive) return;
+
+        if (this.isPlayer) {
+            if (target && target.x !== undefined && target.y !== undefined) {
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this.targetAngle = Math.atan2(dy, dx);
+            }
+        } else {
+            this.botAI(allSnakes, grid);
+        }
+
+        let diff = this.targetAngle - this.angle;
+        while (diff < -Math.PI) diff += TAU;
+        while (diff > Math.PI) diff -= TAU;
+        this.angle += diff * this.turnSmoothing;
+
+        const spd = this.getEffectiveSpeed();
+        this.x += Math.cos(this.angle) * spd;
+        this.y += Math.sin(this.angle) * spd;
+
+        if (this.hasPowerUp('magnet')) {
+            const mr = CONFIG.POWERUPS.magnet.radius;
+            grid.forEachNear(this.x, this.y, mr, (f) => {
+                const d = Math.hypot(f.x - this.x, f.y - this.y);
+                if (d < mr && d > 5) {
+                    const a = Math.atan2(this.y - f.y, this.x - f.x);
+                    f.x += Math.cos(a) * 3;
+                    f.y += Math.sin(a) * 3;
+                }
+            });
+        }
+
+        const m = this.radius;
+        if (this.x < m) { this.x = m; this.targetAngle = 0; }
+        else if (this.x > CONFIG.WORLD_WIDTH-m) { this.x = CONFIG.WORLD_WIDTH-m; this.targetAngle = Math.PI; }
+        if (this.y < m) { this.y = m; this.targetAngle = Math.PI/2; }
+        else if (this.y > CONFIG.WORLD_HEIGHT-m) { this.y = CONFIG.WORLD_HEIGHT-m; this.targetAngle = -Math.PI/2; }
+
+        this.segments.unshift({ x: this.x, y: this.y });
+        while (this.segments.length > this.length) this.segments.pop();
+    }
+
+    botAI(allSnakes, grid) {
+        if (!this.hasPowerUp('invincible')) {
+            for (const o of allSnakes) {
+                if (o === this || !o.alive) continue;
+                if (o.radius > this.radius * 1.1) {
+                    const d = Math.hypot(o.x - this.x, o.y - this.y);
+                    if (d < 150) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
+                }
+            }
+        }
+        for (const o of allSnakes) {
+            if (o === this || !o.alive) continue;
+            if (o.radius < this.radius * 0.9 && o.canBeEaten()) {
+                const d = Math.hypot(o.x - this.x, o.y - this.y);
+                if (d < 300) { this.targetAngle = Math.atan2(o.y-this.y, o.x-this.x); return; }
+            }
+        }
+        const closest = grid.nearest(this.x, this.y, 6);
+        if (closest) { this.targetAngle = Math.atan2(closest.y-this.y, closest.x-this.x); return; }
+        if (Math.random() < 0.05) this.targetAngle += (Math.random()-0.5);
+    }
+
+    draw(ctx) {
+        if (!this.alive || this.segments.length === 0) return;
+        const segs = this.segments;
+        const r = this.radius;
+
+        // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
+        // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments.
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(segs[0].x, segs[0].y);
+        for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
+
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = r * 2 + 10;
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = r * 2;
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = r * 0.7;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        const head = segs[0];
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        const eo = r * 0.45, er = Math.max(2, r * 0.3);
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er, 0, TAU);
+        ctx.arc(head.x + Math.cos(this.angle-0.5)*eo, head.y + Math.sin(this.angle-0.5)*eo, er, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er*0.5, 0, TAU);
+        ctx.arc(head.x + Math.cos(this.angle-0.5)*eo, head.y + Math.sin(this.angle-0.5)*eo, er*0.5, 0, TAU);
+        ctx.fill();
+    }
+
+    grow(amount) {
+        this.length = Math.min(this.maxLength, this.length + amount);
+        this.radius = Math.min(40, this.radius + amount * 0.05);
+    }
+
+    kill() { this.alive = false; }
+}
+
+// ============================================================
+//  ÉTAT DU JEU
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+let WIDTH = 0, HEIGHT = 0, DPR = 1, MM_W = 100, MM_H = 70;
+let gameState = 'MENU';                     // MENU | PLAYING | PAUSED | END
+let player = null, bots = [], foods = [], powerups = [];
+let pointer = { x: 0, y: 0 };                 // position du doigt / de la souris, en pixels ECRAN
+const cam = { x: 0, y: 0, zoom: 1 };          // centre de la vue, en coordonnees MONDE
+let foodGrid = null;
+let sessionKills = 0;
+let pendingRespawns = [];
+let lastPowerupSpawn = 0;
+let comboCount = 0, lastComboTime = -Infinity, comboMultiplier = 1;
+let wasTouched = false;
+let uiAccum = 0;
+
+const particles = new ParticleSystem();
+const screenShake = new ScreenShake();
+const killStreak = new KillStreak();
+
+function $(id) { return document.getElementById(id); }
+function aliveSnakes() { return [player, ...bots].filter(s => s && s.alive); }
+
+// ============================================================
+//  CAMERA
+// ============================================================
+function clampCamera() {
+    const viewW = WIDTH / cam.zoom, viewH = HEIGHT / cam.zoom;
+    cam.x = viewW >= CONFIG.WORLD_WIDTH
+        ? CONFIG.WORLD_WIDTH / 2
+        : Math.min(Math.max(cam.x, viewW/2), CONFIG.WORLD_WIDTH - viewW/2);
+    cam.y = viewH >= CONFIG.WORLD_HEIGHT
+        ? CONFIG.WORLD_HEIGHT / 2
+        : Math.min(Math.max(cam.y, viewH/2), CONFIG.WORLD_HEIGHT - viewH/2);
+}
+
+function updateCamera() {
+    if (player && player.alive) {
+        // Plus le serpent est gros, plus on voit large : sinon on avance a l'aveugle.
+        const target = Math.pow(CONFIG.BASE_RADIUS / player.radius, 0.35);
+        const targetZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, target));
+        cam.zoom += (targetZoom - cam.zoom) * CONFIG.ZOOM_SMOOTH;
+        cam.x += (player.x - cam.x) * CONFIG.CAMERA_SMOOTH;
+        cam.y += (player.y - cam.y) * CONFIG.CAMERA_SMOOTH;
+    }
+    clampCamera();
+}
+
+// La camera etant bornee aux murs du monde, le joueur n'est pas toujours au centre de l'ecran :
+// on convertit donc le pointeur en coordonnees monde plutot que de viser depuis le centre.
+function screenToWorld(sx, sy) {
+    return { x: cam.x + (sx - WIDTH/2) / cam.zoom, y: cam.y + (sy - HEIGHT/2) / cam.zoom };
+}
+
+function viewBounds() {
+    const hw = WIDTH / (2*cam.zoom), hh = HEIGHT / (2*cam.zoom);
+    return { x0: cam.x-hw, y0: cam.y-hh, x1: cam.x+hw, y1: cam.y+hh };
+}
+
+function inView(x, y, margin, v) {
+    return x > v.x0-margin && x < v.x1+margin && y > v.y0-margin && y < v.y1+margin;
+}
+
+// ============================================================
+//  UI
+// ============================================================
+function showScreen(screen) {
+    $('menuScreen').classList.toggle('hidden', screen !== 'menu');
+    $('endScreen').classList.toggle('hidden', screen !== 'end');
+    $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
+
+    const inGame = (screen === 'game');
+    $('hud').style.display = inGame ? 'block' : 'none';
+    $('leaderboard').style.display = inGame ? 'block' : 'none';
+    $('minimap').style.display = inGame ? 'block' : 'none';
+    $('pauseBtn').style.display = inGame ? 'block' : 'none';
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) return seconds + 's';
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+    const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+    return h + 'h ' + m + 'm';
+}
+
+function renderMenu() {
+    $('menuLevel').textContent = save.level;
+    const xpNeeded = xpForLevel(save.level);
+    $('menuXpBar').style.width = ((save.xp / xpNeeded) * 100) + '%';
+    $('menuXpText').textContent = save.xp + ' / ' + xpNeeded + ' XP';
+
+    $('statBest').textContent = save.bestSize;
+    $('statWins').textContent = save.wins;
+    $('statLosses').textContent = save.losses;
+    $('statKills').textContent = save.kills;
+    $('statGames').textContent = save.games;
+    $('statTime').textContent = formatTime(save.totalTime);
+
+    currentSkin();
+    const row = $('skinsRow');
+    row.innerHTML = '';
+    CONFIG.SKINS.forEach((skin, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'skin-btn';
+        btn.style.background = skin.color;
+        btn.style.boxShadow = '0 0 8px ' + skin.color;
+        btn.title = skin.name;
+        if (save.level >= skin.unlockLevel) {
+            const selected = i === save.selectedSkin;
+            if (selected) btn.classList.add('selected');
+            btn.setAttribute('aria-pressed', String(selected));
+            btn.setAttribute('aria-label', 'Skin ' + skin.name + (selected ? ' (sélectionné)' : ''));
+            btn.addEventListener('click', () => {
+                audio.init(); audio.play('click');
+                save.selectedSkin = i;
+                writeSave();
+                renderMenu();
+            });
+        } else {
+            btn.classList.add('locked');
+            btn.disabled = true;
+            btn.setAttribute('aria-label', 'Skin ' + skin.name + ', débloqué au niveau ' + skin.unlockLevel);
+            const badge = document.createElement('span');
+            badge.className = 'unlock-level';
+            badge.textContent = 'Niv ' + skin.unlockLevel;
+            btn.appendChild(badge);
+        }
+        row.appendChild(btn);
+    });
+
+    const tbody = $('historyBody');
+    tbody.innerHTML = '';
+    if (save.history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#666;text-align:center;">Aucune partie</td></tr>';
+    } else {
+        save.history.forEach((h, i) => {
+            const tr = document.createElement('tr');
+            const win = h.result === 'WIN';
+            tr.innerHTML = '<td>' + (i+1) + '</td>' +
+                '<td class="' + (win ? 'win-text' : 'lose-text') + '">' + (win ? '🏆' : '💀') + ' ' + h.result + '</td>' +
+                '<td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
+            tbody.appendChild(tr);
+        });
+    }
+
+    const grid = $('achievementsGrid');
+    grid.innerHTML = '';
+    CONFIG.ACHIEVEMENTS.forEach(ach => {
+        const unlocked = save.achievements.includes(ach.id);
+        const div = document.createElement('div');
+        div.className = 'achievement' + (unlocked ? ' unlocked' : '');
+        div.innerHTML = '<div class="ach-icon">' + (unlocked ? ach.icon : '🔒') + '</div>' +
+            '<div class="ach-name">' + ach.name + '</div>' +
+            '<div class="ach-desc">' + ach.desc + '</div>';
+        grid.appendChild(div);
+    });
+}
+
+function updateHUD() {
+    if (!player) return;
+    $('scoreDisplay').textContent = 'Taille: ' + player.length;
+    $('timerDisplay').textContent = 'Temps: ' + formatTime(Math.floor(gameClock / 1000));
+    $('killsDisplay').textContent = 'Kills: ' + sessionKills;
+
+    const puDiv = $('puIndicators');
+    puDiv.innerHTML = '';
+    for (const type of Object.keys(CONFIG.POWERUPS)) {
+        if (!player.hasPowerUp(type)) continue;
+        const cfg = CONFIG.POWERUPS[type];
+        const left = Math.ceil((player.powerupEnds[type] - gnow()) / 1000);
+        const badge = document.createElement('span');
+        badge.className = 'pu-badge';
+        badge.style.borderColor = cfg.color;
+        badge.style.color = cfg.color;
+        badge.textContent = cfg.icon + ' ' + cfg.label + ' ' + left + 's';
+        puDiv.appendChild(badge);
+    }
+
+    const combo = $('comboDisplay');
+    if (comboMultiplier > 1 && gnow() - lastComboTime < CONFIG.COMBO_WINDOW) {
+        combo.style.display = 'block';
+        combo.textContent = '🔥 Combo x' + comboMultiplier;
+    } else {
+        combo.style.display = 'none';
+    }
+}
+
+function updateLeaderboard() {
+    const all = aliveSnakes().sort((a, b) => b.length - a.length);
+    const medals = ['🥇','🥈','🥉'];
+    let html = '';
+    all.slice(0, 3).forEach((s, i) => {
+        html += '<div class="lb-entry ' + (s.isPlayer ? 'lb-player' : '') + '">' +
+                medals[i] + ' ' + s.name + ' (' + s.length + ')</div>';
+    });
+    if (player && player.alive) {
+        const rank = all.indexOf(player);
+        if (rank > 2) html += '<div class="lb-entry lb-player">📊 Toi: #' + (rank+1) + ' (' + player.length + ')</div>';
+    }
+    $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
+}
+
+function drawMinimap() {
+    minimapCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    minimapCtx.clearRect(0, 0, MM_W, MM_H);
+    minimapCtx.fillStyle = 'rgba(0,0,0,0.5)';
+    minimapCtx.fillRect(0, 0, MM_W, MM_H);
+
+    // Lettrage : la minimap garde les proportions du monde quelle que soit sa taille.
+    const sc = Math.min(MM_W / CONFIG.WORLD_WIDTH, MM_H / CONFIG.WORLD_HEIGHT);
+    const ox = (MM_W - CONFIG.WORLD_WIDTH*sc) / 2;
+    const oy = (MM_H - CONFIG.WORLD_HEIGHT*sc) / 2;
+    const mx = (wx) => ox + wx*sc;
+    const my = (wy) => oy + wy*sc;
+
+    minimapCtx.strokeStyle = 'rgba(0,255,204,0.25)';
+    minimapCtx.lineWidth = 1;
+    minimapCtx.strokeRect(ox, oy, CONFIG.WORLD_WIDTH*sc, CONFIG.WORLD_HEIGHT*sc);
+
+    // Portion du monde reellement affichee a l'ecran.
+    const vw = (WIDTH / cam.zoom) * sc, vh = (HEIGHT / cam.zoom) * sc;
+    minimapCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+    minimapCtx.strokeRect(mx(cam.x) - vw/2, my(cam.y) - vh/2, vw, vh);
+
+    // Pas la nourriture : 600 points sur 100x75 px ne seraient qu'un aplat.
+    for (const s of aliveSnakes()) {
+        minimapCtx.beginPath();
+        minimapCtx.arc(mx(s.x), my(s.y), s.isPlayer ? 3 : 1.8, 0, TAU);
+        minimapCtx.fillStyle = s.isPlayer ? '#00ffcc' : s.color;
+        minimapCtx.fill();
+    }
+}
+
+// ============================================================
+//  CYCLE DE PARTIE
+// ============================================================
+function resizeCanvas() {
+    WIDTH = Math.max(1, window.innerWidth);
+    HEIGHT = Math.max(1, window.innerHeight);
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = Math.round(WIDTH * DPR);
+    canvas.height = Math.round(HEIGHT * DPR);
+    canvas.style.width = WIDTH + 'px';
+    canvas.style.height = HEIGHT + 'px';
+
+    const small = window.matchMedia('(max-width: 480px)').matches;
+    MM_W = small ? 84 : 104;
+    MM_H = small ? 63 : 78;
+    minimapCanvas.width = Math.round(MM_W * DPR);
+    minimapCanvas.height = Math.round(MM_H * DPR);
+    minimapCanvas.style.width = MM_W + 'px';
+    minimapCanvas.style.height = MM_H + 'px';
+
+    clampCamera();
+}
+
+// Monde dimensionne d'apres l'ecran, a densite constante : meme foisonnement sur mobile et desktop.
+function computeWorld() {
+    const targetArea = WIDTH * HEIGHT * CONFIG.WORLD_SCREENS;
+    const aspect = Math.max(CONFIG.WORLD_ASPECT_MIN, Math.min(CONFIG.WORLD_ASPECT_MAX, WIDTH / HEIGHT));
+    let w = Math.sqrt(targetArea * aspect);
+    let h = targetArea / w;
+    // Un clamp independant par axe ecrasait l'aspect (un ecran large finissait avec un monde
+    // carre). On applique les deux bornes comme un FACTEUR COMMUN pour garder le ratio voulu.
+    // Consequence assumee : au-dela de WORLD_MAX, l'aire de 16 ecrans n'est plus tenue — c'est
+    // le compromis qui protege la grille spatiale et le nombre de pastilles sur tres grand ecran.
+    let scale = 1;
+    if (w > CONFIG.WORLD_MAX) scale = Math.min(scale, CONFIG.WORLD_MAX / w);
+    if (h > CONFIG.WORLD_MAX) scale = Math.min(scale, CONFIG.WORLD_MAX / h);
+    if (w * scale < CONFIG.WORLD_MIN) scale = Math.max(scale, CONFIG.WORLD_MIN / w);
+    if (h * scale < CONFIG.WORLD_MIN) scale = Math.max(scale, CONFIG.WORLD_MIN / h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+    CONFIG.WORLD_WIDTH = w;
+    CONFIG.WORLD_HEIGHT = h;
+    CONFIG.FOOD_COUNT = Math.round((w * h) / CONFIG.FOOD_AREA_PER_ITEM);
+}
+
+function startGame() {
+    audio.init(); audio.resume();
+    computeWorld();
+    gameState = 'PLAYING';
+    gameClock = 0;
+    accumulator = 0;
+    lastFrameTs = 0;
+    sessionKills = 0;
+    comboCount = 0;
+    comboMultiplier = 1;
+    lastComboTime = -Infinity;
+    wasTouched = false;
+    sessionNewAch = [];
+    pendingRespawns = [];
+    powerups = [];
+    particles.clear();
+    killStreak.reset();
+    screenShake.reset();
+    showScreen('game');
+
+    // Apparition quelque part dans le monde, pas toujours au meme endroit.
+    player = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        true, 'TOI', currentSkin().color
+    );
+
+    cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
+    clampCamera();
+
+    bots = [];
+    for (let i = 0; i < CONFIG.BOT_COUNT; i++) {
+        const bot = new Snake(
+            Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT,
+            false, CONFIG.BOT_NAMES[i % CONFIG.BOT_NAMES.length],
+            CONFIG.BOT_COLORS[i % CONFIG.BOT_COLORS.length]
+        );
+        if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
+        bot.kills = Math.floor(Math.random() * 15);
+        bots.push(bot);
+    }
+
+    foods = [];
+    for (let i = 0; i < CONFIG.FOOD_COUNT; i++) foods.push(new Food());
+    foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
+    foodGrid.build(foods);
+
+    // Sans ce bouclier, une partie sur six se terminait avant la 5e seconde (mesure sur 25 parties).
+    player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+
+    pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
+    lastPowerupSpawn = gnow();
+    updateHUD();
+    updateLeaderboard();
+}
+
+function pauseGame() {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'PAUSED';
+    showScreen('pause');
+}
+
+function resumeGame() {
+    if (gameState !== 'PAUSED') return;
+    gameState = 'PLAYING';
+    accumulator = 0;
+    lastFrameTs = 0;
+    audio.resume();
+    showScreen('game');
+}
+
+function goToMenu() {
+    gameState = 'MENU';
+    pendingRespawns = [];
+    particles.clear();
+    killStreak.reset();
+    screenShake.reset();
+    showScreen('menu');
+    renderMenu();
+}
+
+function endGame(won) {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'END';
+    pendingRespawns = [];
+
+    const size = player ? player.length : 0;
+    const duration = Math.floor(gameClock / 1000);
+    const xpGain = Math.floor(size * 0.5) + sessionKills * 15 + (won ? 50 : 0);
+    const leveledUp = addXP(xpGain);
+
+    save.games++;
+    save.totalTime += duration;
+    save.kills += sessionKills;
+    if (won) save.wins++; else save.losses++;
+    if (size > save.bestSize) save.bestSize = size;
+
+    save.history.unshift({
+        result: won ? 'WIN' : 'LOSE',
+        size, kills: sessionKills, duration,
+        date: new Date().toLocaleDateString('fr-FR')
+    });
+    while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
+    writeSave();
+
+    checkAchievement('first_kill', sessionKills >= 1);
+    checkAchievement('five_kills', sessionKills >= 5);
+    checkAchievement('ten_kills', sessionKills >= 10);
+    checkAchievement('first_win', won);
+    checkAchievement('big_snake', size >= 200);
+    checkAchievement('survivor', won && !wasTouched);
+
+    showScreen('end');
+    const title = $('endTitle'), msg = $('endMessage');
+    if (won) {
+        title.textContent = '🏆 VICTOIRE !';
+        title.style.color = '#00ffcc';
+        msg.textContent = 'Tu es le roi de l’arène ! Taille : ' + size + ' • Kills : ' + sessionKills + ' • ' + formatTime(duration);
+        audio.play('victory');
+    } else {
+        title.textContent = '💀 GAME OVER';
+        title.style.color = '#ff0055';
+        msg.textContent = 'Taille : ' + size + ' • Kills : ' + sessionKills + ' • ' + formatTime(duration);
+        audio.play('death');
+    }
+
+    $('endXpGain').textContent = '+' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : '');
+    $('endXpBar').style.width = ((save.xp / xpForLevel(save.level)) * 100) + '%';
+    $('endAchievements').textContent = sessionNewAch.length
+        ? '🏅 ' + sessionNewAch.map(a => a.name).join(' • ')
+        : '';
+}
+
+function respawnBot(idx, name, color) {
+    if (gameState !== 'PLAYING' || idx < 0 || idx >= bots.length) return;
+    const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
+    bot.grow(Math.floor(Math.random() * 10));
+    bots[idx] = bot;
+}
+
+function processRespawns() {
+    for (let i = pendingRespawns.length-1; i >= 0; i--) {
+        if (gnow() >= pendingRespawns[i].at) {
+            const r = pendingRespawns.splice(i, 1)[0];
+            respawnBot(r.idx, r.name, r.color);
+        }
+    }
+}
+
+// ============================================================
+//  GAMEPLAY
+// ============================================================
+function handleInput(e) {
+    if (gameState !== 'PLAYING') return;
+    if (e.cancelable) e.preventDefault();
+    if (e.touches && e.touches.length > 0) {
+        pointer.x = e.touches[0].clientX;
+        pointer.y = e.touches[0].clientY;
+    } else if (e.clientX !== undefined) {
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+    }
+}
+
+function devour(winner, loser) {
+    loser.kill();
+    winner.grow(Math.floor(loser.length / 2));
+    winner.addKill();
+    particles.emitDeath(loser.x, loser.y, loser.color);
+
+    if (winner.isPlayer) {
+        sessionKills++;
+        killStreak.addKill();
+        audio.play('kill');
+        screenShake.trigger(8);
+        checkAchievement('first_kill', true);
+        checkAchievement('five_kills', sessionKills >= 5);
+        checkAchievement('ten_kills', sessionKills >= 10);
+    }
+
+    if (loser.isPlayer) {
+        screenShake.trigger(10);
+        endGame(false);
+        return;
+    }
+    const idx = bots.indexOf(loser);
+    if (idx !== -1) pendingRespawns.push({ idx, name: loser.name, color: loser.color, at: gnow() + CONFIG.RESPAWN_DELAY });
+}
+
+function checkCollisions() {
+    const snakes = aliveSnakes();
+
+    for (const snake of snakes) {
+        if (!snake.alive) continue;
+
+        foodGrid.forEachNear(snake.x, snake.y, snake.radius + 12, (f) => {
+            if (Math.hypot(snake.x-f.x, snake.y-f.y) >= snake.radius + f.radius) return;
+
+            if (snake.isPlayer) {
+                if (gnow() - lastComboTime < CONFIG.COMBO_WINDOW) {
+                    comboCount++;
+                    if (comboCount >= CONFIG.COMBO_THRESHOLD && comboMultiplier < 2) {
+                        comboMultiplier = 2;
+                        checkAchievement('combo_master', true);
+                        showToast('🔥 Combo x2 activé !');
+                    }
+                } else {
+                    comboCount = 1;
+                    comboMultiplier = 1;
+                }
+                lastComboTime = gnow();
+            }
+
+            snake.grow(CONFIG.FOOD_GROWTH * (snake.isPlayer ? comboMultiplier : 1));
+            particles.emitFoodEat(f.x, f.y);
+            if (snake.isPlayer) audio.play('eat');
+            f.respawn();   // la pastille reapparait ailleurs : le tableau garde une taille constante
+        });
+
+        for (let i = powerups.length-1; i >= 0; i--) {
+            const pu = powerups[i];
+            if (Math.hypot(snake.x-pu.x, snake.y-pu.y) >= snake.radius + pu.radius) continue;
+            snake.applyPowerUp(pu.type);
+            if (snake.isPlayer) {
+                audio.play('powerup');
+                save.powerupsCollected[pu.type] = (save.powerupsCollected[pu.type] || 0) + 1;
+                writeSave();
+                checkAchievement('speed_demon', save.powerupsCollected.speed >= 3);
+                showToast(pu.config.icon + ' ' + pu.config.label + ' !');
+            }
+            particles.emit(pu.x, pu.y, 10, {
+                vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4,
+                life: 1, decay: 0.03, size: 4, color: pu.config.color, type: 'circle', friction: 0.95
+            });
+            powerups.splice(i, 1);
+        }
+    }
+
+    // Tête contre tête : le plus gros mange le plus petit (chaque paire testée une seule fois).
+    for (let i = 0; i < snakes.length; i++) {
+        const a = snakes[i];
+        if (!a.alive) continue;
+        for (let j = i+1; j < snakes.length; j++) {
+            const b = snakes[j];
+            if (!b.alive) continue;
+            if (Math.hypot(a.x-b.x, a.y-b.y) >= a.radius + b.radius) continue;
+
+            if (!a.canBeEaten() || !b.canBeEaten()) continue;
+            if (a.isPlayer || b.isPlayer) wasTouched = true;
+
+            if (a.radius > b.radius * 1.1) devour(a, b);
+            else if (b.radius > a.radius * 1.1) devour(b, a);
+            if (gameState !== 'PLAYING') return;
+            if (!a.alive) break;
+        }
+    }
+}
+
+function checkWinCondition() {
+    if (!player || !player.alive) return;
+    let maxBot = 0;
+    for (const b of bots) if (b && b.alive && b.length > maxBot) maxBot = b.length;
+    if (player.length > maxBot && player.length > CONFIG.WIN_THRESHOLD) endGame(true);
+}
+
+function spawnPowerups() {
+    if (gnow() - lastPowerupSpawn > CONFIG.POWERUP_SPAWN_INTERVAL) {
+        lastPowerupSpawn = gnow();
+        if (powerups.length < CONFIG.POWERUP_MAX_ON_MAP && Math.random() < CONFIG.POWERUP_SPAWN_CHANCE) {
+            const types = Object.keys(CONFIG.POWERUPS);
+            const type = types[Math.floor(Math.random() * types.length)];
+            const v = viewBounds();
+            powerups.push(new PowerUp(
+                Math.min(CONFIG.WORLD_WIDTH-30, Math.max(30, v.x0 + Math.random() * (v.x1-v.x0))),
+                Math.min(CONFIG.WORLD_HEIGHT-30, Math.max(30, v.y0 + Math.random() * (v.y1-v.y0))),
+                type
+            ));
+        }
+    }
+    for (let i = powerups.length-1; i >= 0; i--) {
+        powerups[i].update();
+        if (!powerups[i].alive) powerups.splice(i, 1);
+    }
+}
+
+function emitSnakeEffects(snake) {
+    if (!snake.alive || snake.segments.length === 0) return;
+    const effects = snake.getActiveEffects();
+    const head = snake.segments[0];
+
+    if (effects.includes('smoke') && Math.random() < 0.3) {
+        const seg = snake.segments[Math.floor(Math.random() * Math.min(snake.segments.length, 10))];
+        particles.emitSmoke(seg.x, seg.y);
+    }
+    if (effects.includes('lightning') && Math.random() < 0.2) particles.emitLightning(head.x, head.y);
+    if (effects.includes('flame') && Math.random() < 0.4) {
+        const seg = snake.segments[Math.floor(Math.random() * snake.segments.length)];
+        particles.emitFlame(seg.x, seg.y);
+    }
+    if (snake.hasPowerUp('speed') && Math.random() < 0.5) {
+        const tail = snake.segments[snake.segments.length-1];
+        particles.emit(tail.x, tail.y, 1, {
+            vx: (Math.random()-0.5), vy: (Math.random()-0.5),
+            life: 1, decay: 0.04, size: 3, color: '#ffff00', type: 'circle', friction: 0.95
+        });
+    }
+}
+
+function drawAuras(snake) {
+    if (!snake.alive || snake.segments.length === 0) return;
+    const head = snake.segments[0];
+    const t = rnow();
+
+    if (snake.getActiveEffects().includes('lightning')) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,204,255,0.5)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+            const a = (t/200 + i*2.1) % TAU;
+            const r = snake.radius + 10 + Math.sin(t/100+i)*5;
+            const sx = head.x + Math.cos(a)*r, sy = head.y + Math.sin(a)*r;
+            const ex = head.x + Math.cos(a+0.5)*(r+15), ey = head.y + Math.sin(a+0.5)*(r+15);
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo((sx+ex)/2 + (Math.random()-0.5)*10, (sy+ey)/2 + (Math.random()-0.5)*10);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    if (snake.hasPowerUp('invincible')) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, snake.radius+15, 0, TAU);
+        ctx.strokeStyle = 'rgba(255,215,0,' + (Math.sin(t/150)*0.3+0.7) + ')';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    if (snake.hasPowerUp('magnet')) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, CONFIG.POWERUPS.magnet.radius, 0, TAU);
+        ctx.strokeStyle = 'rgba(204,0,255,' + (Math.sin(t/300)*0.2+0.3) + ')';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5,10]);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawGrid(v) {
+    // Meme raison que pour Food.pulse : phase basee sur le temps de simulation, pas sur le
+    // nombre de frames rendues (0.0005/frame a 60 fps ~= 0.00003/ms).
+    const phase = gnow() * 0.00003;
+    const g = CONFIG.GRID_SIZE;
+    const x0 = Math.max(0, v.x0), x1 = Math.min(CONFIG.WORLD_WIDTH, v.x1);
+    const y0 = Math.max(0, v.y0), y1 = Math.min(CONFIG.WORLD_HEIGHT, v.y1);
+    if (x1 <= x0 || y1 <= y0) return;
+
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.03 + Math.sin(phase) * 0.01) + ')';
+    ctx.lineWidth = 1 / cam.zoom;
+    ctx.beginPath();
+    for (let x = Math.floor(x0/g)*g; x <= x1; x += g) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
+    for (let y = Math.floor(y0/g)*g; y <= y1; y += g) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
+    ctx.stroke();
+}
+
+// Mur du monde : sans repere visuel, on ne comprend pas pourquoi on arrete d'avancer.
+function drawWorldBorder() {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,255,204,0.35)';
+    ctx.lineWidth = 6 / cam.zoom;
+    ctx.shadowBlur = 20 / cam.zoom;
+    ctx.shadowColor = '#00ffcc';
+    ctx.strokeRect(0, 0, CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+    ctx.restore();
+}
+
+// ============================================================
+//  BOUCLE — pas de simulation fixe, rendu libre
+// ============================================================
+let accumulator = 0;
+let lastFrameTs = 0;
+
+function simulate() {
+    const snakes = aliveSnakes();
+    foodGrid.build(foods);
+
+    if (player && player.alive) player.update(screenToWorld(pointer.x, pointer.y), snakes, foodGrid);
+    for (const b of bots) if (b && b.alive) b.update(null, snakes, foodGrid);
+
+    updateCamera();
+    processRespawns();
+    spawnPowerups();
+    // Le magnet a pu déplacer des pastilles pendant les update() ci-dessus : la grille
+    // construite en haut de fonction leur est d'un pas périmée.
+    foodGrid.build(foods);
+    checkCollisions();
+    if (gameState !== 'PLAYING') return;
+    checkWinCondition();
+    if (gameState !== 'PLAYING') return;
+
+    particles.update();
+    screenShake.update();
+    for (const s of snakes) if (s.alive) emitSnakeEffects(s);
+}
+
+// Un serpent hors ecran ne doit pas etre trace, mais son corps peut entrer dans la vue
+// alors que sa tete est loin : on garde donc sa longueur maximale comme marge.
+function snakeVisible(sn, v) {
+    // Majorant : un segment peut avoir été posé pendant un bonus vitesse (x1,8), donc plus
+    // espacé qu'au pas de base. Sous-estimer la marge coupait le rendu d'un serpent boosté
+    // pourtant encore partiellement visible.
+    const maxSpd = CONFIG.BASE_SPEED * CONFIG.POWERUPS.speed.speedMultiplier;
+    const reach = sn.segments.length * maxSpd;
+    return inView(sn.x, sn.y, reach + 100, v);
+}
+
+function render() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#0f0f13';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    const shake = gameState === 'PLAYING' ? screenShake.getOffset() : { x: 0, y: 0 };
+    ctx.save();
+    // Ecran -> monde : on centre la vue sur la camera, puis on applique le zoom.
+    ctx.translate(WIDTH/2 + shake.x, HEIGHT/2 + shake.y);
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cam.x, -cam.y);
+
+    const v = viewBounds();
+    drawGrid(v);
+    drawWorldBorder();
+
+    if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'END') {
+        for (const p of powerups) if (inView(p.x, p.y, 40, v)) p.draw(ctx);
+        for (const f of foods) if (inView(f.x, f.y, 20, v)) f.draw(ctx);
+        for (const b of bots) if (b && b.alive && snakeVisible(b, v)) { b.draw(ctx); drawAuras(b); }
+        if (player && player.alive) { player.draw(ctx); drawAuras(player); }
+        particles.draw(ctx);
+    }
+    ctx.restore();
+
+    if (gameState === 'PLAYING') drawMinimap();
+}
+
+function gameLoop(ts) {
+    requestAnimationFrame(gameLoop);
+
+    if (!lastFrameTs) lastFrameTs = ts;
+    let dt = ts - lastFrameTs;
+    lastFrameTs = ts;
+    if (dt > 250) dt = 250;   // onglet réveillé : on ne rattrape pas 10 minutes de simulation
+
+    if (gameState === 'PLAYING') {
+        accumulator += dt;
+        let steps = 0;
+        while (accumulator >= STEP_MS && steps < MAX_STEPS_PER_FRAME) {
+            accumulator -= STEP_MS;
+            gameClock += STEP_MS;
+            simulate();
+            steps++;
+            if (gameState !== 'PLAYING') { accumulator = 0; break; }
+        }
+        if (steps >= MAX_STEPS_PER_FRAME) accumulator = 0;
+
+        uiAccum += dt;
+        if (uiAccum >= 100) { uiAccum = 0; updateHUD(); updateLeaderboard(); }
+    } else {
+        accumulator = 0;
+    }
+
+    render();
+}
+
+// ============================================================
+//  ÉVÉNEMENTS
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        audio.init(); audio.play('click');
+        const tab = this.getAttribute('data-tab');
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        const content = $('tab-' + tab);
+        if (content) content.classList.add('active');
+        this.classList.add('active');
+    });
+});
+
+function bindBtn(id, fn) {
+    $(id).addEventListener('click', () => { audio.init(); audio.play('click'); fn(); });
+}
+bindBtn('playBtn', startGame);
+bindBtn('replayBtn', startGame);
+bindBtn('menuBtn', goToMenu);
+bindBtn('pauseBtn', pauseGame);
+bindBtn('resumeBtn', resumeGame);
+bindBtn('quitBtn', goToMenu);
+
+canvas.addEventListener('mousemove', handleInput);
+canvas.addEventListener('touchmove', handleInput, { passive: false });
+canvas.addEventListener('touchstart', handleInput, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+        if (gameState === 'PLAYING') { e.preventDefault(); pauseGame(); }
+        else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+        // preventDefault : sinon un bouton focus (Jouer, Reprendre) reçoit AUSSI le clic natif
+        // du clavier et l'action se déclenche deux fois.
+        if (gameState === 'MENU' || gameState === 'END') { e.preventDefault(); audio.init(); startGame(); }
+        else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
+    }
+});
+
+window.addEventListener('resize', () => { resizeCanvas(); });
+window.addEventListener('orientationchange', () => { setTimeout(resizeCanvas, 300); });
+
+// Passer en arrière-plan met le jeu en pause : au retour on ne meurt pas pendant le chargement.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && gameState === 'PLAYING') pauseGame();
+});
+
+document.addEventListener('touchstart', () => { audio.init(); audio.resume(); }, { once: true });
+document.addEventListener('click', () => { audio.init(); audio.resume(); }, { once: true });
+
+document.addEventListener('touchmove', (e) => {
+    if (e.target === canvas) { if (e.cancelable) e.preventDefault(); }
+}, { passive: false });
+
+// ============================================================
+//  PWA : service worker + invite d'installation
+// ============================================================
+let deferredPrompt = null;
+
+function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    $('installBtn').style.display = 'inline-block';
+});
+
+$('installBtn').addEventListener('click', async () => {
+    audio.init(); audio.play('click');
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch(e) { /* ignoré */ }
+    deferredPrompt = null;
+    $('installBtn').style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    $('installBtn').style.display = 'none';
+    showToast('✅ Jeu installé !');
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Sur iPhone non installé, la consigne « Partager → Sur l'écran d'accueil » prime :
+            // c'est la seule façon d'installer, on ne l'écrase pas.
+            if (!isIOS || isStandalone()) $('offlineHint').textContent = 'Jouable hors-ligne ✓';
+            reg.addEventListener('updatefound', () => {
+                const nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                        showToast('🔄 Mise à jour prête — relance le jeu');
+                    }
+                });
+            });
+        }).catch(() => { /* http:// ou file:// : le jeu tourne quand même, sans hors-ligne */ });
+    });
+}
+
+if (isIOS && !isStandalone()) {
+    $('offlineHint').textContent = 'Installer : Partager ⬆ puis « Sur l’écran d’accueil »';
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+resizeCanvas();
+renderMenu();
+showScreen('menu');
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
