@@ -3216,7 +3216,14 @@ function render() {
 
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
+    lastRafAt = rnow();
+    advanceGame(ts);
+    render();
+}
 
+// Séparé de gameLoop parce que l'hôte d'une partie privée doit pouvoir avancer la simulation
+// SANS dessiner, quand le navigateur a suspendu requestAnimationFrame — voir hostBackgroundTick.
+function advanceGame(ts) {
     if (!lastFrameTs) lastFrameTs = ts;
     let dt = ts - lastFrameTs;
     lastFrameTs = ts;
@@ -3246,8 +3253,6 @@ function gameLoop(ts) {
     } else {
         accumulator = 0;
     }
-
-    render();
 }
 
 // ============================================================
@@ -3668,6 +3673,7 @@ const party = {
 };
 
 function resetParty() {
+    hostStopBackgroundClock();
     // Les drapeaux tombent AVANT la destruction du pair, jamais après : destroy() referme les
     // connexions, et le gestionnaire de fermeture aurait pris ce départ volontaire pour une
     // perte de l'hôte — toast trompeur, et resetParty rappelée depuis sa propre exécution.
@@ -4089,6 +4095,53 @@ function markFoodDirty(f) {
 
 function partySendToHost(msg) { if (party.hostConn) lobbySend(party.hostConn, msg); }
 
+// ---------- Horloge de secours de l'hôte ----------
+//
+// Mesuré dans un vrai Chrome : quand la fenêtre de l'hôte est minimisée ou son onglet caché, le
+// navigateur SUSPEND requestAnimationFrame. gameLoop s'arrête, et avec elle la simulation — les
+// autres joueurs ne reçoivent plus rien du tout (0 instantané en 4 secondes). Autrement dit,
+// l'hôte qui regarde ailleurs une seconde fige la partie de tout le monde, sans le savoir : très
+// exactement ce que le §6 du cahier des charges interdit, mais subi au lieu d'être choisi.
+//
+// Un Web Worker, lui, continue de tourner quand la page est cachée. Il ne sert ici que d'horloge :
+// la simulation reste sur le fil principal, seul le battement change de source. Créé à partir
+// d'un Blob, donc sans fichier séparé — le jeu reste un seul index.html.
+//
+// Le client, lui, n'en a pas besoin : quand il perd sa fenêtre du regard, son serpent passe en
+// pilotage automatique chez l'hôte et la partie continue pour les autres. C'est le comportement
+// voulu, pas une panne.
+const HOST_CLOCK_WORKER = 'let t=null;onmessage=function(e){if(e.data){if(!t)t=setInterval(function(){postMessage(0)},16);}else{clearInterval(t);t=null;}}';
+const HOST_CLOCK_GAP_MS = 120;   // au-delà, on considère requestAnimationFrame suspendue
+
+let hostClockWorker = null;
+let lastRafAt = 0;
+
+function hostStartBackgroundClock() {
+    if (hostClockWorker || !party.isHost) return;
+    try {
+        const url = URL.createObjectURL(new Blob([HOST_CLOCK_WORKER], { type: 'application/javascript' }));
+        hostClockWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+        hostClockWorker.onmessage = hostBackgroundTick;
+        hostClockWorker.postMessage(1);
+    } catch (e) {
+        hostClockWorker = null;   // pas de Worker disponible : on retombe sur le comportement d'avant
+    }
+}
+
+function hostStopBackgroundClock() {
+    if (!hostClockWorker) return;
+    try { hostClockWorker.postMessage(0); hostClockWorker.terminate(); } catch (e) {}
+    hostClockWorker = null;
+}
+
+function hostBackgroundTick() {
+    if (!party.inGame || !party.isHost) return;
+    // requestAnimationFrame tourne encore : elle fait le travail, on ne double pas les pas.
+    if (rnow() - lastRafAt < HOST_CLOCK_GAP_MS) return;
+    advanceGame(rnow());   // on avance la simulation, sans dessiner : personne ne regarde
+}
+
 // Le profil d'IA prêté à un joueur en pause : "peureux" fuit tôt et ne chasse jamais. On ne
 // veut pas qu'un joueur revienne de pause avec des kills qu'il n'a pas faits.
 const BOT_PROFILE_SHY = CONFIG.BOT_PROFILES.find(p => p.id === 'peureux')
@@ -4216,6 +4269,7 @@ function launchPrivateGame() {
 
     pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
     lastPowerupSpawn = gnow();
+    hostStartBackgroundClock();   // la partie ne doit pas dépendre de la fenêtre de l'hôte
     showScreen('game');
     updateHUD();
     updateLeaderboard();

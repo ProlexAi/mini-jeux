@@ -63,6 +63,11 @@ longueur. Mesuré en montée chez l'hôte, à 9 joueurs connectés : **26 ko/s e
 pilotage automatique (il fuit, il ne chasse pas) — **tu peux te faire manger pendant ce temps**,
 et le jeu te le dit. Le bouton Partie Privée est désactivé hors ligne, avec le motif affiché.
 
+L'hôte peut changer d'onglet ou réduire sa fenêtre sans arrêter la partie des autres : le
+navigateur suspend `requestAnimationFrame` dans un onglet caché, donc la simulation est cadencée
+par un Web Worker de secours dès qu'elle héberge (mesuré : 0 instantané par seconde sans lui,
+13 avec).
+
 ---
 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
@@ -180,6 +185,34 @@ Puis ouvre `http://localhost:8080`.
 Le double-clic sur `index.html` marche aussi, mais **sans** le hors-ligne :
 un service worker exige `http://localhost` ou `https://`.
 
+### Tester la partie privée à deux navigateurs
+
+Il faut **deux fenêtres séparées, toutes deux visibles** — pas deux onglets d'une même fenêtre :
+un onglet caché a son `requestAnimationFrame` suspendu par le navigateur, ce qui fausse tout.
+
+1. Sers le jeu (commande ci-dessus) et ouvre `http://localhost:8080` dans **deux fenêtres**,
+   côte à côte. Mets un pseudo différent dans chacune.
+2. Fenêtre A : **🌐 Partie Privée** → **Créer un salon**. Un code de 5 caractères s'affiche.
+3. Fenêtre B : **🌐 Partie Privée** → **Rejoindre**, saisis le code. Les deux pseudos doivent
+   apparaître dans la liste des deux côtés, avec 👑 sur l'hôte.
+4. Fenêtre A : **▶ Lancer**. Les deux passent en jeu dans la même arène.
+
+Ce qu'il faut vérifier :
+
+| Test | Attendu |
+|---|---|
+| Bouger la souris dans B | Le serpent de B suit **sans latence perceptible** ; A le voit bouger |
+| Regarder le classement dans B | Top 3 et rang **globaux**, y compris des serpents que B ne voit pas |
+| Regarder la minimap dans B | Tous les serpents du monde, pas seulement les voisins |
+| Pause dans B | Message ⚠ « Toi seul es en pause » · le serpent de B **continue de bouger** chez A |
+| Se faire manger dans B | Bannière avec **Continuer** / **Quitter** · les deux gardent l'XP |
+| Réduire la fenêtre de A | La partie **continue** dans B (c'est le rôle du Worker de secours) |
+| Fermer la fenêtre de A | B revient au menu avec « L'hôte a quitté la partie » et **garde son XP** |
+| Rejoindre pendant la partie | Le retardataire apparaît aussitôt, dans le monde **déjà en cours** |
+
+Une troisième fenêtre permet de vérifier que les joueurs déjà en partie voient bien arriver le
+retardataire, sous son pseudo.
+
 ---
 
 ## 🧪 Ce qui a été vérifié
@@ -210,6 +243,13 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
   10 s, et perte de l'hôte encaissée comme une mort
 - **Les 6 langues sont complètes**, par un contrôle rejouable et saboté :
   `node "Snake'on/verifie-traductions.js"`
+- **Partie privée dans un vrai Chrome**, deux fenêtres visibles, sans rien piloter à la main :
+  horloges synchronisées (+5016 ms côté hôte, +5017 ms côté client sur 5013 ms réels), **16 ms**
+  de latence médiane entre le geste d'un joueur et son application chez l'hôte, **3,2 ko/s** reçus
+  par client (≈29 ko/s en montée extrapolés à 9 joueurs, ce qui confirme la mesure théorique),
+  zéro erreur console. La saccade résiduelle d'un serpent distant est **identique en solo**
+  (42 images sans mouvement sur 60, à 200 fps) : elle vient du pas de simulation fixe à 60 Hz,
+  pas du réseau.
 - **Pop-up de bienvenue** : affichée une seule fois à la toute première partie, jamais aux
   suivantes (vérifié sur une sauvegarde vidée puis rejouée)
 - **Quitter (Pause → 🏳, ou bannière spectateur)** : confirmation obligatoire côté Pause, et les
