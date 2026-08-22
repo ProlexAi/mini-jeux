@@ -181,6 +181,47 @@ grep -n "MAX_RADIUS\|MIN_ZOOM\|MAX_ZOOM\|SPEED_REF_MASS" "Snake'on/index.html"
 
 ---
 
+## 2 ter. Taille du monde et bordures
+
+*Recherché le 22/08/2026. Question : avec le dézoom lié à la masse, les bordures du monde
+deviennent envahissantes. Comment agar.io dimensionne-t-il sa carte ?*
+
+**agar.io — une carte carrée d'environ 11 000 × 11 000**, soit ~121 Mpx². Le zoom de la caméra
+dépend du nombre et de la taille des cellules du joueur, et le jeu **n'offre aucun zoom manuel** :
+dézoomer plus que les autres y est tenu pour de la triche.
+Sources : [Agar.io Wiki — Map](https://agario.fandom.com/wiki/Map) ·
+[Agar.io Wiki — Zoom Feature](https://agario.fandom.com/wiki/Zoom_Feature)
+
+### Le rapport qui compte n'est pas la taille, c'est le nombre d'écrans
+
+Une carte ne se juge pas en pixels absolus mais **rapportée à la surface visible**. Les 121 Mpx²
+d'agar.io représentent environ **58 écrans** de 1920 × 1080. Snake'on dimensionnait son monde à
+**16 écrans**, d'où la mesure suivante, prise au dézoom maximum :
+
+| | monde | part de la largeur visible | adversaires visibles | coût image |
+|---|---|---|---|---|
+| 16 écrans, 45 bots | 6000 × 3750 | **71 %** | 14,2 | 0,8 ms |
+| 58 écrans, 45 bots | 13872 × 8670 | 31 % | **3,0** | 1,0 ms |
+| 58 écrans, 150 bots | 13872 × 8670 | 31 % | 10,4 | 2,6 ms |
+
+Deux enseignements :
+
+1. **Voir 71 % du monde d'un coup rend les bordures inévitables.** La caméra étant bornée aux
+   murs, elle cesse alors de centrer le joueur et le pousse dans un coin de l'écran.
+2. **Agrandir le monde sans peupler davantage produit un désert.** Le nombre d'adversaires
+   visibles tombe de 14,2 à 3,0. Taille du monde et nombre d'opposants sont un seul et même
+   réglage, jamais deux.
+
+**Piège de calibrage.** Le frein n'était pas le plafond `WORLD_MAX` mais l'objectif
+`WORLD_SCREENS`. Relever le seul plafond ne changeait rien, le monde restant calé sur ses
+16 écrans. Vérifier lequel des deux mord avant de toucher à l'autre.
+
+```bash
+grep -n "WORLD_SCREENS\|WORLD_MAX\|WORLD_MIN\|BOT_COUNT" "Snake'on/index.html"
+```
+
+---
+
 ## 3. Longueur maximale d'un serpent
 
 *Recherché le 22/08/2026, entrée conservée pour éviter une quatrième recherche.*

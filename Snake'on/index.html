@@ -875,11 +875,17 @@ const CONFIG = {
     // Sa taille est CALCULEE au depart de chaque partie (voir computeWorld) : un ecran de telephone
     // voit 2,3x moins de surface qu'un ecran d'ordinateur, un monde fixe serait desert sur l'un
     // ou etouffant sur l'autre. On fixe le nombre d'ECRANS, pas les pixels.
-    WORLD_SCREENS: 16,       // le monde fait 16 fois la surface visible
+    // Le monde fait N fois la surface visible. Calibre sur agar.io, dont la carte de
+    // ~11 000 x 11 000 represente environ 58 ecrans de 1920x1080. A 16 ecrans, un serpent au
+    // dezoom maximum voyait 71 % de la largeur du monde : les bordures ne quittaient plus
+    // l'ecran et la camera, bornee aux murs, cessait de le centrer (cf. analyse-concurrence.md §5).
+    WORLD_SCREENS: 58,
     WORLD_MIN: 1800,         // jamais plus petit que ca sur un axe
     WORLD_ASPECT_MIN: 0.75,  // un ecran de telephone est tres etroit : on garde un monde plus carre
     WORLD_ASPECT_MAX: 1.6,   //   que lui, sinon on joue dans un couloir
-    WORLD_MAX: 6000,
+    // Releve de 6000 : a cette valeur le plafond mordait avant l'objectif d'ecrans, et le monde
+    // restait petit quoi qu'on regle. C'est un garde-fou pour tres grand ecran, pas un cadrage.
+    WORLD_MAX: 20000,
     WORLD_WIDTH: 4400,       // valeurs de depart, recalculees a chaque partie
     WORLD_HEIGHT: 2800,
     FOOD_AREA_PER_ITEM: 22000,   // une pastille par 22 000 px² de monde (un peu moins dense qu'avant)
@@ -888,7 +894,10 @@ const CONFIG = {
     FOOD_GROWTH: 2,              // taille gagnee par pastille : c'est CE reglage qui fixe la duree d'une partie
     FOOD_COUNT: 680,             // recalcule a chaque partie
     FOOD_CELL: 240,              // taille des cases de la grille spatiale
-    BOT_COUNT: 45,
+    // Indissociable de WORLD_SCREENS : le monde ayant ete multiplie par 5,4, garder 45 bots
+    // faisait tomber le nombre d'adversaires visibles a l'ecran de 14,2 a 3,0 — un desert.
+    // 150 restitue la densite percue d'avant (mesure : 18,4 visibles a 160 bots).
+    BOT_COUNT: 150,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
     GRID_SIZE: 40,
