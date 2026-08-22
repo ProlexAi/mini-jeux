@@ -17,12 +17,64 @@
     <meta name="apple-mobile-web-app-title" content="Snake'on">
 
     <style>
+        @font-face {
+            font-family: 'Tektur';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('./fonts/tektur-var.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Tektur';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('./fonts/tektur-var.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Tektur';
+            font-style: normal;
+            font-weight: 800;
+            font-display: swap;
+            src: url('./fonts/tektur-var.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Rajdhani';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('./fonts/rajdhani-400.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Rajdhani';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('./fonts/rajdhani-500.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Rajdhani';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('./fonts/rajdhani-600.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Rajdhani';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('./fonts/rajdhani-700.woff2') format('woff2');
+        }
         :root {
             --bg: #0f0f13;
             --accent: #00ffcc;
             --danger: #ff0055;
+            --danger-text: #ff5c8a;
             --warning: #ffcc00;
             --purple: #cc00ff;
+            --font-head: 'Tektur', system-ui, sans-serif;
+            --font-body: 'Rajdhani', system-ui, sans-serif;
             --safe-t: env(safe-area-inset-top, 0px);
             --safe-b: env(safe-area-inset-bottom, 0px);
             --safe-l: env(safe-area-inset-left, 0px);
@@ -33,13 +85,60 @@
             width: 100%; height: 100%;
             overflow: hidden;
             background: var(--bg);
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: var(--font-body);
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: none;
             overscroll-behavior: none;
+        }
+        .skew { transform: skewX(-8deg); transform-origin: left; display: inline-block; }
+        .hachure {
+            align-self: stretch;
+            background: repeating-linear-gradient(135deg,
+                color-mix(in srgb, var(--accent) 30%, transparent) 0 2px, transparent 2px 6px);
+        }
+        .hachure.danger {
+            background: repeating-linear-gradient(135deg,
+                rgba(255,0,85,0.35) 0 2px, transparent 2px 6px);
+        }
+        @keyframes neonSick {
+            0%, 16%, 19%, 21%, 24%, 52%, 68%, 71%, 100% { opacity: 1; }
+            17%, 22% { opacity: 0.34; }
+            18%, 23% { opacity: 0.1; }
+            53%, 55% { opacity: 0.55; }
+            54% { opacity: 0.14; }
+            69% { opacity: 0.22; }
+            70% { opacity: 0.92; }
+        }
+        @keyframes sliceA {
+            0%, 11%, 13%, 40%, 42%, 100% { opacity: 0; transform: translateX(0); }
+            12% { opacity: 0.9; transform: translateX(7px); }
+            41% { opacity: 0.75; transform: translateX(-5px); }
+        }
+        @keyframes sliceB {
+            0%, 25%, 27%, 63%, 65%, 100% { opacity: 0; transform: translateX(0); }
+            26% { opacity: 0.8; transform: translateX(-8px); }
+            64% { opacity: 0.6; transform: translateX(5px); }
+        }
+        .title-glitch { position: relative; display: inline-block; }
+        .title-glitch .tg-slice {
+            position: absolute; left: 0; top: 0; color: inherit;
+        }
+        .title-glitch .tg-a {
+            clip-path: inset(22% 0 52% 0);
+            animation: sliceA 3.7s steps(1, end) infinite;
+        }
+        .title-glitch .tg-b {
+            clip-path: inset(62% 0 14% 0);
+            color: #ffffff; opacity: 0.75;
+            animation: sliceB 5.1s steps(1, end) infinite;
+        }
+        .title-glitch .tg-base { animation: neonSick 5.2s linear infinite; }
+        @media (prefers-reduced-motion: reduce) {
+            .title-glitch .tg-base, .title-glitch .tg-a, .title-glitch .tg-b { animation: none; }
+            .title-glitch .tg-a, .title-glitch .tg-b { display: none; }
         }
         #gameCanvas { display: block; width: 100%; height: 100%; }
 
@@ -48,7 +147,8 @@
             position: absolute;
             top: calc(10px + var(--safe-t)); left: calc(10px + var(--safe-l));
             color: white; pointer-events: none;
-            text-shadow: 0 0 5px rgba(0,255,204,0.8);
+            text-shadow: 0 0 5px color-mix(in srgb, var(--accent) 80%, transparent);
+            font-family: var(--font-head); letter-spacing: 0.03em;
             font-size: 14px; display: none; z-index: 5;
         }
         #hud .powerup-indicators { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
@@ -74,6 +174,7 @@
             font-size: 32px; font-weight: bold;
             color: var(--warning); pointer-events: none;
             text-shadow: 0 0 20px var(--warning);
+            font-family: var(--font-head); letter-spacing: 0.03em;
             opacity: 0; transition: opacity 0.3s, transform 0.3s;
             z-index: 15; text-align: center;
         }
@@ -83,11 +184,11 @@
             color: white; text-align: right;
             pointer-events: none; font-size: 13px;
             background: rgba(0,0,0,0.6); padding: 10px;
-            border-radius: 8px; border: 1px solid rgba(0,255,204,0.3);
+            border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
             display: none; z-index: 5;
             max-width: 200px;
         }
-        #leaderboard h3 { margin: 0 0 5px 0; font-size: 14px; color: var(--accent); }
+        #leaderboard h3 { margin: 0 0 5px 0; font-size: 14px; color: var(--accent); font-family: var(--font-head); letter-spacing: 0.06em; }
         .lb-entry { margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .lb-player { color: var(--accent); font-weight: bold; }
 
@@ -97,7 +198,7 @@
             bottom: calc(10px + var(--safe-b)); right: calc(10px + var(--safe-r));
             width: 104px; height: 78px;
             background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(0,255,204,0.3);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
             border-radius: 4px; display: none; z-index: 5;
         }
 
@@ -124,8 +225,16 @@
             touch-action: pan-y;
         }
         .overlay.hidden { display: none !important; }
-        h1 { text-shadow: 0 0 10px var(--accent); margin-bottom: 10px; font-size: 26px; text-align: center; }
-        h2 { color: var(--accent); margin: 12px 0 6px 0; font-size: 16px; }
+        h1 {
+            text-shadow: 0 0 10px var(--accent); margin-bottom: 10px; font-size: 26px; text-align: center;
+            font-family: var(--font-head); font-weight: 700; letter-spacing: 0.02em;
+            transform: skewX(-8deg); transform-origin: center;
+        }
+        h2 {
+            color: var(--accent); margin: 12px 0 6px 0; font-size: 16px;
+            font-family: var(--font-head); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            transform: skewX(-8deg); transform-origin: left;
+        }
         .accent { color: var(--accent); font-weight: bold; }
         .hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
 
@@ -136,9 +245,9 @@
             color: var(--accent);
             padding: 12px 30px; font-size: 16px; font-weight: bold;
             border-radius: 30px; cursor: pointer;
-            box-shadow: 0 0 10px rgba(0,255,204,0.3);
+            box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
             transition: all 0.2s; margin: 5px;
-            font-family: inherit;
+            font-family: var(--font-head); letter-spacing: 0.06em;
             -webkit-tap-highlight-color: transparent;
         }
         button:active { background: var(--accent); color: var(--bg); transform: scale(0.95); }
@@ -204,7 +313,7 @@
             border-collapse: collapse; margin: 10px 0;
         }
         .history-table th {
-            color: var(--accent); border-bottom: 1px solid rgba(0,255,204,0.3);
+            color: var(--accent); border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
             padding: 4px; text-align: left;
         }
         .history-table td { padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -257,11 +366,11 @@
             padding: 7px 14px; font-size: 12px; border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.3);
             background: transparent; color: #aaa; cursor: pointer;
-            font-family: inherit; box-shadow: none; margin: 0;
+            font-family: var(--font-head); letter-spacing: 0.04em; box-shadow: none; margin: 0;
             min-height: 44px;
         }
         .tab-btn:active { background: rgba(255,255,255,0.1); color: #fff; }
-        .tab-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,204,0.1); }
+        .tab-btn.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
         .tab-content { display: none; width: 100%; max-width: 450px; }
         .tab-content.active { display: block; }
 
@@ -322,7 +431,7 @@
 
     <!-- MENU -->
     <div id="menuScreen" class="overlay">
-        <h1>🐍 SNAKE'ON</h1>
+        <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
         <div style="text-align:center;">
             <div style="font-size:16px;">Niveau <span id="menuLevel" class="accent">1</span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
@@ -386,7 +495,7 @@
 
     <!-- BIENVENUE (1ere partie uniquement) -->
     <div id="welcomeScreen" class="overlay hidden">
-        <h1>🐍 SNAKE'ON</h1>
+        <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
         <p style="max-width:340px;text-align:center;">
             Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les
             plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
@@ -536,13 +645,16 @@ class AudioManager {
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     }
     play(type) {
-        if (!this.enabled || !this.initialized || !this.ctx || !save.settings.sfxOn) return;
+        if (!this.enabled || !this.initialized || !this.ctx || save.settings.sfxVolume <= 0) return;
         this.resume();
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
+        const vol = this.ctx.createGain();
+        vol.gain.value = save.settings.sfxVolume / 100;
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(vol);
+        vol.connect(this.ctx.destination);
         switch(type) {
             case 'eat':
                 osc.frequency.setValueAtTime(600, now);
@@ -609,8 +721,11 @@ const audio = new AudioManager();
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
     kills: 0, games: 0, totalTime: 0, selectedSkin: 0,
-    seenWelcome: false,
-    settings: { musicOn: true, sfxOn: true, quality: 'MEDIUM' },
+    seenWelcome: false, pseudo: '',
+    settings: {
+        musicVolume: 70, sfxVolume: 100, quality: 'MEDIUM',
+        uiColor: '#00ffcc', clickEffects: 'FULL', lang: 'fr'
+    },
     history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 }
 };
 
@@ -637,6 +752,11 @@ function writeSave() {
 }
 
 let save = loadSave();
+
+function applyUiColor(hex) {
+    document.documentElement.style.setProperty('--accent', hex);
+}
+applyUiColor(save.settings.uiColor);
 
 function xpForLevel(lvl) { return Math.floor(lvl * 100); }
 
