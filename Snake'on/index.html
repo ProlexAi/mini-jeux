@@ -93,7 +93,7 @@
             touch-action: none;
             overscroll-behavior: none;
         }
-        .skew { transform: skewX(-8deg); transform-origin: left; display: inline-block; }
+        .skew { transform: skewX(8deg); transform-origin: left; display: inline-block; }
         .hachure {
             align-self: stretch;
             background: repeating-linear-gradient(135deg,
@@ -224,16 +224,19 @@
             padding: calc(20px + var(--safe-t)) calc(20px + var(--safe-r)) calc(20px + var(--safe-b)) calc(20px + var(--safe-l));
             touch-action: pan-y;
         }
+        /* L'overlay est un conteneur flex colonne : sans ça, un contenu plus haut que l'écran
+           écrase ses enfants (les boutons tombaient sous les 44px tactiles). Il défile déjà. */
+        .overlay > * { flex-shrink: 0; }
         .overlay.hidden { display: none !important; }
         h1 {
             text-shadow: 0 0 10px var(--accent); margin-bottom: 10px; font-size: 26px; text-align: center;
             font-family: var(--font-head); font-weight: 700; letter-spacing: 0.02em;
-            transform: skewX(-8deg); transform-origin: center;
+            transform: skewX(8deg); transform-origin: center;
         }
         h2 {
             color: var(--accent); margin: 12px 0 6px 0; font-size: 16px;
             font-family: var(--font-head); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-            transform: skewX(-8deg); transform-origin: left;
+            transform: skewX(8deg); transform-origin: left;
         }
         .accent { color: var(--accent); font-weight: bold; }
         .hint { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
@@ -255,13 +258,18 @@
         .btn-secondary { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
         .btn-secondary:active { background: var(--warning); color: var(--bg); }
         .btn-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        /* La hachure doit toucher le bord droit sur TOUTE la hauteur : le bouton ne porte donc
+           aucun rembourrage vertical ni droit (la hauteur vient de min-height) et ses enfants
+           s'étirent — sinon la bande flotte au milieu du padding. */
         .cta-hachured {
-            display: flex; align-items: center; gap: 14px;
-            border-radius: 0; padding-right: 0; overflow: hidden;
+            display: flex; align-items: stretch; gap: 14px;
+            border-radius: 0; overflow: hidden;
+            padding: 0 0 0 24px; min-height: 56px;
             clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
         }
-        .cta-hachured > span:first-child { flex: 1; text-align: left; }
-        .cta-hachured .hachure { min-height: 100%; }
+        .cta-hachured > span:first-child { flex: 1; text-align: left; align-self: center; }
+        .cta-hachured .hachure { align-self: stretch; }
+        #installBtn.cta-hachured { padding: 0 0 0 18px; min-height: 44px; }
         #installBtn { display: none; font-size: 14px; padding: 9px 20px; }
 
         /* ===== XP ===== */
@@ -297,7 +305,7 @@
             gap: 10px; margin: 10px 0; max-width: 400px;
         }
         .skin-btn {
-            width: 42px; height: 42px; border-radius: 50%; padding: 0;
+            width: 44px; height: 44px; border-radius: 50%; padding: 0;
             border: 3px solid transparent; cursor: pointer;
             position: relative; transition: transform 0.15s;
         }
@@ -357,7 +365,7 @@
 
         .pseudo-input {
             display: block; margin: 0 auto 10px; width: 200px; max-width: 70vw;
-            padding: 8px 12px; text-align: center;
+            padding: 8px 12px; min-height: 44px; text-align: center;
             background: color-mix(in srgb, var(--accent) 6%, transparent);
             border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
             color: var(--accent); font-family: var(--font-head);
@@ -367,8 +375,9 @@
         .pseudo-input::placeholder { color: #6c7676; letter-spacing: 0.04em; }
         .pseudo-input:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
+        /* 44px de haut pour la cible tactile, la piste visible ne fait que 6px. */
         .vol-slider {
-            flex: 1; min-width: 0; margin: 0 10px; height: 22px;
+            flex: 1; min-width: 0; margin: 0 10px; height: 44px;
             -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
         }
         .vol-slider::-webkit-slider-runnable-track {
@@ -414,11 +423,26 @@
         .effect-opt .opt-label {
             flex: 1; text-align: left; font-family: var(--font-head);
             font-size: 13px; letter-spacing: 0.08em; color: #d5dcdc;
-            transform: skewX(-8deg);
+            transform: skewX(8deg);
         }
         .effect-opt .opt-hint { font-size: 13px; color: #93a0a0; font-family: var(--font-body); letter-spacing: 0; }
 
-        .quality-btn { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; flex: 1; padding: 6px 9px; }
+        /* .tab-btn est déclaré plus bas : on double la classe pour reprendre la main sur
+           son border-radius et sa bordure, sinon les boutons restent des pilules. */
+        .tab-btn.quality-btn {
+            position: relative;
+            display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+            gap: 1px; flex: 1; padding: 6px 9px;
+            border: 0; border-radius: 0;
+            background: color-mix(in srgb, var(--accent) 4%, transparent);
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+        }
+        .tab-btn.quality-btn:active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: inherit; transform: none; }
+        .tab-btn.quality-btn.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+        .tab-btn.quality-btn.active::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 60%; height: 2px; background: var(--accent);
+        }
         .quality-btn .q-px { font-family: var(--font-head); font-size: 12px; }
         .quality-btn .q-note { font-family: var(--font-body); font-size: 12px; color: #93a0a0; letter-spacing: 0; }
 
@@ -430,7 +454,7 @@
             clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
         }
         .lang-row:active { background: color-mix(in srgb, var(--accent) 16%, transparent); transform: none; }
-        .lang-row .setting-label { flex: 1; text-align: left; font-family: var(--font-head); letter-spacing: 0.08em; color: var(--accent); transform: skewX(-8deg); }
+        .lang-row .setting-label { flex: 1; text-align: left; font-family: var(--font-head); letter-spacing: 0.08em; color: var(--accent); transform: skewX(8deg); }
         .lang-row .lang-current { font-size: 14px; color: #b8c2c2; font-family: var(--font-body); }
         .lang-row .lang-chevron { color: color-mix(in srgb, var(--accent) 70%, transparent); font-size: 14px; }
         .lang-list { display: flex; flex-direction: column; gap: 7px; max-width: 380px; margin: 0 auto; }
@@ -446,7 +470,14 @@
         .lang-opt.active .opt-dot { box-shadow: inset 0 0 0 2px var(--bg), inset 0 0 0 12px var(--accent); }
         .lang-opt .lang-name { flex: 1; text-align: left; font-size: 16px; color: #dfe6e6; font-family: var(--font-body); }
         .lang-opt .lang-code { font-family: var(--font-head); font-size: 10px; letter-spacing: 0.1em; color: color-mix(in srgb, var(--accent) 60%, transparent); padding-right: 10px; }
-        .lang-back { display: block; margin: 14px auto 0; padding: 12px 20px; }
+        .tab-btn.lang-back {
+            display: block; margin: 14px auto 0; padding: 12px 20px; min-height: 46px;
+            border-radius: 0; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            color: color-mix(in srgb, var(--accent) 85%, transparent);
+            letter-spacing: 0.12em;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+        }
+        .tab-btn.lang-back:active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
         #settingsLang.hidden, #settingsRoot.hidden { display: none; }
 
         .swatch-row { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; max-width: 380px; margin: 0 auto; }
@@ -483,7 +514,8 @@
             border: 1px solid rgba(255,0,85,0.55); border-left: 0; border-right: 0;
             color: var(--danger-text); font-size: 13px; letter-spacing: 0.1em;
         }
-        .abandon-btn > span:first-child { flex: 1; text-align: left; transform: skewX(-8deg); }
+        .abandon-btn > span:first-child { flex: 1; text-align: left; transform: skewX(8deg); }
+        .abandon-code { font-family: var(--font-head); font-size: 10px; color: rgba(255,92,138,0.65); padding-right: 8px; }
         .abandon-btn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); transform: none; }
         #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
 
@@ -500,6 +532,39 @@
         .tab-btn.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
         .tab-content { display: none; width: 100%; max-width: 450px; }
         .tab-content.active { display: block; }
+
+        /* Barres HUD codées A01…A05 (cahier des charges §3 : pas des onglets pilules) */
+        .nav-bars { display: flex; flex-direction: column; gap: 7px; width: 100%; max-width: 450px; margin-bottom: 12px; }
+        .nav-entry { display: flex; flex-direction: column; }
+        .nav-bar {
+            display: flex; align-items: center; gap: 0;
+            width: 100%; min-height: 44px; padding: 0 0 0 12px;
+            border: 0; border-radius: 0; box-shadow: none;
+            background: color-mix(in srgb, var(--accent) 4%, transparent);
+            clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+        }
+        .nav-bar:active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: inherit; transform: none; }
+        .nav-bar .nav-label {
+            flex: 1; text-align: left; font-family: var(--font-head);
+            font-weight: 600; font-size: 15px; letter-spacing: 0.08em;
+            color: color-mix(in srgb, var(--accent) 85%, transparent);
+            transform: skewX(8deg);
+        }
+        .nav-bar .nav-chevron { color: color-mix(in srgb, var(--accent) 75%, transparent); font-size: 14px; padding-right: 12px; }
+        .nav-bar .nav-code {
+            font-family: var(--font-head); font-size: 10px; letter-spacing: 0.1em;
+            color: color-mix(in srgb, var(--accent) 45%, transparent);
+            transform: skewX(8deg); padding-right: 8px;
+        }
+        .nav-bar.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+        .nav-bar.active .nav-label { color: var(--accent); }
+        .nav-bar.active .nav-code { color: color-mix(in srgb, var(--accent) 55%, transparent); }
+        .nav-underline {
+            height: 5px; margin-left: 12px;
+            background: color-mix(in srgb, var(--accent) 9%, transparent);
+            clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+        }
+        .nav-bar.active + .nav-underline { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 
         /* ===== ECLAT NEON AU CLIC ===== */
         #neonFxCanvas {
@@ -572,12 +637,47 @@
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
         </div>
-        <div class="tabs" id="mainTabs">
-            <button class="tab-btn active" data-tab="skins" data-i18n="tabSkins">🎨 Skins</button>
-            <button class="tab-btn" data-tab="stats" data-i18n="tabStats">📊 Stats</button>
-            <button class="tab-btn" data-tab="history" data-i18n="tabHistory">📜 Historique</button>
-            <button class="tab-btn" data-tab="achievements" data-i18n="tabAchievements">🏅 Succès</button>
-            <button class="tab-btn" data-tab="settings" data-i18n="tabSettings">⚙️ Réglages</button>
+        <div class="nav-bars" id="mainTabs">
+            <div class="nav-entry">
+                <button class="tab-btn nav-bar active" data-tab="skins">
+                    <span class="nav-label" data-i18n="tabSkins">🎨 Skins</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A01</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:56%"></span>
+            </div>
+            <div class="nav-entry">
+                <button class="tab-btn nav-bar" data-tab="stats">
+                    <span class="nav-label" data-i18n="tabStats">📊 Stats</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A02</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:48%"></span>
+            </div>
+            <div class="nav-entry">
+                <button class="tab-btn nav-bar" data-tab="history">
+                    <span class="nav-label" data-i18n="tabHistory">📜 Historique</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A03</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:62%"></span>
+            </div>
+            <div class="nav-entry">
+                <button class="tab-btn nav-bar" data-tab="achievements">
+                    <span class="nav-label" data-i18n="tabAchievements">🏅 Succès</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A04</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:44%"></span>
+            </div>
+            <div class="nav-entry">
+                <button class="tab-btn nav-bar" data-tab="settings">
+                    <span class="nav-label" data-i18n="tabSettings">⚙️ Réglages</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A05</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:52%"></span>
+            </div>
         </div>
         <div id="tab-skins" class="tab-content active">
             <div class="skins-row" id="skinsRow"></div>
@@ -684,13 +784,13 @@
                 <h2 data-i18n="settings">Réglages</h2>
                 <div class="effects-row" data-group="clickEffects">
                     <button type="button" class="effect-opt" data-effects="NONE">
-                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxNone">Aucun</span><span class="opt-hint" data-i18n="fxNoneHint">flash seul</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxNonePause">Aucun</span><span class="opt-hint" data-i18n="fxNoneHint">flash seul</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="LIGHT">
-                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxLight">Léger</span><span class="opt-hint" data-i18n="fxLightHint">anneau + moitié</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxLightPause">Léger</span><span class="opt-hint" data-i18n="fxLightHint">anneau + moitié</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="FULL">
-                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxFull">Complet</span><span class="opt-hint" data-i18n="fxFullHint">bille lancée</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxFullPause">Complet</span><span class="opt-hint" data-i18n="fxFullHint">bille lancée</span>
                     </button>
                 </div>
                 <div class="setting-row">
@@ -704,7 +804,7 @@
             <div class="abandon-row">
                 <span class="abandon-warn">⚠</span>
                 <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
-                    <span data-i18n="abandon">ABANDONNER</span><span class="hachure danger" style="width:20px"></span>
+                    <span data-i18n="abandon">ABANDONNER</span><span class="abandon-code">A00</span><span class="hachure danger" style="width:20px"></span>
                 </button>
                 <span class="abandon-warn">⚠</span>
             </div>
@@ -851,6 +951,7 @@ const TRANSLATIONS = {
         secLanguage: 'Langue', secUiColor: "Couleur de l'interface", secControls: 'Commandes',
         music: '🎵 Musique', sounds: '🔊 Sons',
         fxNone: 'Aucun', fxLight: 'Léger', fxFull: 'Complet',
+        fxNonePause: 'Effets · Aucun', fxLightPause: 'Effets · Léger', fxFullPause: 'Effets · Complet',
         fxNoneHint: 'flash seul', fxLightHint: 'anneau + moitié', fxFullHint: 'bille lancée',
         qLow: 'économe', qMedium: 'équilibré', qHigh: 'natif',
         back: '❮ Retour', play: '▶ JOUER', install: "📱 Installer l'appli",
@@ -876,6 +977,7 @@ const TRANSLATIONS = {
         secLanguage: 'Language', secUiColor: 'Interface colour', secControls: 'Controls',
         music: '🎵 Music', sounds: '🔊 Sounds',
         fxNone: 'None', fxLight: 'Light', fxFull: 'Full',
+        fxNonePause: 'Effects · None', fxLightPause: 'Effects · Light', fxFullPause: 'Effects · Full',
         fxNoneHint: 'flash only', fxLightHint: 'ring + half', fxFullHint: 'thrown bead',
         qLow: 'thrifty', qMedium: 'balanced', qHigh: 'native',
         back: '❮ Back', play: '▶ PLAY', install: '📱 Install app',
@@ -901,6 +1003,7 @@ const TRANSLATIONS = {
         secLanguage: 'Idioma', secUiColor: 'Color de la interfaz', secControls: 'Controles',
         music: '🎵 Música', sounds: '🔊 Sonidos',
         fxNone: 'Ninguno', fxLight: 'Ligero', fxFull: 'Completo',
+        fxNonePause: 'Efectos · Ninguno', fxLightPause: 'Efectos · Ligero', fxFullPause: 'Efectos · Completo',
         fxNoneHint: 'solo destello', fxLightHint: 'anillo + mitad', fxFullHint: 'bola lanzada',
         qLow: 'ahorro', qMedium: 'equilibrado', qHigh: 'nativo',
         back: '❮ Volver', play: '▶ JUGAR', install: '📱 Instalar la app',
@@ -926,6 +1029,7 @@ const TRANSLATIONS = {
         secLanguage: 'Sprache', secUiColor: 'Farbe der Oberfläche', secControls: 'Steuerung',
         music: '🎵 Musik', sounds: '🔊 Geräusche',
         fxNone: 'Keine', fxLight: 'Leicht', fxFull: 'Voll',
+        fxNonePause: 'Effekte · Keine', fxLightPause: 'Effekte · Leicht', fxFullPause: 'Effekte · Voll',
         fxNoneHint: 'nur Blitz', fxLightHint: 'Ring + Hälfte', fxFullHint: 'geworfene Kugel',
         qLow: 'sparsam', qMedium: 'ausgewogen', qHigh: 'nativ',
         back: '❮ Zurück', play: '▶ SPIELEN', install: '📱 App installieren',
@@ -951,6 +1055,7 @@ const TRANSLATIONS = {
         secLanguage: 'Lingua', secUiColor: "Colore dell'interfaccia", secControls: 'Comandi',
         music: '🎵 Musica', sounds: '🔊 Suoni',
         fxNone: 'Nessuno', fxLight: 'Leggero', fxFull: 'Completo',
+        fxNonePause: 'Effetti · Nessuno', fxLightPause: 'Effetti · Leggero', fxFullPause: 'Effetti · Completo',
         fxNoneHint: 'solo lampo', fxLightHint: 'anello + metà', fxFullHint: 'biglia lanciata',
         qLow: 'economico', qMedium: 'equilibrato', qHigh: 'nativo',
         back: '❮ Indietro', play: '▶ GIOCA', install: "📱 Installa l'app",
@@ -976,6 +1081,7 @@ const TRANSLATIONS = {
         secLanguage: 'Idioma', secUiColor: 'Cor da interface', secControls: 'Comandos',
         music: '🎵 Música', sounds: '🔊 Sons',
         fxNone: 'Nenhum', fxLight: 'Ligeiro', fxFull: 'Completo',
+        fxNonePause: 'Efeitos · Nenhum', fxLightPause: 'Efeitos · Ligeiro', fxFullPause: 'Efeitos · Completo',
         fxNoneHint: 'só o clarão', fxLightHint: 'anel + metade', fxFullHint: 'bola lançada',
         qLow: 'económico', qMedium: 'equilibrado', qHigh: 'nativo',
         back: '❮ Voltar', play: '▶ JOGAR', install: '📱 Instalar a app',
@@ -3009,7 +3115,7 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    $('installBtn').style.display = 'inline-block';
+    $('installBtn').style.display = 'flex';   // 'inline-block' casserait l'alignement de sa hachure
 });
 
 $('installBtn').addEventListener('click', async () => {
