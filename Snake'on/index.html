@@ -873,17 +873,22 @@ const CONFIG = {
     SAVE_KEY: 'neonSnakeUltimate_v1',
     BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
     BOT_COLORS: ['#ff0055','#00ccff','#ffcc00','#cc00ff','#00ff66','#ff6600','#ffffff','#ff00ff'],
+    // Chaque skin ne touche jamais la hitbox ni la vitesse ; le coeur du corps (alpha 1,
+    // largeur r*2) reste toujours plein — seule sa teinte peut varier (degrade). Pointilles et
+    // pulsations d'alpha sont reserves au contour/halo (cf. cahier des charges UI §2 "Skins").
     SKINS: [
-        { name:'Cyan', color:'#00ffcc', unlockLevel:1 },
-        { name:'Rose', color:'#ff00ff', unlockLevel:2 },
-        { name:'Jaune', color:'#ffcc00', unlockLevel:3 },
-        { name:'Bleu', color:'#00ccff', unlockLevel:4 },
-        { name:'Vert', color:'#00ff66', unlockLevel:5 },
-        { name:'Orange', color:'#ff6600', unlockLevel:7 },
-        { name:'Rouge', color:'#ff0055', unlockLevel:9 },
-        { name:'Blanc', color:'#ffffff', unlockLevel:12 },
-        { name:'Violet', color:'#cc00ff', unlockLevel:15 },
-        { name:'Doré', color:'#ffd700', unlockLevel:20 },
+        { name:'Cyan Classique', color:'#00ffcc', unlockLevel:1, style:{} },
+        { name:'Rose Écailles', color:'#ff00ff', unlockLevel:2, style:{ dash:[6,4], dashAnim:true } },
+        { name:'Jaune Dégradé', color:'#ffcc00', unlockLevel:3, style:{ gradient:['#ffcc00','#fff6c8'] } },
+        { name:'Bleu Pulsé', color:'#00ccff', unlockLevel:4, style:{ pulse:true } },
+        { name:'Vert Vipère', color:'#00ff66', unlockLevel:5, style:{ head:'viper' } },
+        { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true } },
+        { name:'Rouge Prédateur', color:'#ff0055', unlockLevel:9, style:{ head:'predator' } },
+        { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[3,5], dashAnim:true, pulse:true } },
+        { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[8,3], dashAnim:true } },
+        { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
+            hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
+            head:'predator', glowBoost:true } },
     ],
     KILL_EFFECTS: [
         { kills:5, effects:['smoke'], label:'💨 Fumée' },
@@ -1631,7 +1636,7 @@ class PowerUp {
 //  SERPENT
 // ============================================================
 class Snake {
-    constructor(x, y, isPlayer, name, color) {
+    constructor(x, y, isPlayer, name, color, skinStyle) {
         this.x = x; this.y = y;
         this.angle = Math.random() * TAU;
         this.speed = CONFIG.BASE_SPEED;
@@ -1640,6 +1645,11 @@ class Snake {
         this.isPlayer = isPlayer;
         this.name = name;
         this.color = color;
+        // Style visuel du skin (joueur uniquement — les bots gardent une couleur plate, cf.
+        // cahier des charges UI §5.4/v0.4 "Bots sans skin"). null = rendu d'origine.
+        this.skinStyle = skinStyle || null;
+        this.skinPhase = 0;
+        this.lastTrailEmit = 0;
         this.segments = [];
         this.alive = true;
         this.targetAngle = this.angle;
@@ -1675,6 +1685,10 @@ class Snake {
     // target : point vise en coordonnees MONDE (le pointeur est converti par screenToWorld).
     update(target, allSnakes, grid) {
         if (!this.alive) return;
+
+        // Horloge d'animation du skin, indexee sur le pas de simulation fixe (pas le framerate
+        // d'affichage) : une pulsation/degrade tourne a la meme vitesse en 60 Hz et en 120 Hz.
+        if (this.skinStyle) this.skinPhase += STEP_MS / 1000;
 
         if (this.isPlayer) {
             if (target && target.x !== undefined && target.y !== undefined) {
@@ -1743,39 +1757,78 @@ class Snake {
         if (!this.alive || this.segments.length === 0) return;
         const segs = this.segments;
         const r = this.radius;
+        const style = this.skinStyle;
+        // Un skin animé se fige en reduced-motion ET au palier LOW (même règle que shadowBlur
+        // juste en dessous) : jamais de coût ou de mouvement supplémentaire sur ces deux réglages.
+        const animated = style && save.settings.quality !== 'LOW' && !neonReducedMotion();
 
         // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
-        // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments.
+        // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments. Aucun style de
+        // skin ne doit repasser par un dessin par segment (cf. cahier des charges UI §2 "Skins").
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(segs[0].x, segs[0].y);
         for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
 
-        ctx.globalAlpha = 0.22;
+        // Halo externe : seul endroit où une pulsation d'alpha est permise (jamais le cœur).
+        let glowAlpha = 0.22;
+        if (style && style.pulse) glowAlpha += Math.sin(this.skinPhase * 2) * (animated ? 0.08 : 0);
+        ctx.globalAlpha = glowAlpha;
         ctx.strokeStyle = this.color;
         ctx.lineWidth = r * 2 + 10;
         ctx.stroke();
 
+        // Cœur du corps : alpha 1 et largeur r*2 non négociables (repère de lisibilité) — un
+        // skin ne peut varier ici que la teinte (dégradé), jamais l'opacité ni des pointillés.
         ctx.globalAlpha = 1;
         ctx.lineWidth = r * 2;
+        ctx.strokeStyle = (style && style.gradient) ? this.skinGradient(ctx, style, animated) : this.color;
         ctx.stroke();
 
+        // Contour : seul endroit où un skin peut ajouter des pointillés (jamais le cœur).
         ctx.globalAlpha = 0.15;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = r * 0.7;
+        if (style && style.dash) {
+            ctx.setLineDash(style.dash);
+            ctx.lineDashOffset = (style.dashAnim && animated) ? -this.skinPhase * 30 : 0;
+        }
         ctx.stroke();
+        ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
+
+        // Traînée : cadencée sur l'horloge de jeu (pas sur le framerate), et seulement si le
+        // budget de particules partagé a de la place (cf. QUALITY_PARTICLES).
+        if (style && style.trail && animated && particles.room && gnow() - this.lastTrailEmit > 80) {
+            this.lastTrailEmit = gnow();
+            const head = segs[0];
+            particles.push(new Particle(head.x, head.y, {
+                vx:(Math.random()-0.5)*0.6, vy:(Math.random()-0.5)*0.6,
+                life:0.6, decay:0.045, size:r*0.35, color:this.color, type:'smoke', friction:0.96
+            }));
+        }
 
         const head = segs[0];
         ctx.beginPath();
         ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
         ctx.fillStyle = this.color;
-        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 14; ctx.shadowColor = this.color; }
+        // Halo statique de substitution quand la traînée est coupée (LOW/reduced-motion) : garde
+        // le skin distinctif sans mouvement ni particule supplémentaire.
+        let glowRadius = (style && style.glowBoost) ? 22 : 14;
+        if (style && style.trail && !animated) glowRadius = Math.max(glowRadius, 20);
+        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = glowRadius; ctx.shadowColor = this.color; }
         ctx.fill();
         ctx.shadowBlur = 0;
 
         const eo = r * 0.45, er = Math.max(2, r * 0.3);
+        if (style && style.head === 'viper') this.drawViperEyes(ctx, head, eo, er);
+        else this.drawRoundEyes(ctx, head, eo, er);
+        if (style && style.head === 'viper') this.drawHorns(ctx, head, r);
+        if (style && style.head === 'predator') this.drawFangs(ctx, head, r);
+    }
+
+    drawRoundEyes(ctx, head, eo, er) {
         ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er, 0, TAU);
@@ -1786,6 +1839,77 @@ class Snake {
         ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er*0.5, 0, TAU);
         ctx.arc(head.x + Math.cos(this.angle-0.5)*eo, head.y + Math.sin(this.angle-0.5)*eo, er*0.5, 0, TAU);
         ctx.fill();
+    }
+
+    // Vert Vipère : même sclère blanche que les yeux ronds, pupille fendue (ellipse aplatie)
+    // au lieu d'un disque — silhouette de tête inchangée (toujours r*1.05).
+    drawViperEyes(ctx, head, eo, er) {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er, 0, TAU);
+        ctx.arc(head.x + Math.cos(this.angle-0.5)*eo, head.y + Math.sin(this.angle-0.5)*eo, er, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#0a3d0a';
+        for (const sign of [0.5, -0.5]) {
+            const ex = head.x + Math.cos(this.angle+sign)*eo, ey = head.y + Math.sin(this.angle+sign)*eo;
+            ctx.save();
+            ctx.translate(ex, ey);
+            ctx.rotate(this.angle + Math.PI/2);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, er*0.28, er*0.85, 0, 0, TAU);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // Deux petites cornes triangulaires posées sur le dessus de la tête, hors de son disque —
+    // décoration pure, ne change jamais le rayon lu par les autres joueurs.
+    drawHorns(ctx, head, r) {
+        ctx.fillStyle = this.color;
+        for (const sign of [0.9, -0.9]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.7, by = head.y + Math.sin(this.angle+sign)*r*0.7;
+            const tx = head.x + Math.cos(this.angle+sign)*r*1.5, ty = head.y + Math.sin(this.angle+sign)*r*1.5;
+            const perp = this.angle + sign + Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(perp)*r*0.18, by + Math.sin(perp)*r*0.18);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.18, by - Math.sin(perp)*r*0.18);
+            ctx.lineTo(tx, ty);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Deux petits crocs devant la tête, dans l'axe de déplacement — même logique que les cornes.
+    drawFangs(ctx, head, r) {
+        ctx.fillStyle = '#ffffff';
+        for (const sign of [0.22, -0.22]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.95, by = head.y + Math.sin(this.angle+sign)*r*0.95;
+            const tx = head.x + Math.cos(this.angle)*r*1.6, ty = head.y + Math.sin(this.angle)*r*1.6;
+            const perp = this.angle + Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(perp)*r*0.12, by + Math.sin(perp)*r*0.12);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.12, by - Math.sin(perp)*r*0.12);
+            ctx.lineTo(tx, ty);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Dégradé perpendiculaire à la direction de déplacement, positionné sur la seule tête :
+    // coût O(1) par frame, indépendant du nombre de segments (jamais de bounding box du corps).
+    skinGradient(ctx, style, animated) {
+        const head = this.segments[0];
+        const r = this.radius;
+        const nx = Math.cos(this.angle + Math.PI/2), ny = Math.sin(this.angle + Math.PI/2);
+        let stops = style.gradient;
+        if (style.hueShift) {
+            const idx = animated ? Math.floor(this.skinPhase / 2.5) % style.hueStops.length : 0;
+            stops = style.hueStops[idx];
+        }
+        const g = ctx.createLinearGradient(head.x - nx*r, head.y - ny*r, head.x + nx*r, head.y + ny*r);
+        g.addColorStop(0, stops[0]);
+        g.addColorStop(1, stops[1]);
+        return g;
     }
 
     grow(amount) {
@@ -2141,7 +2265,7 @@ function startGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color
+        true, playerName(), currentSkin().color, currentSkin().style
     );
 
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
@@ -2383,7 +2507,7 @@ function respawnPlayer() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color
+        true, playerName(), currentSkin().color, currentSkin().style
     );
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     sessionKills = 0;
