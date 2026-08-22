@@ -343,21 +343,141 @@
             padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);
             max-width: 380px; width: 100%; margin: 0 auto;
         }
-        .setting-label { font-size: 14px; }
-        .toggle-btn { min-width: 64px; }
-        .toggle-btn:not(.active) { border-color: #666; color: #666; box-shadow: none; }
+        .setting-label { font-size: 14px; flex: 0 0 auto; }
         .quality-row { margin: 4px auto 14px; max-width: 380px; }
         .controls-hint { max-width: 380px; margin: 6px auto 0; font-size: 13px; color: #aaa; text-align: left; }
         .controls-hint p { margin: 6px 0; }
 
-        /* ===== ABANDON (Pause) — rouge = la seule action destructrice de l'interface ===== */
-        .flag-btn {
-            display: block; margin: 20px auto 0; width: 48px; height: 48px;
-            border-radius: 50%; border: 2px solid var(--danger); color: var(--danger);
-            background: transparent; font-size: 20px; padding: 0;
-            box-shadow: 0 0 10px rgba(255,0,85,0.25);
+        .pseudo-input {
+            display: block; margin: 0 auto 10px; width: 200px; max-width: 70vw;
+            padding: 8px 12px; text-align: center;
+            background: color-mix(in srgb, var(--accent) 6%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            color: var(--accent); font-family: var(--font-head);
+            font-size: 15px; letter-spacing: 0.08em;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
         }
-        .flag-btn:active { background: var(--danger); color: var(--bg); transform: scale(0.95); }
+        .pseudo-input::placeholder { color: #6c7676; letter-spacing: 0.04em; }
+        .pseudo-input:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+        .vol-slider {
+            flex: 1; min-width: 0; margin: 0 10px; height: 22px;
+            -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+        }
+        .vol-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            background: repeating-linear-gradient(90deg,
+                color-mix(in srgb, var(--accent) 14%, transparent) 0 6px, transparent 6px 8px);
+        }
+        .vol-slider::-moz-range-track {
+            height: 6px;
+            background: repeating-linear-gradient(90deg,
+                color-mix(in srgb, var(--accent) 14%, transparent) 0 6px, transparent 6px 8px);
+        }
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 12px; height: 18px; margin-top: -6px;
+            background: var(--accent); border: 0;
+            box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+        }
+        .vol-slider::-moz-range-thumb {
+            width: 12px; height: 18px; border: 0; border-radius: 0;
+            background: var(--accent);
+            box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+        }
+        .vol-value {
+            font-family: var(--font-head); font-size: 11px; min-width: 28px; text-align: right;
+            color: color-mix(in srgb, var(--accent) 70%, transparent);
+        }
+
+        .effects-row { display: flex; flex-direction: column; gap: 7px; max-width: 380px; margin: 0 auto; }
+        .effect-opt {
+            display: flex; align-items: center; gap: 11px;
+            min-height: 44px; padding: 0 12px; margin: 0;
+            background: color-mix(in srgb, var(--accent) 4%, transparent);
+            border: 0; border-radius: 0; box-shadow: none; cursor: pointer;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+        }
+        .effect-opt:active { background: color-mix(in srgb, var(--accent) 12%, transparent); transform: none; }
+        .effect-opt .opt-dot {
+            width: 10px; height: 10px; flex: 0 0 10px;
+            border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+        }
+        .effect-opt.active .opt-dot { box-shadow: inset 0 0 0 2px var(--bg), inset 0 0 0 12px var(--accent); }
+        .effect-opt .opt-label {
+            flex: 1; text-align: left; font-family: var(--font-head);
+            font-size: 13px; letter-spacing: 0.08em; color: #d5dcdc;
+            transform: skewX(-8deg);
+        }
+        .effect-opt .opt-hint { font-size: 13px; color: #93a0a0; font-family: var(--font-body); letter-spacing: 0; }
+
+        .quality-btn { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; flex: 1; padding: 6px 9px; }
+        .quality-btn .q-px { font-family: var(--font-head); font-size: 12px; }
+        .quality-btn .q-note { font-family: var(--font-body); font-size: 12px; color: #93a0a0; letter-spacing: 0; }
+
+        .lang-row {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; max-width: 380px; margin: 0 auto; min-height: 46px;
+            padding: 0 0 0 12px; border: 0; border-radius: 0; box-shadow: none;
+            background: color-mix(in srgb, var(--accent) 7%, transparent);
+            clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+        }
+        .lang-row:active { background: color-mix(in srgb, var(--accent) 16%, transparent); transform: none; }
+        .lang-row .setting-label { flex: 1; text-align: left; font-family: var(--font-head); letter-spacing: 0.08em; color: var(--accent); transform: skewX(-8deg); }
+        .lang-row .lang-current { font-size: 14px; color: #b8c2c2; font-family: var(--font-body); }
+        .lang-row .lang-chevron { color: color-mix(in srgb, var(--accent) 70%, transparent); font-size: 14px; }
+        .lang-list { display: flex; flex-direction: column; gap: 7px; max-width: 380px; margin: 0 auto; }
+        .lang-opt {
+            display: flex; align-items: center; gap: 10px;
+            min-height: 50px; padding: 0 0 0 14px; margin: 0;
+            background: color-mix(in srgb, var(--accent) 5%, transparent);
+            border: 0; border-radius: 0; box-shadow: none; cursor: pointer;
+            clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+        }
+        .lang-opt:active { background: color-mix(in srgb, var(--accent) 14%, transparent); transform: none; }
+        .lang-opt .opt-dot { width: 10px; height: 10px; flex: 0 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+        .lang-opt.active .opt-dot { box-shadow: inset 0 0 0 2px var(--bg), inset 0 0 0 12px var(--accent); }
+        .lang-opt .lang-name { flex: 1; text-align: left; font-size: 16px; color: #dfe6e6; font-family: var(--font-body); }
+        .lang-opt .lang-code { font-family: var(--font-head); font-size: 10px; letter-spacing: 0.1em; color: color-mix(in srgb, var(--accent) 60%, transparent); padding-right: 10px; }
+        .lang-back { display: block; margin: 14px auto 0; padding: 12px 20px; }
+        #settingsLang.hidden, #settingsRoot.hidden { display: none; }
+
+        .swatch-row { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; max-width: 380px; margin: 0 auto; }
+        .swatch {
+            position: relative; width: 44px; height: 44px;
+            border: 0; padding: 0; margin: 0; border-radius: 0; box-shadow: none; cursor: pointer;
+            clip-path: polygon(0 0, 100% 0, 100% 72%, 72% 100%, 0 100%);
+        }
+        .swatch:active { transform: none; }
+        .swatch.active::after {
+            content: ''; position: absolute; inset: 0; border: 2px solid #fff;
+            clip-path: polygon(0 0, 100% 0, 100% 72%, 72% 100%, 0 100%);
+        }
+
+        /* ===== PAUSE ===== */
+        .pause-title-row { display: flex; align-items: baseline; gap: 10px; justify-content: center; }
+        .pause-subtitle { font-family: var(--font-head); font-size: 10px; letter-spacing: 0.12em; color: color-mix(in srgb, var(--accent) 55%, transparent); }
+        .pause-settings { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+        .pause-settings h2 { text-align: left; max-width: 380px; margin-left: auto; margin-right: auto; width: 100%; }
+
+        /* ===== ABANDON (Pause) — rouge = la seule action destructrice de l'interface ===== */
+        .abandon-row { display: flex; align-items: stretch; max-width: 380px; width: 100%; margin: 20px auto 0; }
+        .abandon-warn {
+            display: flex; align-items: center; justify-content: center; width: 34px;
+            background: rgba(255,0,85,0.12); border: 1px solid rgba(255,0,85,0.55);
+            color: var(--danger-text); font-size: 15px;
+        }
+        .abandon-row .abandon-warn:first-child { border-right: 0; }
+        .abandon-row .abandon-warn:last-child { border-left: 0; }
+        .abandon-btn {
+            flex: 1; display: flex; align-items: center; min-height: 46px;
+            padding: 0 0 0 12px; margin: 0; border-radius: 0; box-shadow: none;
+            background: rgba(255,0,85,0.06);
+            border: 1px solid rgba(255,0,85,0.55); border-left: 0; border-right: 0;
+            color: var(--danger-text); font-size: 13px; letter-spacing: 0.1em;
+        }
+        .abandon-btn > span:first-child { flex: 1; text-align: left; transform: skewX(-8deg); }
+        .abandon-btn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); transform: none; }
         #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
 
         /* ===== TABS ===== */
@@ -440,6 +560,7 @@
     <div id="menuScreen" class="overlay">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
         <div style="text-align:center;">
+            <input type="text" id="pseudoInput" class="pseudo-input" maxlength="14" placeholder="Ton pseudo">
             <div style="font-size:16px;">Niveau <span id="menuLevel" class="accent">1</span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
@@ -473,26 +594,55 @@
             <div class="achievements-grid" id="achievementsGrid"></div>
         </div>
         <div id="tab-settings" class="tab-content">
-            <h2>Audio</h2>
-            <div class="setting-row">
-                <span class="setting-label">🎵 Musique</span>
-                <button type="button" id="toggleMusic" class="tab-btn toggle-btn active">ON</button>
+            <div id="settingsRoot">
+                <h2>Audio</h2>
+                <div class="setting-row">
+                    <span class="setting-label">🎵 Musique</span>
+                    <input type="range" class="vol-slider" min="0" max="100" data-vol="music">
+                    <span class="vol-value" data-vol-value="music">70</span>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">🔊 Sons</span>
+                    <input type="range" class="vol-slider" min="0" max="100" data-vol="sfx">
+                    <span class="vol-value" data-vol-value="sfx">100</span>
+                </div>
+                <h2 style="margin-top:16px">Effets</h2>
+                <div class="effects-row" data-group="clickEffects">
+                    <button type="button" class="effect-opt" data-effects="NONE">
+                        <span class="opt-dot"></span><span class="opt-label">Aucun</span><span class="opt-hint">flash seul</span>
+                    </button>
+                    <button type="button" class="effect-opt" data-effects="LIGHT">
+                        <span class="opt-dot"></span><span class="opt-label">Léger</span><span class="opt-hint">anneau + moitié</span>
+                    </button>
+                    <button type="button" class="effect-opt" data-effects="FULL">
+                        <span class="opt-dot"></span><span class="opt-label">Complet</span><span class="opt-hint">bille lancée</span>
+                    </button>
+                </div>
+                <h2 style="margin-top:16px">Qualité graphique</h2>
+                <div class="tabs quality-row" id="qualityRow">
+                    <button type="button" class="tab-btn quality-btn" data-quality="LOW"><span class="q-px">1280×720</span><span class="q-note">économe</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-quality="MEDIUM"><span class="q-px">1600×900</span><span class="q-note">équilibré</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-quality="HIGH"><span class="q-px">1920×1080</span><span class="q-note">natif</span></button>
+                </div>
+                <h2 style="margin-top:16px">Langue</h2>
+                <button type="button" class="lang-row" id="openLangBtn">
+                    <span class="setting-label">Langue</span>
+                    <span class="lang-current" id="langCurrentLabel">Français</span>
+                    <span class="lang-chevron">❯</span>
+                    <span class="hachure" style="width:20px"></span>
+                </button>
+                <h2 style="margin-top:16px">Couleur de l'interface</h2>
+                <div class="swatch-row" data-group="uiColor"></div>
+                <h2 style="margin-top:16px">Commandes</h2>
+                <div class="controls-hint">
+                    <p>🖱️ Ordinateur : le serpent suit la souris</p>
+                    <p>👆 Mobile : le serpent suit ton doigt</p>
+                    <p>⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
+                </div>
             </div>
-            <div class="setting-row">
-                <span class="setting-label">🔊 Effets sonores</span>
-                <button type="button" id="toggleSfx" class="tab-btn toggle-btn active">ON</button>
-            </div>
-            <h2 style="margin-top:16px">Qualité graphique</h2>
-            <div class="tabs quality-row" id="qualityRow">
-                <button type="button" class="tab-btn" data-quality="LOW">Low</button>
-                <button type="button" class="tab-btn" data-quality="MEDIUM">Medium</button>
-                <button type="button" class="tab-btn" data-quality="HIGH">High</button>
-            </div>
-            <h2 style="margin-top:16px">Commandes</h2>
-            <div class="controls-hint">
-                <p>🖱️ Ordinateur : le serpent suit la souris</p>
-                <p>👆 Mobile : le serpent suit ton doigt</p>
-                <p>⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
+            <div id="settingsLang" class="hidden">
+                <div class="lang-list" id="langList"></div>
+                <button type="button" class="tab-btn lang-back" id="langBackBtn">❮ Retour</button>
             </div>
         </div>
         <button id="playBtn" class="btn-primary">▶ JOUER</button>
@@ -514,19 +664,50 @@
     <!-- PAUSE -->
     <div id="pauseScreen" class="overlay hidden">
         <div id="pauseNormal">
-            <h1>⏸ PAUSE</h1>
+            <div class="pause-title-row">
+                <h1 style="margin-bottom:0">⏸ PAUSE</h1>
+                <span class="pause-subtitle">SYS//HALT</span>
+            </div>
             <p class="hint">La partie reprend où tu l’as laissée.</p>
             <div class="btn-row">
                 <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
             </div>
-            <button id="abandonBtn" class="flag-btn" type="button" data-role="danger" aria-label="Abandonner la partie">🏳</button>
+
+            <div class="pause-settings">
+                <h2>Réglages</h2>
+                <div class="effects-row" data-group="clickEffects">
+                    <button type="button" class="effect-opt" data-effects="NONE">
+                        <span class="opt-dot"></span><span class="opt-label">Effets · Aucun</span><span class="opt-hint">flash seul</span>
+                    </button>
+                    <button type="button" class="effect-opt" data-effects="LIGHT">
+                        <span class="opt-dot"></span><span class="opt-label">Effets · Léger</span><span class="opt-hint">anneau + moitié</span>
+                    </button>
+                    <button type="button" class="effect-opt" data-effects="FULL">
+                        <span class="opt-dot"></span><span class="opt-label">Effets · Complet</span><span class="opt-hint">bille lancée</span>
+                    </button>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">🎵 Musique</span>
+                    <input type="range" class="vol-slider" min="0" max="100" data-vol="music">
+                    <span class="vol-value" data-vol-value="music">70</span>
+                </div>
+                <div class="swatch-row" data-group="uiColor"></div>
+            </div>
+
+            <div class="abandon-row">
+                <span class="abandon-warn">⚠</span>
+                <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
+                    <span>ABANDONNER</span><span class="hachure danger" style="width:20px"></span>
+                </button>
+                <span class="abandon-warn">⚠</span>
+            </div>
         </div>
         <div id="pauseConfirm" class="hidden">
             <h1>Abandonner ?</h1>
-            <p class="hint">Cette vie ne sera pas comptée.</p>
+            <p class="hint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
             <div class="btn-row">
-                <button id="abandonNoBtn" class="btn-primary">NON, CONTINUER</button>
-                <button id="abandonYesBtn" class="btn-secondary" data-role="danger">🏳 ABANDONNER</button>
+                <button id="abandonNoBtn" class="btn-primary">NON</button>
+                <button id="abandonYesBtn" class="btn-secondary" data-role="danger">OUI</button>
             </div>
         </div>
     </div>
@@ -628,6 +809,48 @@ const MAX_STEPS_PER_FRAME = 5;
 // et les halos (shadowBlur) ; High les augmente. Medium = comportement d'avant ce réglage.
 const QUALITY_DPR = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
+
+// Le rouge d'Abandonner n'est pas ici : c'est la seule couleur que le joueur ne choisit jamais.
+const UI_COLORS = [
+    { name: 'Cyan', hex: '#00ffcc' },
+    { name: 'Vert', hex: '#39ff88' },
+    { name: 'Citron', hex: '#d8ff3c' },
+    { name: 'Ambre', hex: '#ffb020' },
+    { name: 'Corail', hex: '#ff7a4d' },
+    { name: 'Rose', hex: '#ff4d9d' },
+    { name: 'Violet', hex: '#b06bff' },
+    { name: 'Bleu', hex: '#3ba9ff' },
+];
+
+const LANGUAGES = [
+    { code: 'fr', name: 'Français' },
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Español' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'it', name: 'Italiano' },
+    { code: 'pt', name: 'Português' },
+];
+
+// L'interface se traduit ; les textes de jeu (succès, toasts, historique) restent en français.
+const TRANSLATIONS = {};
+
+function t(key) {
+    const dict = TRANSLATIONS[save.settings.lang] || TRANSLATIONS.fr || {};
+    const fallback = TRANSLATIONS.fr || {};
+    return dict[key] !== undefined ? dict[key] : (fallback[key] !== undefined ? fallback[key] : key);
+}
+
+function applyLanguage() {
+    document.documentElement.lang = save.settings.lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const v = t(el.dataset.i18n);
+        if (v !== el.dataset.i18n) el.textContent = v;
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const v = t(el.dataset.i18nPh);
+        if (v !== el.dataset.i18nPh) el.placeholder = v;
+    });
+}
 
 // Horloge de simulation : n'avance QUE pendant le jeu (donc pause exacte, aucun timer qui fuit).
 let gameClock = 0;
@@ -2452,14 +2675,73 @@ document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
     });
 });
 
+// Les mêmes contrôles existent en double (Accueil + Pause) : on cible par attribut plutôt
+// que par id, pour que les deux copies restent synchronisées sur le même save.settings.
 function applySettingsUI() {
-    const music = $('toggleMusic'), sfx = $('toggleSfx');
-    music.classList.toggle('active', save.settings.musicOn);
-    music.textContent = save.settings.musicOn ? 'ON' : 'OFF';
-    sfx.classList.toggle('active', save.settings.sfxOn);
-    sfx.textContent = save.settings.sfxOn ? 'ON' : 'OFF';
+    document.querySelectorAll('[data-vol="music"]').forEach(el => { el.value = save.settings.musicVolume; });
+    document.querySelectorAll('[data-vol="sfx"]').forEach(el => { el.value = save.settings.sfxVolume; });
+    document.querySelectorAll('[data-vol-value="music"]').forEach(el => { el.textContent = save.settings.musicVolume; });
+    document.querySelectorAll('[data-vol-value="sfx"]').forEach(el => { el.textContent = save.settings.sfxVolume; });
+    document.querySelectorAll('[data-effects]').forEach(b => {
+        b.classList.toggle('active', b.dataset.effects === save.settings.clickEffects);
+    });
     document.querySelectorAll('#qualityRow .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.quality === save.settings.quality);
+    });
+    document.querySelectorAll('.swatch').forEach(b => {
+        b.classList.toggle('active', b.dataset.color === save.settings.uiColor);
+    });
+    const lang = LANGUAGES.find(l => l.code === save.settings.lang) || LANGUAGES[0];
+    $('langCurrentLabel').textContent = lang.name;
+    document.querySelectorAll('.lang-opt').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === save.settings.lang);
+    });
+    $('pseudoInput').value = save.pseudo;
+}
+
+function buildSwatches() {
+    document.querySelectorAll('.swatch-row').forEach(row => {
+        row.innerHTML = '';
+        UI_COLORS.forEach(c => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'swatch';
+            b.dataset.color = c.hex;
+            b.style.background = c.hex;
+            b.title = c.name;
+            b.setAttribute('aria-label', 'Couleur ' + c.name);
+            b.addEventListener('click', () => {
+                audio.init(); audio.play('click');
+                save.settings.uiColor = c.hex;
+                applyUiColor(c.hex);
+                writeSave();
+                applySettingsUI();
+            });
+            row.appendChild(b);
+        });
+    });
+}
+
+function buildLangList() {
+    const list = $('langList');
+    list.innerHTML = '';
+    LANGUAGES.forEach(l => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lang-opt';
+        b.dataset.lang = l.code;
+        b.innerHTML = '<span class="opt-dot"></span><span class="lang-name"></span>' +
+                      '<span class="lang-code"></span><span class="hachure" style="width:18px"></span>';
+        b.querySelector('.lang-name').textContent = l.name;
+        b.querySelector('.lang-code').textContent = l.code.toUpperCase();
+        b.addEventListener('click', () => {
+            audio.init(); audio.play('click');
+            save.settings.lang = l.code;
+            writeSave();
+            applyLanguage();
+            applySettingsUI();
+        });
+        list.appendChild(b);
     });
 }
 
@@ -2475,8 +2757,22 @@ bindBtn('abandonNoBtn', hideAbandonConfirm);
 bindBtn('abandonYesBtn', goToMenu);
 bindBtn('spectateSkipBtn', finishSpectate);
 
-bindBtn('toggleMusic', () => { save.settings.musicOn = !save.settings.musicOn; writeSave(); applySettingsUI(); });
-bindBtn('toggleSfx', () => { save.settings.sfxOn = !save.settings.sfxOn; writeSave(); applySettingsUI(); });
+document.querySelectorAll('[data-vol]').forEach(slider => {
+    slider.addEventListener('input', () => {
+        const key = slider.dataset.vol === 'music' ? 'musicVolume' : 'sfxVolume';
+        save.settings[key] = Number(slider.value);
+        applySettingsUI();
+    });
+    slider.addEventListener('change', () => { writeSave(); audio.init(); audio.play('click'); });
+});
+document.querySelectorAll('[data-effects]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        audio.init(); audio.play('click');
+        save.settings.clickEffects = btn.dataset.effects;
+        writeSave();
+        applySettingsUI();
+    });
+});
 document.querySelectorAll('#qualityRow .tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         audio.init(); audio.play('click');
@@ -2487,6 +2783,22 @@ document.querySelectorAll('#qualityRow .tab-btn').forEach(btn => {
         resizeCanvas();
     });
 });
+bindBtn('openLangBtn', () => {
+    $('settingsRoot').classList.add('hidden');
+    $('settingsLang').classList.remove('hidden');
+});
+bindBtn('langBackBtn', () => {
+    $('settingsLang').classList.add('hidden');
+    $('settingsRoot').classList.remove('hidden');
+});
+$('pseudoInput').addEventListener('change', () => {
+    save.pseudo = $('pseudoInput').value.trim().slice(0, 14);
+    $('pseudoInput').value = save.pseudo;
+    writeSave();
+});
+buildSwatches();
+buildLangList();
+applyLanguage();
 applySettingsUI();
 
 canvas.addEventListener('mousemove', handleInput);
