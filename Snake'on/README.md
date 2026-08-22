@@ -53,11 +53,11 @@ quitte, la partie s'arrête pour tout le monde — mais chacun **garde l'XP** de
 personne ne paie une coupure qu'il n'a pas causée. Aucun compte, aucune donnée qui sort de ton
 appareil : la progression reste dans ton navigateur, comme en solo.
 
-**Qui héberge doit avoir une bonne connexion montante.** L'hôte simule toute la partie et envoie
-à chacun ce qu'il voit — les corps ne voyagent jamais, chaque joueur redessine la traînée chez
-lui. Mesuré en montée chez l'hôte : ~10 ko/s par joueur connecté en début de partie, ~15 ko/s en
-fin quand les serpents s'allongent. **Confortable jusqu'à 4-5 joueurs** sur n'importe quelle
-connexion ; au-delà, mieux vaut que l'hôte soit en fibre.
+**Ce que ça coûte à celui qui héberge.** L'hôte simule toute la partie et envoie à chacun
+seulement ce qu'il peut voir, en binaire. Les corps ne voyagent jamais : chaque joueur redessine
+la traînée chez lui, si bien que le coût dépend du nombre de serpents en vue, pas de leur
+longueur. Mesuré en montée chez l'hôte, à 9 joueurs connectés : **26 ko/s en début de partie,
+39 ko/s en fin** — environ 300 kbit/s, ce que tient n'importe quelle connexion moderne.
 
 ⚠️ **Mettre pause ne fige pas la partie des autres.** Pendant ta pause, ton serpent passe en
 pilotage automatique (il fuit, il ne chasse pas) — **tu peux te faire manger pendant ce temps**,

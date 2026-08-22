@@ -299,14 +299,9 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
   implémentées — le jeu reste pensé portrait d'abord.
 - **Curseur Musique sans moteur** : le réglage existe et se sauvegarde, mais aucune musique de fond
   n'est produite par le jeu à ce jour. Le curseur Sons, lui, pilote réellement le volume des sons.
-- **Partie privée à effectif plein** : le filtrage par intérêt est en place (chacun ne reçoit que
-  ce qu'il peut voir), mais il ne suffit pas seul à dix humains. Mesuré en montée pour l'hôte à
-  9 clients : ~88 ko/s en début de partie, ~132 ko/s en fin quand les corps s'allongent — soit
-  encore ~1 Mbit/s, au-dessus d'une montée ADSL. **Confortable jusqu'à 4-5 joueurs**, au-delà il
-  faut choisir un hôte bien connecté. L'étape suivante identifiée est le passage des instantanés
-  en **format binaire** (≈9 octets par serpent contre ≈26 en JSON). La commande qui remesure ce
-  budget vit dans le journal de la session du 22/08/2026.
 - **Écran de Salon en paysage mobile** : non maquetté, comme les autres écrans (voir premier point).
+- **Reconnexion après coupure brève** : une coupure réseau, même d'une seconde, compte comme un
+  départ. Assumé pour un jeu entre amis ; à rouvrir si l'usage montre que ça gêne.
 
 ---
 
