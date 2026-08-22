@@ -163,7 +163,7 @@
 
         /* ===== STATS ===== */
         .stats-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr);
+            display: grid; grid-template-columns: repeat(2, 1fr);
             gap: 8px; margin: 10px 0; font-size: 13px;
             max-width: 400px; width: 100%;
         }
@@ -207,8 +207,6 @@
             padding: 4px; text-align: left;
         }
         .history-table td { padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .win-text { color: #00ff66; }
-        .lose-text { color: var(--danger); }
 
         /* ===== ACHIEVEMENTS ===== */
         .achievements-grid {
@@ -318,8 +316,6 @@
         <div id="tab-stats" class="tab-content">
             <div class="stats-grid">
                 <div class="stat-box"><div class="val" id="statBest">0</div><div class="label">Record</div></div>
-                <div class="stat-box"><div class="val" id="statWins">0</div><div class="label">Victoires</div></div>
-                <div class="stat-box"><div class="val" id="statLosses">0</div><div class="label">Défaites</div></div>
                 <div class="stat-box"><div class="val" id="statKills">0</div><div class="label">Kills</div></div>
                 <div class="stat-box"><div class="val" id="statGames">0</div><div class="label">Parties</div></div>
                 <div class="stat-box"><div class="val" id="statTime">0s</div><div class="label">Temps</div></div>
@@ -327,7 +323,7 @@
         </div>
         <div id="tab-history" class="tab-content">
             <table class="history-table">
-                <thead><tr><th>#</th><th>Résultat</th><th>Taille</th><th>Kills</th><th>Durée</th></tr></thead>
+                <thead><tr><th>#</th><th>Taille</th><th>Kills</th><th>Durée</th></tr></thead>
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
@@ -349,19 +345,6 @@
         </div>
     </div>
 
-    <!-- END -->
-    <div id="endScreen" class="overlay hidden">
-        <h1 id="endTitle">GAME OVER</h1>
-        <p id="endMessage"></p>
-        <div id="endXpGain" class="xp-gain"></div>
-        <div class="xp-bar-container" style="width:200px;"><div class="xp-bar-fill" id="endXpBar"></div></div>
-        <div id="endAchievements" style="margin:10px 0;font-size:13px;color:var(--warning);text-align:center;"></div>
-        <div class="btn-row">
-            <button id="replayBtn" class="btn-primary">🔄 REJOUER</button>
-            <button id="menuBtn" class="btn-secondary">🏠 MENU</button>
-        </div>
-    </div>
-
 <script>
 "use strict";
 // ============================================================
@@ -379,14 +362,15 @@ const CONFIG = {
     WORLD_MAX: 6000,
     WORLD_WIDTH: 4400,       // valeurs de depart, recalculees a chaque partie
     WORLD_HEIGHT: 2800,
-    FOOD_AREA_PER_ITEM: 18000,   // une pastille par 18 000 px² de monde
+    FOOD_AREA_PER_ITEM: 22000,   // une pastille par 22 000 px² de monde (un peu moins dense qu'avant)
+    FOOD_CLUSTER_RADIUS: 220,    // rayon (px) d'un amas de pastilles
+    FOOD_PER_CLUSTER: 15,        // pastilles visées par amas (fixe le nombre d'amas)
     FOOD_GROWTH: 2,              // taille gagnee par pastille : c'est CE reglage qui fixe la duree d'une partie
     FOOD_COUNT: 680,             // recalcule a chaque partie
     FOOD_CELL: 240,              // taille des cases de la grille spatiale
     BOT_COUNT: 45,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
-    WIN_THRESHOLD: 300,
     GRID_SIZE: 40,
     MIN_ZOOM: 0.45,          // dezoom maximum quand on devient enorme
     MAX_ZOOM: 1,
@@ -396,9 +380,9 @@ const CONFIG = {
     MAX_HISTORY: 10,
     MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
-    BOT_MAX_LENGTH: 300,     // les bots plafonnent AVANT le joueur : sinon « etre le plus gros » devient impossible
+    BOT_MAX_LENGTH: 300,     // plafond des bots : evite qu'un seul finisse par dominer toute l'arene
     MAX_RADIUS: 40,          // rayon plafond (utilise aussi par grow())
-    MIN_SPEED_RATIO: 0.55,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
+    MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
     FOOD_CORPSE_MAX: 14,     // nombre max de pastilles existantes reutilisees pour une decoupe
@@ -440,10 +424,8 @@ const CONFIG = {
         { id:'first_kill', name:'Premier Sang', desc:'Tuer ton premier serpent', icon:'🗡️' },
         { id:'five_kills', name:'Chasseur', desc:'5 kills en une partie', icon:'🎯' },
         { id:'ten_kills', name:'Prédateur', desc:'10 kills en une partie', icon:'💀' },
-        { id:'first_win', name:'Champion', desc:'Gagner ta première partie', icon:'🏆' },
         { id:'big_snake', name:'Géant', desc:'Atteindre une taille de 200', icon:'🐍' },
         { id:'speed_demon', name:'Éclair', desc:'Ramasser 3 bonus vitesse', icon:'⚡' },
-        { id:'survivor', name:'Survivant', desc:'Gagner sans se faire toucher', icon:'🛡️' },
         { id:'combo_master', name:'Combo Master', desc:'Manger 5 pastilles sans interruption (combo x2)', icon:'🔥' },
         { id:'level_5', name:'Vétéran', desc:'Atteindre le niveau 5', icon:'⭐' },
         { id:'level_10', name:'Légende', desc:'Atteindre le niveau 10', icon:'👑' },
@@ -548,7 +530,7 @@ const audio = new AudioManager();
 //  SAUVEGARDE
 // ============================================================
 const DEFAULT_SAVE = {
-    level: 1, xp: 0, bestSize: 0, wins: 0, losses: 0,
+    level: 1, xp: 0, bestSize: 0,
     kills: 0, games: 0, totalTime: 0, selectedSkin: 0,
     history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 }
 };
@@ -842,8 +824,16 @@ class FoodGrid {
 class Food {
     constructor() { this.respawn(); }
     respawn() {
-        this.x = Math.random() * (CONFIG.WORLD_WIDTH - 40) + 20;
-        this.y = Math.random() * (CONFIG.WORLD_HEIGHT - 40) + 20;
+        const c = foodClusters.length ? foodClusters[Math.floor(Math.random() * foodClusters.length)] : null;
+        if (c) {
+            const r = CONFIG.FOOD_CLUSTER_RADIUS * Math.sqrt(Math.random());   // uniforme dans le disque
+            const a = Math.random() * TAU;
+            this.x = Math.min(CONFIG.WORLD_WIDTH - 20, Math.max(20, c.x + Math.cos(a) * r));
+            this.y = Math.min(CONFIG.WORLD_HEIGHT - 20, Math.max(20, c.y + Math.sin(a) * r));
+        } else {
+            this.x = Math.random() * (CONFIG.WORLD_WIDTH - 40) + 20;
+            this.y = Math.random() * (CONFIG.WORLD_HEIGHT - 40) + 20;
+        }
         this.radius = 4;
         this.color = '#ff00ff';
         this.pulseOffset = Math.random() * TAU;
@@ -936,10 +926,13 @@ class Snake {
     applyPowerUp(type) { this.powerupEnds[type] = gnow() + CONFIG.POWERUPS[type].duration; }
     hasPowerUp(type) { return this.powerupEnds[type] > gnow(); }
     getEffectiveSpeed() {
-        // Plus gros -> plus lent : interpolation lineaire entre BASE_RADIUS (vitesse pleine)
-        // et MAX_RADIUS (vitesse a MIN_SPEED_RATIO). Le bonus vitesse s'applique par-dessus.
+        // Plus gros -> plus lent, mais en douceur : courbe ease-in (t²) entre BASE_RADIUS
+        // (vitesse pleine) et MAX_RADIUS (vitesse a MIN_SPEED_RATIO). La perte de vitesse est
+        // presque imperceptible en début de croissance, plus sensible seulement en fin de
+        // parcours. Le bonus vitesse s'applique par-dessus.
         const t = Math.min(1, Math.max(0, (this.radius - CONFIG.BASE_RADIUS) / (CONFIG.MAX_RADIUS - CONFIG.BASE_RADIUS)));
-        const base = this.speed * (1 - t * (1 - CONFIG.MIN_SPEED_RATIO));
+        const eased = t * t;
+        const base = this.speed * (1 - eased * (1 - CONFIG.MIN_SPEED_RATIO));
         return this.hasPowerUp('speed') ? base * CONFIG.POWERUPS.speed.speedMultiplier : base;
     }
     addKill() { this.kills++; }
@@ -1091,11 +1084,11 @@ let spectateTarget = null, spectateEndsAt = 0;   // mode spectateur : vue du ser
 let pointer = { x: 0, y: 0 };                 // position du doigt / de la souris, en pixels ECRAN
 const cam = { x: 0, y: 0, zoom: 1 };          // centre de la vue, en coordonnees MONDE
 let foodGrid = null;
+let foodClusters = [];   // centres des amas de nourriture, recalculés dans computeWorld()
 let sessionKills = 0;
 let pendingRespawns = [];
 let lastPowerupSpawn = 0;
 let comboCount = 0, lastComboTime = -Infinity, comboMultiplier = 1;
-let wasTouched = false;
 let uiAccum = 0;
 
 const particles = new ParticleSystem();
@@ -1154,7 +1147,6 @@ function inView(x, y, margin, v) {
 // ============================================================
 function showScreen(screen) {
     $('menuScreen').classList.toggle('hidden', screen !== 'menu');
-    $('endScreen').classList.toggle('hidden', screen !== 'end');
     $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
 
     const inGame = (screen === 'game');
@@ -1180,8 +1172,6 @@ function renderMenu() {
     $('menuXpText').textContent = save.xp + ' / ' + xpNeeded + ' XP';
 
     $('statBest').textContent = save.bestSize;
-    $('statWins').textContent = save.wins;
-    $('statLosses').textContent = save.losses;
     $('statKills').textContent = save.kills;
     $('statGames').textContent = save.games;
     $('statTime').textContent = formatTime(save.totalTime);
@@ -1222,14 +1212,11 @@ function renderMenu() {
     const tbody = $('historyBody');
     tbody.innerHTML = '';
     if (save.history.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="color:#666;text-align:center;">Aucune partie</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#666;text-align:center;">Aucune partie</td></tr>';
     } else {
         save.history.forEach((h, i) => {
             const tr = document.createElement('tr');
-            const win = h.result === 'WIN';
-            tr.innerHTML = '<td>' + (i+1) + '</td>' +
-                '<td class="' + (win ? 'win-text' : 'lose-text') + '">' + (win ? '🏆' : '💀') + ' ' + h.result + '</td>' +
-                '<td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
+            tr.innerHTML = '<td>' + (i+1) + '</td><td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
             tbody.appendChild(tr);
         });
     }
@@ -1366,6 +1353,12 @@ function computeWorld() {
     CONFIG.WORLD_WIDTH = w;
     CONFIG.WORLD_HEIGHT = h;
     CONFIG.FOOD_COUNT = Math.round((w * h) / CONFIG.FOOD_AREA_PER_ITEM);
+
+    // La nourriture apparaît par amas (comme sur slither.io) plutôt qu'éparpillée uniformément :
+    // des zones plus riches à défendre/disputer, au lieu d'un nuage de pastilles homogène.
+    const clusterCount = Math.max(6, Math.round(CONFIG.FOOD_COUNT / CONFIG.FOOD_PER_CLUSTER));
+    foodClusters = [];
+    for (let i = 0; i < clusterCount; i++) foodClusters.push({ x: Math.random() * w, y: Math.random() * h });
 }
 
 function startGame() {
@@ -1379,7 +1372,6 @@ function startGame() {
     comboCount = 0;
     comboMultiplier = 1;
     lastComboTime = -Infinity;
-    wasTouched = false;
     sessionNewAch = [];
     pendingRespawns = [];
     powerups = [];
@@ -1450,56 +1442,35 @@ function goToMenu() {
     renderMenu();
 }
 
-function endGame(won) {
+// Enregistre la fin d'une vie (XP, historique, succès) et l'annonce par toast — pas d'écran
+// bloquant : le jeu ne s'arrête jamais, la partie n'est ni gagnée ni perdue (cf. finishSpectate,
+// qui enchaîne sur respawnPlayer()).
+function endGame() {
     if (gameState !== 'PLAYING') return;
-    gameState = 'END';
     pendingRespawns = [];
 
     const size = player ? player.length : 0;
     const duration = Math.floor(gameClock / 1000);
-    const xpGain = Math.floor(size * 0.5) + sessionKills * 15 + (won ? 50 : 0);
+    const xpGain = Math.floor(size * 0.5) + sessionKills * 15;
     const leveledUp = addXP(xpGain);
 
     save.games++;
     save.totalTime += duration;
     save.kills += sessionKills;
-    if (won) save.wins++; else save.losses++;
     if (size > save.bestSize) save.bestSize = size;
 
-    save.history.unshift({
-        result: won ? 'WIN' : 'LOSE',
-        size, kills: sessionKills, duration,
-        date: new Date().toLocaleDateString('fr-FR')
-    });
+    save.history.unshift({ size, kills: sessionKills, duration, date: new Date().toLocaleDateString('fr-FR') });
     while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
     writeSave();
 
     checkAchievement('first_kill', sessionKills >= 1);
     checkAchievement('five_kills', sessionKills >= 5);
     checkAchievement('ten_kills', sessionKills >= 10);
-    checkAchievement('first_win', won);
     checkAchievement('big_snake', size >= 200);
-    checkAchievement('survivor', won && !wasTouched);
 
-    showScreen('end');
-    const title = $('endTitle'), msg = $('endMessage');
-    if (won) {
-        title.textContent = '🏆 VICTOIRE !';
-        title.style.color = '#00ffcc';
-        msg.textContent = 'Tu es le roi de l’arène ! Taille : ' + size + ' • Kills : ' + sessionKills + ' • ' + formatTime(duration);
-        audio.play('victory');
-    } else {
-        title.textContent = '💀 GAME OVER';
-        title.style.color = '#ff0055';
-        msg.textContent = 'Taille : ' + size + ' • Kills : ' + sessionKills + ' • ' + formatTime(duration);
-        audio.play('death');
-    }
-
-    $('endXpGain').textContent = '+' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : '');
-    $('endXpBar').style.width = ((save.xp / xpForLevel(save.level)) * 100) + '%';
-    $('endAchievements').textContent = sessionNewAch.length
-        ? '🏅 ' + sessionNewAch.map(a => a.name).join(' • ')
-        : '';
+    audio.play('death');
+    showToast('💀 Taille ' + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
+    if (sessionNewAch.length) showToast('🏅 ' + sessionNewAch.map(a => a.name).join(' • '));
 }
 
 function respawnBot(idx, name, color) {
@@ -1609,7 +1580,28 @@ function startSpectate(killer) {
 function finishSpectate() {
     if (gameState !== 'SPECTATING') return;
     gameState = 'PLAYING';   // endGame() exige 'PLAYING' ; on le repasse juste avant de l'appeler.
-    endGame(false);
+    endGame();
+    respawnPlayer();
+}
+
+// Réapparition dans la MÊME arène (monde, bots, nourriture inchangés) : seul le serpent du
+// joueur est recréé. C'est ce qui rend la partie infinie — startGame() reste le seul point
+// qui régénère un monde entier, depuis le menu.
+function respawnPlayer() {
+    player = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        true, 'TOI', currentSkin().color
+    );
+    player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+    sessionKills = 0;
+    comboCount = 0; comboMultiplier = 1; lastComboTime = -Infinity;
+    killStreak.reset();
+    sessionNewAch = [];
+    gameState = 'PLAYING';
+    showScreen('game');
+    updateHUD();
+    updateLeaderboard();
 }
 
 function updateSpectateBanner() {
@@ -1678,7 +1670,6 @@ function checkCollisions() {
             if (Math.hypot(a.x-b.x, a.y-b.y) >= a.radius + b.radius) continue;
 
             if (!a.canBeEaten() || !b.canBeEaten()) continue;
-            if (a.isPlayer || b.isPlayer) wasTouched = true;
 
             if (a.radius > b.radius * 1.1) devour(a, b);
             else if (b.radius > a.radius * 1.1) devour(b, a);
@@ -1728,8 +1719,6 @@ function checkCollisions() {
             }
             hitIndex = bestIndex;
 
-            if (attacker.isPlayer || target.isPlayer) wasTouched = true;
-
             if (attacker.radius > target.radius * 1.1) {
                 killSnake(attacker, target, hitIndex);
             } else {
@@ -1744,13 +1733,6 @@ function checkCollisions() {
             if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
         }
     }
-}
-
-function checkWinCondition() {
-    if (!player || !player.alive) return;
-    let maxBot = 0;
-    for (const b of bots) if (b && b.alive && b.length > maxBot) maxBot = b.length;
-    if (player.length > maxBot && player.length > CONFIG.WIN_THRESHOLD) endGame(true);
 }
 
 function spawnPowerups() {
@@ -1896,8 +1878,6 @@ function simulate() {
     foodGrid.build(foods);
     checkCollisions();
     if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
-    checkWinCondition();
-    if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
 
     particles.update();
     screenShake.update();
@@ -1996,8 +1976,6 @@ function bindBtn(id, fn) {
     $(id).addEventListener('click', () => { audio.init(); audio.play('click'); fn(); });
 }
 bindBtn('playBtn', startGame);
-bindBtn('replayBtn', startGame);
-bindBtn('menuBtn', goToMenu);
 bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
 bindBtn('quitBtn', goToMenu);

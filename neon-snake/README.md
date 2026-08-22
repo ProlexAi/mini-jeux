@@ -17,12 +17,15 @@ Installable comme une vraie appli (**PWA**) et **jouable hors-ligne**.
 | Ordinateur | Le serpent suit la **souris** |
 | Clavier | `Échap` ou `P` = pause · `Entrée` / `Espace` = jouer |
 
-**But :** dépasser la taille 300 **et** être le plus gros de l'arène — face à 45 adversaires.
-Tête contre tête, le plus gros mange le plus petit (il faut être ~10 % plus gros).
-Tu es **invincible 3 secondes** à l'apparition, le temps de te placer.
+**But :** grossir le plus possible, **sans fin** — comme sur slither.io, il n'y a pas de victoire.
+Face à 45 adversaires, tête contre tête, le plus gros mange le plus petit (il faut être ~10 % plus
+gros) ; toucher le **corps** d'un serpent plus petit le découpe aussi (le tronçon du point d'impact
+jusqu'à la queue devient de la nourriture) — toucher un corps plus gros ou égal agit comme un mur.
+Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
+4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**.
 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
-**Progression :** XP, niveaux, 10 skins à débloquer, 10 succès, historique des 10 dernières parties.
+**Progression :** XP, niveaux, 10 skins à débloquer, 8 succès, historique des 10 dernières vies.
 Tout est sauvegardé dans le navigateur (`localStorage`), rien n'est envoyé nulle part.
 
 ---
@@ -41,8 +44,12 @@ l'autre. À l'arrivée :
 
 | Écran | Monde | Nourriture | Adversaires visibles en moyenne |
 |---|---|---|---|
-| Ordinateur 1100×700 | 4400 × 2800 | 684 | ~1,9 |
-| iPhone 390×844 (plein écran) | 1987 × 2650 | 293 | ~1,8 |
+| Ordinateur 1100×700 | 4400 × 2800 | 560 | ~1,9 |
+| iPhone 390×844 (plein écran) | 1987 × 2650 | 239 | ~1,8 |
+
+La nourriture n'est **pas** éparpillée uniformément : elle apparaît par **amas** (une quinzaine de
+pastilles par zone, comme sur slither.io), avec des poches vides entre les amas — des zones plus
+riches à repérer et à disputer plutôt qu'un nuage homogène.
 
 La **minimap** en bas à droite montre le monde entier, ta position, celle des 45 serpents,
 et le rectangle blanc = la portion que tu vois réellement.
@@ -92,14 +99,16 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 
 | Réglage | Effet |
 |---|---|
-| `FOOD_GROWTH: 2` | taille gagnée par pastille — **c'est LE bouton qui fixe la durée d'une partie** |
-| `WIN_THRESHOLD: 300` | taille à atteindre pour gagner (+ être le plus gros) |
+| `FOOD_GROWTH: 2` | taille gagnée par pastille |
 | `WORLD_SCREENS: 16` | taille du monde, en écrans de surface — monte-le pour une carte plus vaste |
 | `BOT_COUNT: 45` | nombre d'adversaires (la densité de rencontres) |
-| `BOT_MAX_LENGTH: 300` | plafond des bots. **Doit rester ≤ à ce que le joueur peut atteindre**, sinon « être le plus gros » devient impossible et la partie n'est plus gagnable |
-| `SPAWN_SHIELD_MS: 3000` | invincibilité à l'apparition |
+| `BOT_MAX_LENGTH: 300` | plafond des bots, pour qu'aucun ne finisse par dominer toute l'arène |
+| `SPAWN_SHIELD_MS: 3000` | invincibilité à l'apparition (et à chaque réapparition) |
+| `SPECTATE_MS: 4000` | durée de la vue sur le tueur avant de réapparaître |
 | `FOOD_AREA_PER_ITEM` | densité de nourriture (px² par pastille) |
+| `FOOD_CLUSTER_RADIUS` / `FOOD_PER_CLUSTER` | rayon d'un amas de pastilles / pastilles visées par amas |
 | `MIN_ZOOM: 0.45` | jusqu'où on dézoome quand on devient énorme |
+| `MIN_SPEED_RATIO: 0.65` | vitesse minimale (fraction de la vitesse de base) à la taille max |
 | `POWERUPS` / `SKINS` | durées, couleurs, niveaux de déblocage |
 
 ⚠️ Le manifest et les icônes sont en cache-first : **après une modification de `manifest.webmanifest`
@@ -127,9 +136,13 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
 - **60 fps** tenus avec 45 serpents et ~700 pastilles, sur les deux formats
 - **Caméra** : suit le joueur, se bloque exactement aux murs du monde, dézoom 1 → 0,59 quand on grossit
 - **Visée** : le pointeur est converti en coordonnées monde, donc juste même quand la caméra est bloquée au bord
-- **Durée d'une partie** mesurée sur 84 parties simulées (deux profils de jeu) :
-  victoire médiane **~45 s**, 2 à 4 défaites sur 14 parties, **aucune mort avant la 5ᵉ seconde**
+- **Boucle sans fin** : 100 s simulées, 7 morts du joueur, l'état de jeu ne quitte jamais
+  `PLAYING`/`SPECTATING` (pas d'écran de fin) — le monde, les bots et la nourriture restent les
+  mêmes d'une vie à l'autre, seul le serpent du joueur est recréé
+- **Découpe corps-à-corps** : mort de la cible, croissance de l'attaquant, pastilles du pool
+  repositionnées aux bons indices le long de la queue ; mur testé à l'approche verticale, diagonale
+  et en bout de corps, sans traversée sur 300 pas
 - Pause qui **fige réellement** l'horloge de jeu, nourriture, combo ×2, les 3 bonus, kill + réapparition,
-  victoire, défaite, sauvegarde persistée, **rechargement hors-ligne**, zéro erreur console
+  sauvegarde persistée, **rechargement hors-ligne**, zéro erreur console
 
 Le jeu tourne à **pas de simulation fixe (60 Hz)** : même vitesse sur un écran 60, 90 ou 120 Hz.
