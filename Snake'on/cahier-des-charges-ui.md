@@ -62,6 +62,13 @@ du corps (opacité et largeur pleines) reste identique sur tous les skins : c'es
 lisibilité qui permet de juger en un coup d'œil qui est plus gros. Un skin animé a toujours une
 version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin.
 
+**Auras élémentaires (v0.5).** Un skin peut porter une *aura* : une silhouette vivante qui
+épouse le contour du serpent et **déborde franchement de ses bords**. La lisibilité n'est alors
+plus garantie par la distance mais par l'**ordre de dessin** — l'aura passe sous le cœur, tracé
+par-dessus à opacité pleine, et une seule passe repasse devant lui, plafonnée à 0,25 d'alpha.
+Le débordement est borné à 1,8 fois le rayon. L'aura est une composante permanente : seule sa
+déformation s'anime, elle demeure donc sous `prefers-reduced-motion`.
+
 ### Typographie *(nouveau, v0.3)*
 
 - **Titres et libellés HUD** : police **Tektur**, contre-inclinée de 8°.
@@ -114,7 +121,7 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 | Entrée | Code | Rôle | Contenu |
 |---|---|---|---|
-| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 10 skins (trait + tête), verrouillés selon le niveau |
+| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 13 skins (trait + tête + aura), verrouillés selon le niveau |
 | 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
 | 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
 | 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
@@ -236,6 +243,13 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     réplication multijoueur futur).
 18. **Bots sans skin**, gardent leurs couleurs actuelles — préserve la distinction joueur/bot.
 19. **Noms de skins non traduits** (texte de jeu, français partout, cf. §7).
+
+### V0.5 — addendum « Auras élémentaires »
+20. **Une aura peut déborder de la silhouette.** Révise la décision 15 : la lisibilité est
+    assurée par l'ordre de dessin et une hiérarchie d'opacité, non plus par l'absence de
+    recouvrement.
+21. **Débordement borné à 1,8 r** et passe avant-plan plafonnée à 0,25 d'alpha.
+22. **Trois auras** : Flamme Ardente (25), Orage (30), Volutes (35).
 
 ---
 
