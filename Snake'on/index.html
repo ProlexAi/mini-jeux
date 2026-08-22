@@ -886,7 +886,7 @@ const CONFIG = {
         { name:'Jaune Dégradé', color:'#ffcc00', unlockLevel:3, style:{ gradient:['#ffcc00','#fff6c8'] } },
         { name:'Bleu Pulsé', color:'#00ccff', unlockLevel:4, style:{ pulse:true } },
         { name:'Vert Vipère', color:'#00ff66', unlockLevel:5, style:{ head:'viper' } },
-        { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true } },
+        { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true, trailColor:'#ffd08a' } },
         { name:'Rouge Prédateur', color:'#ff0055', unlockLevel:9, style:{ head:'predator' } },
         { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[0.25,1.0], dashAnim:true, pulse:true } },
         { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[0.6,1.15], dashAnim:true } },
@@ -1776,11 +1776,26 @@ class Snake {
         for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
 
         // Halo externe : seul endroit où une pulsation d'alpha est permise (jamais le cœur).
+        // Un skin qui pulse porte un halo franchement plus large et plus dense que le halo
+        // standard, et c'est CE halo qui respire. Il reste donc identifiable une fois figé
+        // (reduced-motion, LOW) : une pulsation seule, prise sur une image fixe, ne se voit pas.
+        // L'élargissement est proportionnel à r — le +10 de base est en pixels absolus et
+        // deviendrait négligeable au rayon plafond.
         let glowAlpha = 0.22;
-        if (style && style.pulse) glowAlpha += Math.sin(this.skinPhase * 2) * (animated ? 0.08 : 0);
+        let glowWidth = r * 2 + 10;
+        if (style && style.pulse) {
+            const osc = animated ? Math.sin(this.skinPhase * 2.2) : 0;
+            glowAlpha = 0.42 + osc * 0.16;              // 0,26 à 0,58 (halo standard : 0,22)
+            glowWidth = r * 2 + 10 + r * (0.8 + osc * 0.5);
+        } else if (style && style.trail) {
+            // Halo de chaleur permanent : la traînée seule ne dit rien sur une image fixe, et
+            // elle est coupée en reduced-motion et au palier LOW.
+            glowAlpha = 0.36;
+            glowWidth = r * 2 + 10 + r * 0.55;
+        }
         ctx.globalAlpha = glowAlpha;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = r * 2 + 10;
+        ctx.lineWidth = glowWidth;
         ctx.stroke();
 
         // Cœur du corps : alpha 1 et largeur r*2 non négociables (repère de lisibilité) — un
@@ -1811,13 +1826,38 @@ class Snake {
         // recouverte en permanence. La queue est le seul point que le corps ne recouvre plus.
         // Cadencée sur l'horloge de jeu (pas le framerate), et seulement si le budget de
         // particules partagé a de la place (cf. QUALITY_PARTICLES).
-        if (style && style.trail && animated && particles.room && gnow() - this.lastTrailEmit > 80) {
+        // Cadence, durée de vie et taille calibrées pour qu'une vraie nappe de braises soit
+        // visible : à 80 ms d'intervalle et 0,22 s de vie, 3 particules seulement coexistaient.
+        // Ici ~50/s pendant ~0,75 s, soit une quarantaine à l'écran — loin du plafond même au
+        // palier MEDIUM (400). Seul le joueur porte un skin, donc un seul serpent en émet.
+        if (style && style.trail && animated && particles.room && gnow() - this.lastTrailEmit > 40) {
             this.lastTrailEmit = gnow();
             const tail = segs[segs.length - 1];
-            particles.push(new Particle(tail.x, tail.y, {
-                vx:(Math.random()-0.5)*0.6, vy:(Math.random()-0.5)*0.6,
-                life:0.6, decay:0.045, size:r*0.35, color:this.color, type:'smoke', friction:0.96
-            }));
+            // Dérive vers l'ARRIÈRE (opposé au cap) avec un écart latéral : en vue de dessus,
+            // un sillage est la seule dérive qui garde un sens quel que soit le cap. Sans cette
+            // dérive les braises restaient dans le halo du corps et ne se voyaient pas.
+            const back = this.angle + Math.PI;
+            // Emission EN RETRAIT derriere la queue : posees dessus, les braises naissaient
+            // sous le halo du corps et n'en sortaient jamais. Teinte propre, plus vive que le
+            // corps (trailColor) : a la couleur du corps elles s'y confondaient.
+            // Recul de 2 r : les braises doivent naître DEHORS du corps. Une particule 'smoke'
+            // grossit en vieillissant (size * (2 - life)), d'où une base volontairement petite —
+            // sinon la nappe déborde sur la silhouette, que rien n'a le droit de brouiller
+            // (cahier des charges UI §2 : juger la taille d'un serpent reste vital).
+            const ox = tail.x + Math.cos(back) * r * 2;
+            const oy = tail.y + Math.sin(back) * r * 2;
+            for (let k = 0; k < 2 && particles.room; k++) {
+                const spread = (Math.random() - 0.5) * 0.8;
+                const speed = 1.2 + Math.random() * 1.4;
+                particles.push(new Particle(
+                    ox + (Math.random()-0.5) * r * 0.6,
+                    oy + (Math.random()-0.5) * r * 0.6, {
+                    vx: Math.cos(back + spread) * speed,
+                    vy: Math.sin(back + spread) * speed,
+                    life:1, decay:0.028, size:r*0.3,
+                    color: style.trailColor || this.color, type:'smoke', friction:0.99
+                }));
+            }
         }
 
         const head = segs[0];
