@@ -3541,9 +3541,13 @@ const party = {
 };
 
 function resetParty() {
-    if (party.peer) { try { party.peer.destroy(); } catch(e) {} }
+    // Les drapeaux tombent AVANT la destruction du pair, jamais après : destroy() referme les
+    // connexions, et le gestionnaire de fermeture aurait pris ce départ volontaire pour une
+    // perte de l'hôte — toast trompeur, et resetParty rappelée depuis sa propre exécution.
+    const peer = party.peer;
     party.active = false; party.isHost = false; party.inGame = false; party.code = '';
     party.peer = null; party.conns.clear(); party.hostConn = null;
+    if (peer) { try { peer.destroy(); } catch(e) {} }
     party.players.clear(); party.selfId = 'host';
     remotes.clear(); netSnakes.clear(); netTargets.clear();
     netRoster.clear(); netPowerups.clear(); foodDirty.clear();
