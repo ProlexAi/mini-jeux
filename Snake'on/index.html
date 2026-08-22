@@ -260,9 +260,16 @@
         .btn-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
         /* La hachure doit toucher le bord droit sur TOUTE la hauteur : le bouton ne porte donc
            aucun rembourrage vertical ni droit (la hauteur vient de min-height) et ses enfants
-           s'étirent — sinon la bande flotte au milieu du padding. */
-        .cta-hachured {
-            display: flex; align-items: stretch; gap: 14px;
+           s'étirent — sinon la bande flotte au milieu du padding.
+           Les sélecteurs sont doublés (.btn-primary.cta-hachured) parce que le bloc
+           @media (max-width: 480px) plus bas réimpose un padding à .btn-primary : à spécificité
+           égale il gagnerait par l'ordre, et la hachure décollait du bord droit sur mobile. */
+        /* `display` reste hors des sélecteurs portant l'ID : sinon #installBtn.cta-hachured
+           l'emporterait sur le `display: none` de #installBtn et le bouton d'installation
+           s'afficherait en permanence, au lieu d'attendre beforeinstallprompt. */
+        .cta-hachured { display: flex; }
+        .cta-hachured, .btn-primary.cta-hachured, #installBtn.cta-hachured {
+            align-items: stretch; gap: 14px;
             border-radius: 0; overflow: hidden;
             padding: 0 0 0 24px; min-height: 56px;
             clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
