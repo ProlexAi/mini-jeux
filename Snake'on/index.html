@@ -255,6 +255,13 @@
         .btn-secondary { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
         .btn-secondary:active { background: var(--warning); color: var(--bg); }
         .btn-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        .cta-hachured {
+            display: flex; align-items: center; gap: 14px;
+            border-radius: 0; padding-right: 0; overflow: hidden;
+            clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+        }
+        .cta-hachured > span:first-child { flex: 1; text-align: left; }
+        .cta-hachured .hachure { min-height: 100%; }
         #installBtn { display: none; font-size: 14px; padding: 9px 20px; }
 
         /* ===== XP ===== */
@@ -546,11 +553,11 @@
         <div id="comboDisplay"></div>
     </div>
     <div id="killStreak"></div>
-    <div id="leaderboard"><h3>CLASSEMENT</h3><div id="lbContent"></div></div>
+    <div id="leaderboard"><h3 data-i18n="leaderboard">CLASSEMENT</h3><div id="lbContent"></div></div>
     <canvas id="minimap" width="100" height="70"></canvas>
     <div id="spectateBanner" class="hidden">
-        <span>💀 Mangé par <span id="spectateName" class="accent"></span></span>
-        <button id="spectateSkipBtn">Voir mes résultats ▶</button>
+        <span><span data-i18n="eatenBy">💀 Mangé par</span> <span id="spectateName" class="accent"></span></span>
+        <button id="spectateSkipBtn" data-i18n="seeResults">Voir mes résultats ▶</button>
     </div>
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
@@ -560,33 +567,33 @@
     <div id="menuScreen" class="overlay">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
         <div style="text-align:center;">
-            <input type="text" id="pseudoInput" class="pseudo-input" maxlength="14" placeholder="Ton pseudo">
-            <div style="font-size:16px;">Niveau <span id="menuLevel" class="accent">1</span></div>
+            <input type="text" id="pseudoInput" class="pseudo-input" maxlength="14" data-i18n-ph="pseudoPlaceholder" placeholder="Ton pseudo">
+            <div style="font-size:16px;"><span data-i18n="level">Niveau</span> <span id="menuLevel" class="accent">1</span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
         </div>
         <div class="tabs" id="mainTabs">
-            <button class="tab-btn active" data-tab="skins">🎨 Skins</button>
-            <button class="tab-btn" data-tab="stats">📊 Stats</button>
-            <button class="tab-btn" data-tab="history">📜 Historique</button>
-            <button class="tab-btn" data-tab="achievements">🏅 Succès</button>
-            <button class="tab-btn" data-tab="settings">⚙️ Réglages</button>
+            <button class="tab-btn active" data-tab="skins" data-i18n="tabSkins">🎨 Skins</button>
+            <button class="tab-btn" data-tab="stats" data-i18n="tabStats">📊 Stats</button>
+            <button class="tab-btn" data-tab="history" data-i18n="tabHistory">📜 Historique</button>
+            <button class="tab-btn" data-tab="achievements" data-i18n="tabAchievements">🏅 Succès</button>
+            <button class="tab-btn" data-tab="settings" data-i18n="tabSettings">⚙️ Réglages</button>
         </div>
         <div id="tab-skins" class="tab-content active">
             <div class="skins-row" id="skinsRow"></div>
-            <div class="hint">Monte de niveau pour débloquer des skins !</div>
+            <div class="hint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
         </div>
         <div id="tab-stats" class="tab-content">
             <div class="stats-grid">
-                <div class="stat-box"><div class="val" id="statBest">0</div><div class="label">Record</div></div>
-                <div class="stat-box"><div class="val" id="statKills">0</div><div class="label">Kills</div></div>
-                <div class="stat-box"><div class="val" id="statGames">0</div><div class="label">Parties</div></div>
-                <div class="stat-box"><div class="val" id="statTime">0s</div><div class="label">Temps</div></div>
+                <div class="stat-box"><div class="val" id="statBest">0</div><div class="label" data-i18n="statBest">Record</div></div>
+                <div class="stat-box"><div class="val" id="statKills">0</div><div class="label" data-i18n="statKills">Kills</div></div>
+                <div class="stat-box"><div class="val" id="statGames">0</div><div class="label" data-i18n="statGames">Parties</div></div>
+                <div class="stat-box"><div class="val" id="statTime">0s</div><div class="label" data-i18n="statTime">Temps</div></div>
             </div>
         </div>
         <div id="tab-history" class="tab-content">
             <table class="history-table">
-                <thead><tr><th>#</th><th>Taille</th><th>Kills</th><th>Durée</th></tr></thead>
+                <thead><tr><th data-i18n="colNum">#</th><th data-i18n="colSize">Taille</th><th data-i18n="colKills">Kills</th><th data-i18n="colDuration">Durée</th></tr></thead>
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
@@ -595,99 +602,99 @@
         </div>
         <div id="tab-settings" class="tab-content">
             <div id="settingsRoot">
-                <h2>Audio</h2>
+                <h2 data-i18n="secAudio">Audio</h2>
                 <div class="setting-row">
-                    <span class="setting-label">🎵 Musique</span>
+                    <span class="setting-label" data-i18n="music">🎵 Musique</span>
                     <input type="range" class="vol-slider" min="0" max="100" data-vol="music">
                     <span class="vol-value" data-vol-value="music">70</span>
                 </div>
                 <div class="setting-row">
-                    <span class="setting-label">🔊 Sons</span>
+                    <span class="setting-label" data-i18n="sounds">🔊 Sons</span>
                     <input type="range" class="vol-slider" min="0" max="100" data-vol="sfx">
                     <span class="vol-value" data-vol-value="sfx">100</span>
                 </div>
-                <h2 style="margin-top:16px">Effets</h2>
+                <h2 style="margin-top:16px" data-i18n="secEffects">Effets</h2>
                 <div class="effects-row" data-group="clickEffects">
                     <button type="button" class="effect-opt" data-effects="NONE">
-                        <span class="opt-dot"></span><span class="opt-label">Aucun</span><span class="opt-hint">flash seul</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxNone">Aucun</span><span class="opt-hint" data-i18n="fxNoneHint">flash seul</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="LIGHT">
-                        <span class="opt-dot"></span><span class="opt-label">Léger</span><span class="opt-hint">anneau + moitié</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxLight">Léger</span><span class="opt-hint" data-i18n="fxLightHint">anneau + moitié</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="FULL">
-                        <span class="opt-dot"></span><span class="opt-label">Complet</span><span class="opt-hint">bille lancée</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxFull">Complet</span><span class="opt-hint" data-i18n="fxFullHint">bille lancée</span>
                     </button>
                 </div>
-                <h2 style="margin-top:16px">Qualité graphique</h2>
+                <h2 style="margin-top:16px" data-i18n="secQuality">Qualité graphique</h2>
                 <div class="tabs quality-row" id="qualityRow">
-                    <button type="button" class="tab-btn quality-btn" data-quality="LOW"><span class="q-px">1280×720</span><span class="q-note">économe</span></button>
-                    <button type="button" class="tab-btn quality-btn" data-quality="MEDIUM"><span class="q-px">1600×900</span><span class="q-note">équilibré</span></button>
-                    <button type="button" class="tab-btn quality-btn" data-quality="HIGH"><span class="q-px">1920×1080</span><span class="q-note">natif</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-quality="LOW"><span class="q-px">1280×720</span><span class="q-note" data-i18n="qLow">économe</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-quality="MEDIUM"><span class="q-px">1600×900</span><span class="q-note" data-i18n="qMedium">équilibré</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-quality="HIGH"><span class="q-px">1920×1080</span><span class="q-note" data-i18n="qHigh">natif</span></button>
                 </div>
-                <h2 style="margin-top:16px">Langue</h2>
+                <h2 style="margin-top:16px" data-i18n="secLanguage">Langue</h2>
                 <button type="button" class="lang-row" id="openLangBtn">
-                    <span class="setting-label">Langue</span>
+                    <span class="setting-label" data-i18n="secLanguage">Langue</span>
                     <span class="lang-current" id="langCurrentLabel">Français</span>
                     <span class="lang-chevron">❯</span>
                     <span class="hachure" style="width:20px"></span>
                 </button>
-                <h2 style="margin-top:16px">Couleur de l'interface</h2>
+                <h2 style="margin-top:16px" data-i18n="secUiColor">Couleur de l'interface</h2>
                 <div class="swatch-row" data-group="uiColor"></div>
-                <h2 style="margin-top:16px">Commandes</h2>
+                <h2 style="margin-top:16px" data-i18n="secControls">Commandes</h2>
                 <div class="controls-hint">
-                    <p>🖱️ Ordinateur : le serpent suit la souris</p>
-                    <p>👆 Mobile : le serpent suit ton doigt</p>
-                    <p>⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
+                    <p data-i18n="ctrlDesktop">🖱️ Ordinateur : le serpent suit la souris</p>
+                    <p data-i18n="ctrlMobile">👆 Mobile : le serpent suit ton doigt</p>
+                    <p data-i18n="ctrlKeys">⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
                 </div>
             </div>
             <div id="settingsLang" class="hidden">
                 <div class="lang-list" id="langList"></div>
-                <button type="button" class="tab-btn lang-back" id="langBackBtn">❮ Retour</button>
+                <button type="button" class="tab-btn lang-back" id="langBackBtn" data-i18n="back">❮ Retour</button>
             </div>
         </div>
-        <button id="playBtn" class="btn-primary">▶ JOUER</button>
-        <button id="installBtn">📱 Installer l'appli</button>
+        <button id="playBtn" class="btn-primary cta-hachured"><span data-i18n="play">▶ JOUER</span><span class="hachure" style="width:26px"></span></button>
+        <button id="installBtn" class="cta-hachured"><span data-i18n="install">📱 Installer l'appli</span><span class="hachure" style="width:20px"></span></button>
         <div class="hint" id="offlineHint"></div>
     </div>
 
     <!-- BIENVENUE (1ere partie uniquement) -->
     <div id="welcomeScreen" class="overlay hidden">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
-        <p style="max-width:340px;text-align:center;">
+        <p style="max-width:340px;text-align:center;" data-i18n="welcomeText">
             Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les
             plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
             tu réapparais aussitôt dans la même arène.
         </p>
-        <button id="welcomeStartBtn" class="btn-primary">C'EST PARTI ▶</button>
+        <button id="welcomeStartBtn" class="btn-primary" data-i18n="welcomeStart">C'EST PARTI ▶</button>
     </div>
 
     <!-- PAUSE -->
     <div id="pauseScreen" class="overlay hidden">
         <div id="pauseNormal">
             <div class="pause-title-row">
-                <h1 style="margin-bottom:0">⏸ PAUSE</h1>
+                <h1 style="margin-bottom:0" data-i18n="pause">⏸ PAUSE</h1>
                 <span class="pause-subtitle">SYS//HALT</span>
             </div>
-            <p class="hint">La partie reprend où tu l’as laissée.</p>
+            <p class="hint" data-i18n="pauseHint">La partie reprend où tu l’as laissée.</p>
             <div class="btn-row">
-                <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
+                <button id="resumeBtn" class="btn-primary cta-hachured"><span data-i18n="resume">▶ REPRENDRE</span><span class="hachure" style="width:26px"></span></button>
             </div>
 
             <div class="pause-settings">
-                <h2>Réglages</h2>
+                <h2 data-i18n="settings">Réglages</h2>
                 <div class="effects-row" data-group="clickEffects">
                     <button type="button" class="effect-opt" data-effects="NONE">
-                        <span class="opt-dot"></span><span class="opt-label">Effets · Aucun</span><span class="opt-hint">flash seul</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxNone">Aucun</span><span class="opt-hint" data-i18n="fxNoneHint">flash seul</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="LIGHT">
-                        <span class="opt-dot"></span><span class="opt-label">Effets · Léger</span><span class="opt-hint">anneau + moitié</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxLight">Léger</span><span class="opt-hint" data-i18n="fxLightHint">anneau + moitié</span>
                     </button>
                     <button type="button" class="effect-opt" data-effects="FULL">
-                        <span class="opt-dot"></span><span class="opt-label">Effets · Complet</span><span class="opt-hint">bille lancée</span>
+                        <span class="opt-dot"></span><span class="opt-label" data-i18n="fxFull">Complet</span><span class="opt-hint" data-i18n="fxFullHint">bille lancée</span>
                     </button>
                 </div>
                 <div class="setting-row">
-                    <span class="setting-label">🎵 Musique</span>
+                    <span class="setting-label" data-i18n="music">🎵 Musique</span>
                     <input type="range" class="vol-slider" min="0" max="100" data-vol="music">
                     <span class="vol-value" data-vol-value="music">70</span>
                 </div>
@@ -697,17 +704,17 @@
             <div class="abandon-row">
                 <span class="abandon-warn">⚠</span>
                 <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
-                    <span>ABANDONNER</span><span class="hachure danger" style="width:20px"></span>
+                    <span data-i18n="abandon">ABANDONNER</span><span class="hachure danger" style="width:20px"></span>
                 </button>
                 <span class="abandon-warn">⚠</span>
             </div>
         </div>
         <div id="pauseConfirm" class="hidden">
-            <h1>Abandonner ?</h1>
-            <p class="hint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
+            <h1 data-i18n="abandonTitle">Abandonner ?</h1>
+            <p class="hint" data-i18n="abandonHint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
             <div class="btn-row">
-                <button id="abandonNoBtn" class="btn-primary">NON</button>
-                <button id="abandonYesBtn" class="btn-secondary" data-role="danger">OUI</button>
+                <button id="abandonNoBtn" class="btn-primary" data-i18n="no">NON</button>
+                <button id="abandonYesBtn" class="btn-secondary" data-role="danger" data-i18n="yes">OUI</button>
             </div>
         </div>
     </div>
@@ -832,7 +839,159 @@ const LANGUAGES = [
 ];
 
 // L'interface se traduit ; les textes de jeu (succès, toasts, historique) restent en français.
-const TRANSLATIONS = {};
+// "Kills" est conservé tel quel dans toutes les langues (cahier des charges UI §5.4).
+const TRANSLATIONS = {
+    fr: {
+        tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 Historique',
+        tabAchievements: '🏅 Succès', tabSettings: '⚙️ Réglages',
+        level: 'Niveau', pseudoPlaceholder: 'Ton pseudo', skinsHint: 'Monte de niveau pour débloquer des skins !',
+        statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
+        colNum: '#', colSize: 'Taille', colKills: 'Kills', colDuration: 'Durée', noGames: 'Aucune partie',
+        secAudio: 'Audio', secEffects: 'Effets', secQuality: 'Qualité graphique',
+        secLanguage: 'Langue', secUiColor: "Couleur de l'interface", secControls: 'Commandes',
+        music: '🎵 Musique', sounds: '🔊 Sons',
+        fxNone: 'Aucun', fxLight: 'Léger', fxFull: 'Complet',
+        fxNoneHint: 'flash seul', fxLightHint: 'anneau + moitié', fxFullHint: 'bille lancée',
+        qLow: 'économe', qMedium: 'équilibré', qHigh: 'natif',
+        back: '❮ Retour', play: '▶ JOUER', install: "📱 Installer l'appli",
+        ctrlDesktop: '🖱️ Ordinateur : le serpent suit la souris',
+        ctrlMobile: '👆 Mobile : le serpent suit ton doigt',
+        ctrlKeys: '⌨️ Échap ou P : pause · Entrée / Espace : jouer',
+        welcomeText: "Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort, tu réapparais aussitôt dans la même arène.",
+        welcomeStart: "C'EST PARTI ▶",
+        pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
+        resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
+        abandonTitle: 'Abandonner ?', abandonHint: 'La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.',
+        yes: 'OUI', no: 'NON',
+        leaderboard: 'CLASSEMENT', you: 'TOI', size: 'Taille', time: 'Temps', kills: 'Kills',
+        eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
+    },
+    en: {
+        tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 History',
+        tabAchievements: '🏅 Achievements', tabSettings: '⚙️ Settings',
+        level: 'Level', pseudoPlaceholder: 'Your nickname', skinsHint: 'Level up to unlock skins!',
+        statBest: 'Best', statKills: 'Kills', statGames: 'Games', statTime: 'Time',
+        colNum: '#', colSize: 'Size', colKills: 'Kills', colDuration: 'Duration', noGames: 'No games yet',
+        secAudio: 'Audio', secEffects: 'Effects', secQuality: 'Graphics quality',
+        secLanguage: 'Language', secUiColor: 'Interface colour', secControls: 'Controls',
+        music: '🎵 Music', sounds: '🔊 Sounds',
+        fxNone: 'None', fxLight: 'Light', fxFull: 'Full',
+        fxNoneHint: 'flash only', fxLightHint: 'ring + half', fxFullHint: 'thrown bead',
+        qLow: 'thrifty', qMedium: 'balanced', qHigh: 'native',
+        back: '❮ Back', play: '▶ PLAY', install: '📱 Install app',
+        ctrlDesktop: '🖱️ Desktop: the snake follows your mouse',
+        ctrlMobile: '👆 Mobile: the snake follows your finger',
+        ctrlKeys: '⌨️ Esc or P: pause · Enter / Space: play',
+        welcomeText: 'Eat the pellets, grow, avoid snakes bigger than you — and devour the smaller ones. Touch their body to cut them. The game never ends: when you die, you respawn straight away in the same arena.',
+        welcomeStart: "LET'S GO ▶",
+        pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
+        resume: '▶ RESUME', settings: 'Settings', abandon: 'GIVE UP',
+        abandonTitle: 'Give up?', abandonHint: 'The current life ends. No XP, no history entry.',
+        yes: 'YES', no: 'NO',
+        leaderboard: 'LEADERBOARD', you: 'YOU', size: 'Size', time: 'Time', kills: 'Kills',
+        eatenBy: '💀 Eaten by', seeResults: 'See my results ▶', offlineReady: 'Playable offline ✓',
+    },
+    es: {
+        tabSkins: '🎨 Aspectos', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
+        tabAchievements: '🏅 Logros', tabSettings: '⚙️ Ajustes',
+        level: 'Nivel', pseudoPlaceholder: 'Tu apodo', skinsHint: '¡Sube de nivel para desbloquear aspectos!',
+        statBest: 'Récord', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tiempo',
+        colNum: '#', colSize: 'Tamaño', colKills: 'Kills', colDuration: 'Duración', noGames: 'Ninguna partida',
+        secAudio: 'Audio', secEffects: 'Efectos', secQuality: 'Calidad gráfica',
+        secLanguage: 'Idioma', secUiColor: 'Color de la interfaz', secControls: 'Controles',
+        music: '🎵 Música', sounds: '🔊 Sonidos',
+        fxNone: 'Ninguno', fxLight: 'Ligero', fxFull: 'Completo',
+        fxNoneHint: 'solo destello', fxLightHint: 'anillo + mitad', fxFullHint: 'bola lanzada',
+        qLow: 'ahorro', qMedium: 'equilibrado', qHigh: 'nativo',
+        back: '❮ Volver', play: '▶ JUGAR', install: '📱 Instalar la app',
+        ctrlDesktop: '🖱️ Ordenador: la serpiente sigue el ratón',
+        ctrlMobile: '👆 Móvil: la serpiente sigue tu dedo',
+        ctrlKeys: '⌨️ Esc o P: pausa · Intro / Espacio: jugar',
+        welcomeText: 'Come las bolitas, crece, evita las serpientes más grandes que tú — y devora a las más pequeñas. Toca su cuerpo para cortarlas. El juego nunca termina: al morir, reapareces enseguida en la misma arena.',
+        welcomeStart: '¡VAMOS! ▶',
+        pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
+        resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'ABANDONAR',
+        abandonTitle: '¿Abandonar?', abandonHint: 'La vida actual termina. Sin XP, sin entrada en el historial.',
+        yes: 'SÍ', no: 'NO',
+        leaderboard: 'CLASIFICACIÓN', you: 'TÚ', size: 'Tamaño', time: 'Tiempo', kills: 'Kills',
+        eatenBy: '💀 Devorado por', seeResults: 'Ver mis resultados ▶', offlineReady: 'Jugable sin conexión ✓',
+    },
+    de: {
+        tabSkins: '🎨 Skins', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
+        tabAchievements: '🏅 Erfolge', tabSettings: '⚙️ Einstellungen',
+        level: 'Level', pseudoPlaceholder: 'Dein Spitzname', skinsHint: 'Steige auf, um Skins freizuschalten!',
+        statBest: 'Rekord', statKills: 'Kills', statGames: 'Runden', statTime: 'Zeit',
+        colNum: '#', colSize: 'Größe', colKills: 'Kills', colDuration: 'Dauer', noGames: 'Keine Runde',
+        secAudio: 'Audio', secEffects: 'Effekte', secQuality: 'Grafikqualität',
+        secLanguage: 'Sprache', secUiColor: 'Farbe der Oberfläche', secControls: 'Steuerung',
+        music: '🎵 Musik', sounds: '🔊 Geräusche',
+        fxNone: 'Keine', fxLight: 'Leicht', fxFull: 'Voll',
+        fxNoneHint: 'nur Blitz', fxLightHint: 'Ring + Hälfte', fxFullHint: 'geworfene Kugel',
+        qLow: 'sparsam', qMedium: 'ausgewogen', qHigh: 'nativ',
+        back: '❮ Zurück', play: '▶ SPIELEN', install: '📱 App installieren',
+        ctrlDesktop: '🖱️ Computer: Die Schlange folgt der Maus',
+        ctrlMobile: '👆 Mobil: Die Schlange folgt deinem Finger',
+        ctrlKeys: '⌨️ Esc oder P: Pause · Enter / Leertaste: spielen',
+        welcomeText: 'Friss die Kugeln, wachse, meide größere Schlangen — und verschlinge die kleineren. Berühre ihren Körper, um sie zu zerteilen. Das Spiel endet nie: Stirbst du, erscheinst du sofort in derselben Arena wieder.',
+        welcomeStart: "LOS GEHT'S ▶",
+        pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
+        resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'AUFGEBEN',
+        abandonTitle: 'Aufgeben?', abandonHint: 'Das laufende Leben endet. Kein XP, kein Verlaufseintrag.',
+        yes: 'JA', no: 'NEIN',
+        leaderboard: 'RANGLISTE', you: 'DU', size: 'Größe', time: 'Zeit', kills: 'Kills',
+        eatenBy: '💀 Gefressen von', seeResults: 'Meine Ergebnisse ▶', offlineReady: 'Offline spielbar ✓',
+    },
+    it: {
+        tabSkins: '🎨 Skin', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
+        tabAchievements: '🏅 Obiettivi', tabSettings: '⚙️ Impostazioni',
+        level: 'Livello', pseudoPlaceholder: 'Il tuo soprannome', skinsHint: 'Sali di livello per sbloccare le skin!',
+        statBest: 'Record', statKills: 'Kills', statGames: 'Partite', statTime: 'Tempo',
+        colNum: '#', colSize: 'Taglia', colKills: 'Kills', colDuration: 'Durata', noGames: 'Nessuna partita',
+        secAudio: 'Audio', secEffects: 'Effetti', secQuality: 'Qualità grafica',
+        secLanguage: 'Lingua', secUiColor: "Colore dell'interfaccia", secControls: 'Comandi',
+        music: '🎵 Musica', sounds: '🔊 Suoni',
+        fxNone: 'Nessuno', fxLight: 'Leggero', fxFull: 'Completo',
+        fxNoneHint: 'solo lampo', fxLightHint: 'anello + metà', fxFullHint: 'biglia lanciata',
+        qLow: 'economico', qMedium: 'equilibrato', qHigh: 'nativo',
+        back: '❮ Indietro', play: '▶ GIOCA', install: "📱 Installa l'app",
+        ctrlDesktop: '🖱️ Computer: il serpente segue il mouse',
+        ctrlMobile: '👆 Mobile: il serpente segue il tuo dito',
+        ctrlKeys: '⌨️ Esc o P: pausa · Invio / Spazio: gioca',
+        welcomeText: 'Mangia le palline, cresci, evita i serpenti più grandi di te — e divora i più piccoli. Tocca il loro corpo per tagliarli. Il gioco non finisce mai: quando muori, riappari subito nella stessa arena.',
+        welcomeStart: 'SI PARTE ▶',
+        pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
+        resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ABBANDONA',
+        abandonTitle: 'Abbandonare?', abandonHint: 'La vita in corso termina. Nessun XP, nessuna voce in cronologia.',
+        yes: 'SÌ', no: 'NO',
+        leaderboard: 'CLASSIFICA', you: 'TU', size: 'Taglia', time: 'Tempo', kills: 'Kills',
+        eatenBy: '💀 Mangiato da', seeResults: 'Vedi i miei risultati ▶', offlineReady: 'Giocabile offline ✓',
+    },
+    pt: {
+        tabSkins: '🎨 Skins', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
+        tabAchievements: '🏅 Conquistas', tabSettings: '⚙️ Definições',
+        level: 'Nível', pseudoPlaceholder: 'A tua alcunha', skinsHint: 'Sobe de nível para desbloquear skins!',
+        statBest: 'Recorde', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tempo',
+        colNum: '#', colSize: 'Tamanho', colKills: 'Kills', colDuration: 'Duração', noGames: 'Nenhuma partida',
+        secAudio: 'Áudio', secEffects: 'Efeitos', secQuality: 'Qualidade gráfica',
+        secLanguage: 'Idioma', secUiColor: 'Cor da interface', secControls: 'Comandos',
+        music: '🎵 Música', sounds: '🔊 Sons',
+        fxNone: 'Nenhum', fxLight: 'Ligeiro', fxFull: 'Completo',
+        fxNoneHint: 'só o clarão', fxLightHint: 'anel + metade', fxFullHint: 'bola lançada',
+        qLow: 'económico', qMedium: 'equilibrado', qHigh: 'nativo',
+        back: '❮ Voltar', play: '▶ JOGAR', install: '📱 Instalar a app',
+        ctrlDesktop: '🖱️ Computador: a cobra segue o rato',
+        ctrlMobile: '👆 Telemóvel: a cobra segue o teu dedo',
+        ctrlKeys: '⌨️ Esc ou P: pausa · Enter / Espaço: jogar',
+        welcomeText: 'Come as bolinhas, cresce, evita as cobras maiores do que tu — e devora as mais pequenas. Toca no corpo delas para as cortares. O jogo nunca acaba: ao morreres, reapareces logo na mesma arena.',
+        welcomeStart: 'VAMOS ▶',
+        pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
+        resume: '▶ RETOMAR', settings: 'Definições', abandon: 'DESISTIR',
+        abandonTitle: 'Desistir?', abandonHint: 'A vida atual termina. Sem XP, sem entrada no histórico.',
+        yes: 'SIM', no: 'NÃO',
+        leaderboard: 'CLASSIFICAÇÃO', you: 'TU', size: 'Tamanho', time: 'Tempo', kills: 'Kills',
+        eatenBy: '💀 Comido por', seeResults: 'Ver os meus resultados ▶', offlineReady: 'Jogável offline ✓',
+    },
+};
 
 function t(key) {
     const dict = TRANSLATIONS[save.settings.lang] || TRANSLATIONS.fr || {};
@@ -986,6 +1145,8 @@ let save = loadSave();
 function applyUiColor(hex) {
     document.documentElement.style.setProperty('--accent', hex);
 }
+
+function playerName() { return save.pseudo || t('you'); }
 applyUiColor(save.settings.uiColor);
 
 function xpForLevel(lvl) { return Math.floor(lvl * 100); }
@@ -1677,7 +1838,7 @@ function renderMenu() {
     const tbody = $('historyBody');
     tbody.innerHTML = '';
     if (save.history.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="color:#666;text-align:center;">Aucune partie</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#666;text-align:center;">' + t('noGames') + '</td></tr>';
     } else {
         save.history.forEach((h, i) => {
             const tr = document.createElement('tr');
@@ -1701,9 +1862,9 @@ function renderMenu() {
 
 function updateHUD() {
     if (!player) return;
-    $('scoreDisplay').textContent = 'Taille: ' + player.length;
-    $('timerDisplay').textContent = 'Temps: ' + formatTime(Math.floor(gameClock / 1000));
-    $('killsDisplay').textContent = 'Kills: ' + sessionKills;
+    $('scoreDisplay').textContent = t('size') + ': ' + player.length;
+    $('timerDisplay').textContent = t('time') + ': ' + formatTime(Math.floor(gameClock / 1000));
+    $('killsDisplay').textContent = t('kills') + ': ' + sessionKills;
 
     const puDiv = $('puIndicators');
     puDiv.innerHTML = '';
@@ -1738,7 +1899,7 @@ function updateLeaderboard() {
     });
     if (player && player.alive) {
         const rank = all.indexOf(player);
-        if (rank > 2) html += '<div class="lb-entry lb-player">📊 Toi: #' + (rank+1) + ' (' + player.length + ')</div>';
+        if (rank > 2) html += '<div class="lb-entry lb-player">📊 ' + playerName() + ': #' + (rank+1) + ' (' + player.length + ')</div>';
     }
     $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
 }
@@ -1867,7 +2028,7 @@ function startGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, 'TOI', currentSkin().color
+        true, playerName(), currentSkin().color
     );
 
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
@@ -2109,7 +2270,7 @@ function respawnPlayer() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, 'TOI', currentSkin().color
+        true, playerName(), currentSkin().color
     );
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     sessionKills = 0;
@@ -2739,7 +2900,7 @@ function buildLangList() {
             save.settings.lang = l.code;
             writeSave();
             applyLanguage();
-            applySettingsUI();
+            renderMenu();   // stats/historique sont générés en JS : leurs libellés ne suivent pas data-i18n
         });
         list.appendChild(b);
     });
@@ -2871,7 +3032,7 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').then(reg => {
             // Sur iPhone non installé, la consigne « Partager → Sur l'écran d'accueil » prime :
             // c'est la seule façon d'installer, on ne l'écrase pas.
-            if (!isIOS || isStandalone()) $('offlineHint').textContent = 'Jouable hors-ligne ✓';
+            if (!isIOS || isStandalone()) $('offlineHint').textContent = t('offlineReady');
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
