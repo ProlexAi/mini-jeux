@@ -870,7 +870,15 @@ const CONFIG = {
     MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
     BOT_MAX_LENGTH: 300,     // plafond des bots : evite qu'un seul finisse par dominer toute l'arene
-    MAX_RADIUS: 40,          // rayon plafond (utilise aussi par grow())
+    // GARDE-FOU de rendu, pas une regle de jeu : le rayon ne plafonne plus, il suit la masse par
+    // une courbe amortie (RADIUS_EXPONENT). Un plafond dur detruisait l'information — au-dela,
+    // deux serpents dont l'un pouvait devorer l'autre etaient identiques a l'ecran, ecart mesure
+    // exactement 0,00 px (cf. analyse-concurrence.md §2bis).
+    MAX_RADIUS: 130,
+    // Exposant liant le rayon a la masse. agar.io utilise 0,5 (aire proportionnelle a la masse),
+    // ce qui donne un rayon de 358 a 20 000 de masse : constate en jeu, le serpent remplit tout
+    // l'ecran et se noie dans son propre corps. 0,34 conserve un ecart visible sans le blob.
+    RADIUS_EXPONENT: 0.34,
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
@@ -888,6 +896,7 @@ const CONFIG = {
     BOT_CHASE_SPEED: 0.92,     // un poursuivant est TOUJOURS plus lent que sa proie
     BASE_MASS: 10,             // masse de depart, egale a la longueur de depart
     EAT_MASS_RATIO: 1.25,      // +25 % de masse pour absorber (modele agar.io, cf. analyse-concurrence.md §1)
+    BOT_MAX_MASS: 1500,        // plafond de masse des bots ; le joueur n'en a aucun
     // Masse a laquelle la vitesse atteint son plancher. La masse n'ayant pas de plafond, la
     // courbe doit saturer quelque part, sinon un serpent tres lourd finirait immobile.
     SPEED_REF_MASS: 650,
@@ -979,6 +988,15 @@ const AURA_MAX_POINTS = 90;
 // par la course, la fumee s'etire mollement derriere, la foudre ne se couche pas — elle jaillit
 // perpendiculairement.
 const AURA_LEAN = { flame: 0.85, smoke: 0.55, bolt: 0 };
+
+// Liseré de menace : couleur ET épaisseur, pour que l'information passe aussi sans distinguer
+// les teintes. Le rouge est celui d'Abandonner (§2 du cahier des charges), seule couleur du jeu
+// qui signale déjà le danger. `width` s'exprime en multiples de r.
+const THREAT_RIM = {
+    danger: { color: '#ff5c8a', width: 0.52 },   // il peut te dévorer : liseré large et rouge
+    neutre: { color: '#0a0e18', width: 0.30 },   // statu quo : liseré sombre, discret
+    proie:  { color: '#39ff88', width: 0.18 },   // tu peux le dévorer : liseré fin et vert
+};
 
 // Rampe de temperature de chaque aura : du plus chaud (au contact du corps) au plus froid
 // (a la peripherie). Une tache prend sa couleur selon sa distance au corps.
@@ -1877,6 +1895,10 @@ class Snake {
         this.kills = 0;
         this.turnSmoothing = 0.1;
         this.maxLength = isPlayer ? CONFIG.MAX_LENGTH : CONFIG.BOT_MAX_LENGTH;
+        // Plafond de masse des bots : sans lui, un bot laisse tourner 15 minutes atteignait
+        // 31 574 de masse — devenu indevorable, il remplissait l'ecran de son propre corps.
+        // Le joueur, lui, n'a aucun plafond de masse : c'est sa progression.
+        this.maxMass = isPlayer ? Infinity : CONFIG.BOT_MAX_MASS;
         // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
         this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
         for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
@@ -1889,6 +1911,17 @@ class Snake {
     // Une comparaison de predation ne porte donc jamais sur une grandeur plafonnee
     // (cf. analyse-concurrence.md §1).
     get mass() { return this.massValue; }
+
+    // Rapport de force AVEC LE JOUEUR, du point de vue de celui qui regarde l'ecran.
+    // 'danger'  : ce serpent peut te devorer.
+    // 'proie'   : tu peux le devorer.
+    // 'neutre'  : ni l'un ni l'autre — c'est aussi le cas de ton propre serpent.
+    threatLevel() {
+        if (this.isPlayer || !player || !player.alive || this === player) return 'neutre';
+        if (this.beats(player)) return 'danger';
+        if (player.beats(this)) return 'proie';
+        return 'neutre';
+    }
 
     // Modele agar.io, valide par Matt : il faut etre au moins EAT_MASS_RATIO fois plus lourd
     // pour absorber. La marge existe pour eviter que deux serpents de masses quasi identiques
@@ -2084,18 +2117,27 @@ class Snake {
         ctx.lineWidth = glowWidth;
         ctx.stroke();
 
-        // Liseré sombre plaqué sur le bord du corps, entre l'aura et le cœur : le bord reste
-        // ainsi tranche quelle que soit la densite de l'aura, sans avoir a ternir celle-ci.
-        // Juger sa taille decide de la vie ou de la mort, la predation se comparant sur le rayon.
-        // Mesure (gradient max en traversant le bord, rapporte au meme serpent sans skin) :
-        // 109 % / 96 % / 106 %. Attention a l'instrument : un ecart entre deux points fixes
-        // ENCADRE ce lisere sans le toucher et le fait passer pour absent.
-        if (preset) {
-            ctx.globalAlpha = 0.9;
-            ctx.strokeStyle = '#0a0e18';
-            ctx.lineWidth = r * 2 + r * 0.3;
-            ctx.stroke();
-        }
+        // LISERE DE MENACE — plaqué sur le bord du corps, entre l'aura et le cœur.
+        //
+        // Deux rôles en un. D'abord il garde le bord tranché quelle que soit la densité de
+        // l'aura, sans avoir à ternir celle-ci (mesuré au gradient de traversée du bord :
+        // 109 % / 96 % / 106 % du même serpent sans skin ; attention à l'instrument, un écart
+        // entre deux points fixes ENCADRE ce liseré sans le toucher et le fait passer pour
+        // absent). Ensuite, et surtout, sa COULEUR répond à la seule question qui compte face à
+        // un autre serpent : est-ce que je fonce ou est-ce que je fuis ?
+        //
+        // Pourquoi ce canal et pas la taille : au-delà d'une certaine masse, l'écart d'épaisseur
+        // à l'écran entre deux serpents au seuil de prédation tombe à quelques pixels — illisible
+        // dans l'action. Ni agar.io ni slither.io ne résolvent ce cas, aucun des deux n'étant un
+        // jeu de serpent où la masse décide (cf. analyse-concurrence.md §2bis).
+        //
+        // Lisible sans distinguer les couleurs : l'ÉPAISSEUR du liseré porte la même information
+        // que sa teinte — épais pour un prédateur, fin pour une proie.
+        const menace = this.threatLevel();
+        ctx.globalAlpha = menace === 'neutre' ? 0.9 : 0.95;
+        ctx.strokeStyle = THREAT_RIM[menace].color;
+        ctx.lineWidth = r * 2 + r * THREAT_RIM[menace].width;
+        ctx.stroke();
 
         // Cœur du corps : alpha 1 et largeur r*2 non négociables (repère de lisibilité) — un
         // skin ne peut varier ici que la teinte (dégradé), jamais l'opacité ni des pointillés.
@@ -2498,9 +2540,17 @@ class Snake {
         // du plafond, le serpent continue de prendre de la masse sans s'allonger a l'ecran.
         // Meme principe que slither.io, ou le score continue de monter une fois la taille
         // visuelle plafonnee (cf. analyse-concurrence.md §3).
-        this.massValue += amount;
+        this.massValue = Math.min(this.maxMass, this.massValue + amount);
         this.length = Math.min(this.maxLength, this.length + amount);
-        this.radius = Math.min(CONFIG.MAX_RADIUS, this.radius + amount * 0.05);
+        this.syncRadius();
+    }
+
+    // Le rayon DERIVE de la masse, il ne s'accumule plus de son cote. Deux serpents de meme masse
+    // ont donc toujours le meme rayon, quel que soit le chemin parcouru pour y arriver — ce qui
+    // n'etait pas garanti quand grow() et cut() ajustaient le rayon par increments separes.
+    syncRadius() {
+        const r = CONFIG.BASE_RADIUS * Math.pow(Math.max(1, this.massValue / CONFIG.BASE_MASS), CONFIG.RADIUS_EXPONENT);
+        this.radius = Math.max(CONFIG.BASE_RADIUS, Math.min(CONFIG.MAX_RADIUS, r));
     }
 
     // Toucher le CORPS ampute : le serpent perd la partie coupee mais reste vivant (raccourci),
@@ -2517,7 +2567,7 @@ class Snake {
         const perdu = Math.min(1, removed / Math.max(1, this.length));
         this.length = this.segments.length;
         this.massValue = Math.max(CONFIG.BASE_MASS, this.massValue * (1 - perdu));
-        this.radius = Math.max(CONFIG.BASE_RADIUS, this.radius - removed * 0.05);
+        this.syncRadius();
         return removed;
     }
 
@@ -2758,11 +2808,24 @@ function drawMinimap() {
     minimapCtx.strokeRect(mx(cam.x) - vw/2, my(cam.y) - vh/2, vw, vh);
 
     // Pas la nourriture : 600 points sur 100x75 px ne seraient qu'un aplat.
+    // Le point grossit avec la MASSE : a taille fixe, un colosse et un nouveau-ne etaient deux
+    // points identiques, et une menace occupant une region entiere de la carte passait inapercue.
+    // Echelle logarithmique, sinon un serpent tres lourd noierait la carte comme il noyait
+    // l'ecran. Le lisere reprend le code de menace du jeu, pour que la carte reponde a la meme
+    // question : ou sont les predateurs, ou sont les proies.
     for (const s of aliveSnakes()) {
+        const ampleur = Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS));
+        const rad = s.isPlayer ? 3 : Math.min(6, 1.6 + ampleur * 0.55);
         minimapCtx.beginPath();
-        minimapCtx.arc(mx(s.x), my(s.y), s.isPlayer ? 3 : 1.8, 0, TAU);
+        minimapCtx.arc(mx(s.x), my(s.y), rad, 0, TAU);
         minimapCtx.fillStyle = s.isPlayer ? '#00ffcc' : s.color;
         minimapCtx.fill();
+        const menace = s.threatLevel();
+        if (menace !== 'neutre') {
+            minimapCtx.strokeStyle = THREAT_RIM[menace].color;
+            minimapCtx.lineWidth = menace === 'danger' ? 1.4 : 0.8;
+            minimapCtx.stroke();
+        }
     }
 }
 
