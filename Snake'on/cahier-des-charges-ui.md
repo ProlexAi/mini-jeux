@@ -1,11 +1,11 @@
 # Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
-et leurs actions — pas d'implémentation, pas de code. Version 0.4 : ajoute la **partie privée**
+et leurs actions — pas d'implémentation, pas de code. Version 0.6 : ajoute la **partie privée**
 (écran de Salon, bouton `A06`, pause qui ne fige plus le monde des autres) et **renverse la
 punition de l'abandon** — quitter une partie compte désormais la vie en cours, où qu'on parte
-(§5.15). La V0.3 (addendum *« L'éclat néon au clic »*) reste décrite telle quelle ; le §7
-consigne ses arbitrages et le §8 ce qui reste ouvert.
+(§5.23). Les V0.3 à V0.5 (éclat néon, skins, auras) restent décrites telles quelles ; le §7
+consigne les arbitrages de la V0.3 et le §8 ce qui reste ouvert.
 
 ---
 
@@ -24,7 +24,7 @@ Spectateur ──["Quitter"]──> Accueil
 
 Il n'y a pas de fin de partie : la boucle En jeu ⇄ Spectateur peut se répéter indéfiniment. Deux
 sorties ramènent à l'Accueil : **Quitter la partie** (depuis Pause) et **Quitter** (depuis la
-bannière spectateur). **Les deux comptent la vie en cours** — voir §5.15. La pop-up de bienvenue n'apparaît qu'une seule
+bannière spectateur). **Les deux comptent la vie en cours** — voir §5.23. La pop-up de bienvenue n'apparaît qu'une seule
 fois, à la toute première partie du joueur. **Réglages** est accessible de façon identique depuis
 l'Accueil et depuis Pause (v0.3) — ce n'est plus réservé à l'Accueil.
 
@@ -56,6 +56,21 @@ Pause suivait le jaune, elle suit maintenant la couleur choisie comme le reste. 
 n'est plus "décoratif hors interface" : c'est une des huit teintes sélectionnables. Le **rouge**
 garde exactement son rôle de v0.2 (seule action destructrice) mais devient la seule couleur qui
 échappe totalement au choix du joueur.
+
+### Skins du serpent *(nouveau, v0.4)*
+
+Un skin change l'apparence physique du serpent en jeu — trait du corps et forme de la tête —
+jamais sa couleur d'interface (indépendante, voir ci-dessus), jamais sa hitbox. Le trait "cœur"
+du corps (opacité et largeur pleines) reste identique sur tous les skins : c'est le repère de
+lisibilité qui permet de juger en un coup d'œil qui est plus gros. Un skin animé a toujours une
+version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin.
+
+**Auras élémentaires (v0.5).** Un skin peut porter une *aura* : une silhouette vivante qui
+épouse le contour du serpent et **déborde franchement de ses bords**. La lisibilité n'est alors
+plus garantie par la distance mais par l'**ordre de dessin** — l'aura passe sous le cœur, tracé
+par-dessus à opacité pleine, et une seule passe repasse devant lui, plafonnée à 0,25 d'alpha.
+Le débordement est borné à 2,2 fois le rayon. L'aura est une composante permanente : seule sa
+déformation s'anime, elle demeure donc sous `prefers-reduced-motion`.
 
 ### Typographie *(nouveau, v0.3)*
 
@@ -109,7 +124,7 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 | Entrée | Code | Rôle | Contenu |
 |---|---|---|---|
-| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de couleurs, verrouillées selon le niveau |
+| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 13 skins (trait + tête + aura), verrouillés selon le niveau |
 | 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
 | 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
 | 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
@@ -153,7 +168,7 @@ adaptés en largeur plutôt qu'en hauteur, même contenu.
     bouton quitte le rouge pour la couleur d'interface (les ⚠ deviennent des 🏆).
 
   **Quitter compte la vie en cours** exactement comme une mort — XP, stats et entrée à
-  l'historique (§5.15) ; en tête, l'XP est majoré du bonus de victoire. Pause suit maintenant la
+  l'historique (§5.23) ; en tête, l'XP est majoré du bonus de victoire. Pause suit maintenant la
   couleur d'interface choisie comme le reste de l'UI (v0.2 la réservait au jaune — révisé, §2).
 
 #### 🌐 Salon (partie privée) — *nouveau*
@@ -206,7 +221,7 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
    pas-à-pas. Le détail des commandes vit dans Réglages, pas dans la pop-up.
 3. **"Menu" de Pause : devient une sortie confirmée.** Icône drapeau, contour rouge fixe,
    confirmation obligatoire avant de quitter. *Libellé et comptabilité révisés en v0.4 — voir
-   §5.15 : "Abandonner" devient "Quitter la partie", et la vie en cours est désormais comptée.*
+   §5.23 : "Abandonner" devient "Quitter la partie", et la vie en cours est désormais comptée.*
 4. **"Kills" : conservé tel quel.** Pas de francisation.
 5. **Couleurs : rôle clarifié.** Révisé en v0.3, voir §2 — le principe (une couleur, un rôle net)
    reste le même, la table change.
@@ -231,8 +246,26 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 14. **Langue du jeu personnalisable : posé en principe**, 6 langues prévues — liste et périmètre
     exact à trancher, voir §7.
 
-### V0.4 — partie privée
-15. **Quitter ne coûte plus rien. Renverse le §5.3.** Toute sortie compte la vie en cours —
+### V0.4 — addendum "Skins qui changent le serpent"
+15. **Skin = trait du corps + tête, jamais une couleur seule.** 10 skins, mêmes paliers de
+    déblocage qu'avant. Silhouette et opacité du trait cœur non négociables (lisibilité).
+16. **Indépendant de la couleur d'interface.** Les deux systèmes restent étanches.
+17. **Pas de pièces combinables.** Un skin est un tout, identifié par un id court (coût de
+    réplication multijoueur futur).
+18. **Bots sans skin**, gardent leurs couleurs actuelles — préserve la distinction joueur/bot.
+19. **Noms de skins non traduits** (texte de jeu, français partout, cf. §7).
+
+### V0.5 — addendum « Auras élémentaires »
+20. **Une aura peut déborder de la silhouette.** Révise la décision 15 : la lisibilité est
+    assurée par l'ordre de dessin et une hiérarchie d'opacité, non plus par l'absence de
+    recouvrement.
+21. **Débordement borné à 2,2 r** et passe avant-plan plafonnée à 0,25 d'alpha. Ce que le
+    plafond protège est la lecture de la taille, et celle-ci est assurée par le liseré tracé
+    sur le bord du corps, non par l'étroitesse de l'aura.
+22. **Trois auras** : Flamme Ardente (25), Orage (30), Volutes (35).
+
+### V0.6 — partie privée
+23. **Quitter ne coûte plus rien. Renverse le §5.3.** Toute sortie compte la vie en cours —
     XP, stats, entrée à l'historique — qu'on parte depuis Pause ou depuis la bannière spectateur.
     En tête du classement, l'XP reste majoré du bonus de victoire.
     *Motif :* une partie brève commencée en attendant quelqu'un devait pouvoir s'interrompre
@@ -243,12 +276,12 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     punition qu'on retire) ; la confirmation dit désormais ce qu'on garde au lieu de ce qu'on
     perd ; le rouge et les deux ⚠ **restent**, mais signalent l'irréversibilité — on ne revient
     pas dans la même arène — et non une sanction.
-16. **Bannière spectateur : deux issues.** « **Continuer** » (défaut au bout de 4 s, comme avant)
+24. **Bannière spectateur : deux issues.** « **Continuer** » (défaut au bout de 4 s, comme avant)
     et « **Quitter** » (rouge). Les deux encaissent la vie identiquement ; seule diffère la
     destination — nouvelle vie dans la même arène, ou retour à l'Accueil.
-17. **Partie privée : bouton d'Accueil `A06`**, désactivé hors ligne avec son motif affiché
+25. **Partie privée : bouton d'Accueil `A06`**, désactivé hors ligne avec son motif affiché
     plutôt que masqué — un bouton absent ne s'explique pas.
-18. **Sortie subie ≠ sortie choisie.** Perdre l'hôte ou le réseau en pleine partie encaisse la
+26. **Sortie subie ≠ sortie choisie.** Perdre l'hôte ou le réseau en pleine partie encaisse la
     vie comme une mort : on ne fait pas payer au joueur une panne qu'il n'a pas causée.
 
 ---
@@ -350,4 +383,4 @@ encore échouer.
 ---
 
 *Ce document est la référence pour tout nouvel écran ou composant d'interface ajouté au jeu.
-La V0.4 est implémentée, à l'exception des points listés au §8.*
+La V0.6 est implémentée, à l'exception des points listés au §8.*

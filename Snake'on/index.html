@@ -157,6 +157,33 @@
             font-size: 11px; background: rgba(0,0,0,0.5);
             border: 1px solid;
         }
+        /* Télémétrie ping / FPS : volontairement en retrait — c'est une information de confort,
+           jamais un élément de jeu. Plus petite que le reste du HUD, faiblement opaque, et sans
+           l'ombre néon qui signale les valeurs qui comptent. */
+        #netDisplay {
+            font-size: 10px; opacity: 0.42; margin-top: 3px;
+            text-shadow: none; font-variant-numeric: tabular-nums;
+        }
+        /* Légende du liseré, écran de bienvenue. Les trois pastilles reprennent les teintes ET
+           les épaisseurs réelles du jeu : la légende reste donc exacte pour qui ne distingue
+           pas les couleurs. Cible tactile non requise, rien n'y est cliquable. */
+        .rim-legend {
+            /* Largeur bornee par le viewport : 340 px comme le paragraphe au-dessus, mais jamais
+               plus de 86 % de la largeur d'ecran, pour tenir sur un telephone etroit. */
+            margin: 14px 0 4px; width: min(340px, 86vw);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            border-radius: 8px; padding: 10px 14px;
+            background: rgba(0,0,0,0.28);
+        }
+        .rim-legend h2 {
+            font-family: var(--font-head); font-size: 12px; letter-spacing: 0.08em;
+            color: var(--accent); margin: 0 0 8px; text-align: center;
+        }
+        .rim-row { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 5px 0; }
+        .rim-swatch { flex: 0 0 26px; border-radius: 3px; }
+        .rim-danger  { height: 9px; background: #ff5c8a; }
+        .rim-neutral { height: 5px; background: #7c8798; }
+        .rim-prey    { height: 3px; background: #39ff88; }
         #comboDisplay { color: var(--warning); font-weight: bold; margin-top: 4px; display: none; }
         #spectateBanner {
             position: absolute; top: calc(10px + var(--safe-t)); left: 50%;
@@ -670,6 +697,7 @@
         <div id="scoreDisplay">Taille: 10</div>
         <div id="timerDisplay">Temps: 0s</div>
         <div id="killsDisplay">Kills: 0</div>
+        <div id="netDisplay">— / —</div>
         <div class="powerup-indicators" id="puIndicators"></div>
         <div id="comboDisplay"></div>
     </div>
@@ -824,6 +852,17 @@
             plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
             tu réapparais aussitôt dans la même arène.
         </p>
+        <!-- Légende du liseré de menace : c'est la seule information que le joueur doit avoir
+             comprise avant sa première partie, puisqu'elle décide à chaque rencontre s'il fonce
+             ou s'il fuit. Montrée plutôt qu'expliquée — un nouveau venu lit une couleur plus
+             vite qu'une phrase. L'épaisseur des trois traits reprend celle du jeu, pour que la
+             légende reste juste sans distinguer les teintes. -->
+        <div class="rim-legend">
+            <h2 data-i18n="rimTitle">LE LISERÉ DES SERPENTS</h2>
+            <div class="rim-row"><span class="rim-swatch rim-danger"></span><span data-i18n="rimDanger">Il peut te dévorer — fuis</span></div>
+            <div class="rim-row"><span class="rim-swatch rim-neutral"></span><span data-i18n="rimNeutral">Ni l'un ni l'autre ne mange</span></div>
+            <div class="rim-row"><span class="rim-swatch rim-prey"></span><span data-i18n="rimPrey">C'est ta proie — fonce</span></div>
+        </div>
         <button id="welcomeStartBtn" class="btn-primary" data-i18n="welcomeStart">C'EST PARTI ▶</button>
     </div>
 
@@ -919,11 +958,17 @@ const CONFIG = {
     // Sa taille est CALCULEE au depart de chaque partie (voir computeWorld) : un ecran de telephone
     // voit 2,3x moins de surface qu'un ecran d'ordinateur, un monde fixe serait desert sur l'un
     // ou etouffant sur l'autre. On fixe le nombre d'ECRANS, pas les pixels.
-    WORLD_SCREENS: 16,       // le monde fait 16 fois la surface visible
+    // Le monde fait N fois la surface visible. Calibre sur agar.io, dont la carte de
+    // ~11 000 x 11 000 represente environ 58 ecrans de 1920x1080. A 16 ecrans, un serpent au
+    // dezoom maximum voyait 71 % de la largeur du monde : les bordures ne quittaient plus
+    // l'ecran et la camera, bornee aux murs, cessait de le centrer (cf. analyse-concurrence.md §5).
+    WORLD_SCREENS: 58,
     WORLD_MIN: 1800,         // jamais plus petit que ca sur un axe
     WORLD_ASPECT_MIN: 0.75,  // un ecran de telephone est tres etroit : on garde un monde plus carre
     WORLD_ASPECT_MAX: 1.6,   //   que lui, sinon on joue dans un couloir
-    WORLD_MAX: 6000,
+    // Releve de 6000 : a cette valeur le plafond mordait avant l'objectif d'ecrans, et le monde
+    // restait petit quoi qu'on regle. C'est un garde-fou pour tres grand ecran, pas un cadrage.
+    WORLD_MAX: 20000,
     WORLD_WIDTH: 4400,       // valeurs de depart, recalculees a chaque partie
     WORLD_HEIGHT: 2800,
     FOOD_AREA_PER_ITEM: 22000,   // une pastille par 22 000 px² de monde (un peu moins dense qu'avant)
@@ -932,7 +977,10 @@ const CONFIG = {
     FOOD_GROWTH: 2,              // taille gagnee par pastille : c'est CE reglage qui fixe la duree d'une partie
     FOOD_COUNT: 680,             // recalcule a chaque partie
     FOOD_CELL: 240,              // taille des cases de la grille spatiale
-    BOT_COUNT: 45,
+    // Indissociable de WORLD_SCREENS : le monde ayant ete multiplie par 5,4, garder 45 bots
+    // faisait tomber le nombre d'adversaires visibles a l'ecran de 14,2 a 3,0 — un desert.
+    // 150 restitue la densite percue d'avant (mesure : 18,4 visibles a 160 bots).
+    BOT_COUNT: 150,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
     GRID_SIZE: 40,
@@ -945,7 +993,15 @@ const CONFIG = {
     MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
     BOT_MAX_LENGTH: 300,     // plafond des bots : evite qu'un seul finisse par dominer toute l'arene
-    MAX_RADIUS: 40,          // rayon plafond (utilise aussi par grow())
+    // GARDE-FOU de rendu, pas une regle de jeu : le rayon ne plafonne plus, il suit la masse par
+    // une courbe amortie (RADIUS_EXPONENT). Un plafond dur detruisait l'information — au-dela,
+    // deux serpents dont l'un pouvait devorer l'autre etaient identiques a l'ecran, ecart mesure
+    // exactement 0,00 px (cf. analyse-concurrence.md §2bis).
+    MAX_RADIUS: 130,
+    // Exposant liant le rayon a la masse. agar.io utilise 0,5 (aire proportionnelle a la masse),
+    // ce qui donne un rayon de 358 a 20 000 de masse : constate en jeu, le serpent remplit tout
+    // l'ecran et se noie dans son propre corps. 0,34 conserve un ecart visible sans le blob.
+    RADIUS_EXPONENT: 0.34,
     WIN_XP_MULTIPLIER: 1.5,  // XP d'une partie terminee en tete, en fraction de l'XP d'une mort
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
@@ -954,20 +1010,48 @@ const CONFIG = {
     FOOD_CORPSE_MAX_RADIUS: 14,   // rayon max d'une pastille issue d'une decoupe (4 = pastille normale)
     FOOD_CORPSE_RADIUS_SCALE: 2.2, // rayon ~ 4 + sqrt(valeur)*scale : aire perçue ~ proportionnelle a la valeur
     BODY_CUT_SKIP_RADIUS: 1.5, // marge pres de la tete de la cible exclue du test de decoupe (x son rayon)
+    // Traque des bots. Sans bornes, un bot ne lachait jamais sa proie et l'empechait de grossir :
+    // sa vitesse etant quasi identique, il restait colle et coupait la queue a chaque croissance
+    // (cf. analyse-concurrence.md §2).
+    BOT_CHASE_RANGE: 300,      // distance a laquelle un bot engage la poursuite
+    BOT_CHASE_GIVEUP: 520,     // au-dela, il abandonne : une proie qui a pris le large est lachee
+    BOT_CHASE_MAX_MS: 4500,    // duree maximale d'une poursuite, quoi qu'il arrive
+    BOT_CHASE_COOLDOWN: 3000,  // repos avant de pouvoir rengager, pour laisser respirer la proie
+    BOT_CHASE_SPEED: 0.92,     // un poursuivant est TOUJOURS plus lent que sa proie
+    BASE_MASS: 10,             // masse de depart, egale a la longueur de depart
+    EAT_MASS_RATIO: 1.25,      // +25 % de masse pour absorber (modele agar.io, cf. analyse-concurrence.md §1)
+    BOT_MAX_MASS: 1500,        // plafond de masse des bots ; le joueur n'en a aucun
+    // Masse a laquelle la vitesse atteint son plancher. La masse n'ayant pas de plafond, la
+    // courbe doit saturer quelque part, sinon un serpent tres lourd finirait immobile.
+    SPEED_REF_MASS: 650,
     SAVE_KEY: 'neonSnakeUltimate_v1',
     BOT_NAMES: ['Viper','Cobra','Mamba','Python','Anaconda','Taipan','Boa','Krait'],
     BOT_COLORS: ['#ff0055','#00ccff','#ffcc00','#cc00ff','#00ff66','#ff6600','#ffffff','#ff00ff'],
+    // Chaque skin ne touche jamais la hitbox ni la vitesse ; le coeur du corps (alpha 1,
+    // largeur r*2) reste toujours plein — seule sa teinte peut varier (degrade). Pointilles et
+    // pulsations d'alpha sont reserves au contour/halo (cf. cahier des charges UI §2 "Skins").
+    // `dash` s'exprime en MULTIPLES DE r, jamais en pixels : le contour fait r*0.7 de large et
+    // lineCap='round' rallonge chaque tiret de r*0.35 de chaque cote. Un trou plus court que
+    // r*0.7 est donc entierement comble par les deux caps et le pointille disparait — mesure :
+    // un dash [6,4] sur un serpent de rayon 15 changeait exactement 0 pixel.
     SKINS: [
-        { name:'Cyan', color:'#00ffcc', unlockLevel:1 },
-        { name:'Rose', color:'#ff00ff', unlockLevel:2 },
-        { name:'Jaune', color:'#ffcc00', unlockLevel:3 },
-        { name:'Bleu', color:'#00ccff', unlockLevel:4 },
-        { name:'Vert', color:'#00ff66', unlockLevel:5 },
-        { name:'Orange', color:'#ff6600', unlockLevel:7 },
-        { name:'Rouge', color:'#ff0055', unlockLevel:9 },
-        { name:'Blanc', color:'#ffffff', unlockLevel:12 },
-        { name:'Violet', color:'#cc00ff', unlockLevel:15 },
-        { name:'Doré', color:'#ffd700', unlockLevel:20 },
+        { name:'Cyan Classique', color:'#00ffcc', unlockLevel:1, style:{} },
+        { name:'Rose Écailles', color:'#ff00ff', unlockLevel:2, style:{ dash:[0.45,1.3], dashAnim:true } },
+        { name:'Jaune Dégradé', color:'#ffcc00', unlockLevel:3, style:{ gradient:['#ffcc00','#fff6c8'] } },
+        { name:'Bleu Pulsé', color:'#00ccff', unlockLevel:4, style:{ pulse:true } },
+        { name:'Vert Vipère', color:'#00ff66', unlockLevel:5, style:{ head:'viper' } },
+        { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true, trailColor:'#ffd08a' } },
+        { name:'Rouge Prédateur', color:'#ff0055', unlockLevel:9, style:{ head:'predator' } },
+        { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[0.25,1.0], dashAnim:true, pulse:true } },
+        { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[0.6,1.15], dashAnim:true } },
+        { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
+            hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
+            head:'predator', glowBoost:true } },
+        // Auras elementaires : silhouettes vivantes qui epousent le contour et debordent du
+        // corps. Elles passent SOUS le coeur (cf. ordre de dessin dans Snake.draw).
+        { name:'Flamme Ardente', color:'#ff4500', unlockLevel:25, style:{ aura:'flame', head:'predator' } },
+        { name:'Orage', color:'#00c8ff', unlockLevel:30, style:{ aura:'bolt' } },
+        { name:'Volutes', color:'#c8d4e0', unlockLevel:35, style:{ aura:'smoke' } },
     ],
     KILL_EFFECTS: [
         { kills:5, effects:['smoke'], label:'💨 Fumée' },
@@ -1007,6 +1091,201 @@ const MAX_STEPS_PER_FRAME = 5;
 // et les halos (shadowBlur) ; High les augmente. Medium = comportement d'avant ce réglage.
 const QUALITY_DPR = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
+
+// ============================================================
+//  AURAS ELEMENTAIRES (skins Flamme / Foudre / Fumee)
+// ============================================================
+// Une aura est une SILHOUETTE VIVANTE qui epouse le contour du serpent : un polygone construit
+// le long du corps, deforme dans le temps, rempli en degrade translucide. Elle deborde
+// franchement de la silhouette, et c'est l'ORDRE DE DESSIN qui preserve la lisibilite —
+// les couches passent sous le coeur du corps, qui reste trace a alpha 1 par-dessus.
+// Seule une passe de "lechage" repasse devant le coeur, plafonnee a LICK_MAX_ALPHA.
+const AURA_MAX_EXTENT = 2.2;    // debordement max, en multiples de r (borne dure, cf. clamp)
+const LICK_MAX_ALPHA = 0.25;    // plafond de la passe repassee DEVANT le coeur
+// Pas d'echantillonnage du corps, en multiples de r. A 1.5 le corps ne donnait qu'une quinzaine
+// d'ancrages : bien trop peu pour dessiner des langues, l'aura sortait lisse. A 0.6 on a le
+// detail voulu, et AURA_MAX_POINTS borne le cout dans le pire cas (serpent tres long et fin).
+const AURA_STEP = 0.6;
+const AURA_MAX_POINTS = 90;
+
+// Inclinaison des excroissances vers la queue, en fraction de la tangente. Le feu est couche
+// par la course, la fumee s'etire mollement derriere, la foudre ne se couche pas — elle jaillit
+// perpendiculairement.
+const AURA_LEAN = { flame: 0.85, smoke: 0.55, bolt: 0 };
+
+// Liseré de menace : couleur ET épaisseur, pour que l'information passe aussi sans distinguer
+// les teintes. Le rouge est celui d'Abandonner (§2 du cahier des charges), seule couleur du jeu
+// qui signale déjà le danger. `width` s'exprime en multiples de r.
+const THREAT_RIM = {
+    danger: { color: '#ff5c8a', width: 0.52 },   // il peut te dévorer : liseré large et rouge
+    neutre: { color: '#0a0e18', width: 0.30 },   // statu quo : liseré sombre, discret
+    proie:  { color: '#39ff88', width: 0.18 },   // tu peux le dévorer : liseré fin et vert
+};
+
+// Rampe de temperature de chaque aura : du plus chaud (au contact du corps) au plus froid
+// (a la peripherie). Une tache prend sa couleur selon sa distance au corps.
+const AURA_RAMP = {
+    flame: ['#fff6d0', '#ffc247', '#ff7a00', '#e02200'],
+    // Pas de blanc pur ici : en additif le halo saturait a blanc et NOYAIT les arcs, qui sont
+    // precisement ce qui fait lire "foudre". Le blanc est reserve aux arcs eux-memes.
+    bolt:  ['#8fd8ff', '#3fb4ff', '#1878d8', '#0a3f7a'],
+    smoke: ['#ffffff', '#e8eef5', '#cdd8e4', '#9fb0c4'],
+};
+// Le feu et la foudre EMETTENT de la lumiere : leurs taches se cumulent en additif, ce qui
+// blanchit naturellement les zones denses — c'est ce qui donne le coeur incandescent. La fumee
+// ABSORBE : en additif elle brillerait, ce qui serait faux. D'ou deux modes distincts.
+const AURA_BLEND = { flame: 'lighter', bolt: 'lighter', smoke: 'source-over' };
+// Ces alphas valent pour UNE frame. Ils ont ete cales sur un harnais qui empilait 55 passes
+// sans effacer, ce qui densifiait artificiellement : en jeu l'aura sortait maigre et pale.
+// La foudre reste la plus basse : en additif, un halo dense sature a blanc et NOIE les arcs,
+// qui sont pourtant ce qui fait lire "foudre".
+const AURA_PUFF_ALPHA = { flame: 0.30, bolt: 0.15, smoke: 0.19 };
+// base = distance de naissance des taches, en multiples de r ; gain = amplification du profil.
+// La flamme naît AU-DELA du bord (0.95) : a 0.45 les taches se posaient a l'interieur du corps
+// et l'aura sortait en anneau colle a la silhouette, sans aucune langue. La fumee, elle, doit
+// mordre sur le corps pour l'envelopper, d'ou une base basse.
+// Toutes les bases sont >= 1.15 : l'aura naît franchement AU-DELA du bord du corps, ce qui
+// laisse un liseré net a la limite de la silhouette. C'est ce liseré qui permet de juger sa
+// taille d'un coup d'oeil. Sans lui (bases a 0.45-0.95) le contraste du bord tombait a 5 %,
+// autrement dit le bord du corps devenait indiscernable de son aura.
+const AURA_REACH = {
+    flame: { base: 1.20, gain: 1.6 },
+    bolt:  { base: 1.18, gain: 1.0 },
+    smoke: { base: 1.15, gain: 1.0 },
+};
+const AURA_MAX_PUFFS = 560;   // plafond dur du nombre de drawImage par frame et par serpent
+// Rayon de coupe des taches, CALIBRE sur le rendu et non deduit : en fusion additive, ce sont
+// les recouvrements qui portent loin, pas la tache isolee (mesuree visible sur 0,11 a 0,40 de
+// son rayon nominal seulement). Aucune formule par tache ne predit donc l'etendue de la nappe ;
+// cette valeur est reglee pour que le debordement MESURE tienne sous AURA_MAX_EXTENT.
+const PUFF_VISIBLE = 1.0;
+// Longueur d'un arc de foudre, en multiples de r. Bornee pour que l'arc et sa ramification
+// tiennent dans AURA_MAX_EXTENT : les arcs echappaient au plafond de l'aura et portaient a eux
+// seuls le debordement de l'Orage a 2,75 r.
+const BOLT_LEN = 1.25;
+
+// Tache douce a degrade radial, generee UNE FOIS puis teintee et mise en cache par couleur.
+// C'est la brique qui remplace le polygone rempli en aplat : ses bords sont flous par
+// construction, la ou un fill() de polygone donne une decoupe nette qui ne lit jamais "feu".
+// Hachage entier -> [0,1[, deterministe et sans etat. Melange non lineaire (decalages et XOR)
+// pour casser toute regularite.
+// A NE PAS remplacer par un simple (a*A + b*B) % M : si B partage un facteur avec M, le terme
+// b devient identiquement nul et disparait. C'est arrive ici — un tirage d'arcs en % 23 avec
+// un coefficient de temps multiple de 23 gelait les eclairs sur trois positions fixes, a vie.
+// Et meme sans ce piege, une forme lineaire modulo M donne des positions regulierement
+// espacees, jamais un tirage.
+function hash01(a, b) {
+    let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+const PUFF_CACHE = new Map();
+function puffSprite(color) {
+    let c = PUFF_CACHE.get(color);
+    if (c) return c;
+    const S = 64;
+    c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(S/2, S/2, 0, S/2, S/2, S/2);
+    grd.addColorStop(0,    'rgba(255,255,255,1)');
+    grd.addColorStop(0.30, 'rgba(255,255,255,0.62)');
+    grd.addColorStop(0.65, 'rgba(255,255,255,0.20)');
+    grd.addColorStop(1,    'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, S, S);
+    // source-in : on repeint la tache a la couleur voulue en conservant son alpha.
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color;
+    g.fillRect(0, 0, S, S);
+    PUFF_CACHE.set(color, c);
+    return c;
+}
+
+// amp est en multiples de r. Les couches vont de la plus large et la plus froide (dessous)
+// a la plus etroite et la plus chaude (au contact du corps).
+const AURA_PRESETS = {
+    flame: {
+        layers: [
+            { amp: 1.20, alpha: 0.30, from: '#ff2d00', to: '#cc1500' },
+            { amp: 0.80, alpha: 0.38, from: '#ff9500', to: '#ff6a00' },
+            { amp: 0.38, alpha: 0.50, from: '#fff6d0', to: '#ffe066' },
+        ],
+        lick: { amp: 0.30, alpha: 0.20, from: '#fff6d0', to: '#ffe066' },
+    },
+    bolt: {
+        // Aura volontairement plus serree que la flamme : c'est la nervosite du contour qui
+        // caracterise la foudre, pas son ampleur. Les arcs font le reste.
+        layers: [
+            { amp: 0.95, alpha: 0.22, from: '#2a3a4a', to: '#16202c' },
+            { amp: 0.62, alpha: 0.34, from: '#0080ff', to: '#0a4a8f' },
+            { amp: 0.28, alpha: 0.46, from: '#7fe8ff', to: '#00c8ff' },
+        ],
+        lick: { amp: 0.22, alpha: 0.18, from: '#ffffff', to: '#7fe8ff' },
+    },
+    smoke: {
+        // La plus etendue des trois, et la seule sans aucune arete : l'effet naît de la
+        // superposition de nappes tres peu opaques, jamais d'une couche dense.
+        layers: [
+            { amp: 1.45, alpha: 0.10, from: '#ffffff', to: '#c8d4e0' },
+            { amp: 1.05, alpha: 0.13, from: '#f2f6fa', to: '#c8d4e0' },
+            { amp: 0.65, alpha: 0.16, from: '#ffffff', to: '#dfe7ef' },
+        ],
+        lick: { amp: 0.45, alpha: 0.12, from: '#ffffff', to: '#dfe7ef' },
+    },
+};
+
+// Profil de deformation : distance vers l'exterieur, en multiples de r, au-dela du corps.
+// C'est lui SEUL qui distingue une flamme d'un eclair ou d'une volute.
+// k = index d'ancrage, n = nombre d'ancrages, phase = horloge du skin, side = +1 / -1.
+// La phase est decalee par ancrage : en phase, toute l'aura pulserait d'un bloc au lieu de
+// se deformer organiquement.
+// `seed` decorrele les couches entre elles. Sans lui, toutes partagent la meme forme a des
+// amplitudes differentes et se nichent en RUBANS PARALLELES — l'effet lit alors comme un
+// serpent rayure, pas comme du feu. Chaque couche doit avoir sa propre decoupe.
+function auraProfile(kind, k, n, phase, side, seed) {
+    const t = n > 1 ? k / (n - 1) : 0;      // 0 = tete, 1 = queue
+    if (kind === 'flame') {
+        // Langues un peu plus longues vers la queue : un feu couche par la course. Le gradient
+        // reste MODERE — a 0.30 + t l'ecart tete/queue etait tel que toutes les langues se
+        // concentraient sur la queue et la moitie avant sortait lisse.
+        const trail = 0.62 + t * 0.5;
+        // Puissance impaire elevee = pics ETROITS separes par des creux larges, soit des
+        // langues. Une sinusoide nue donne une ondulation lisse, qui ne lit jamais "feu".
+        // Onde qui REMONTE le corps (k*a - phase*b) : les langues voyagent de la tete vers la
+        // queue au lieu de battre sur place, ce qui fait lire une matiere vivante qui suit le
+        // serpent plutot qu'un clignotement.
+        const s = Math.sin(k * 1.35 - phase * 4.5 + side * 3.3 + seed * 2.4);
+        const spike = Math.pow(Math.abs(s), 3) * Math.sign(s);
+        const lo = Math.sin(k * 0.4 - phase * 2.1 + seed * 1.1);
+        // Longueur variable d'une langue a l'autre : sans cette variation les pics sortaient
+        // tous identiques et l'aura lisait comme une dent de scie, pas comme du feu.
+        const vary = 0.55 + hash01(k, seed * 37 + 3) * 0.9;
+        return trail * (0.30 + 0.95 * spike * vary + 0.30 * lo);
+    }
+    if (kind === 'bolt') {
+        // Relief anguleux FIXE par ancrage (il ne doit pas sauter d'une frame a l'autre), que
+        // fait respirer une onde continue qui remonte le corps. Auparavant tout le relief etait
+        // retire a chaque palier de temps : l'aura sautait au lieu d'onduler.
+        const jag = hash01(k, seed * 53 + 7);
+        const jag2 = hash01(k * 3 + 1, seed * 91 + 29);
+        const wave = Math.sin(k * 0.55 - phase * 4.0 + seed * 1.3);
+        return 0.15 + jag * 0.55 + jag2 * 0.25 + 0.35 * (0.5 + 0.5 * wave);
+    }
+    // smoke : basse frequence, forte amplitude, phase qui tourne le long du corps —
+    // c'est cette rotation qui donne l'enroulement des volutes, pas un simple gonflement.
+    // Les termes en (k*a - phase*b) sont des ondes qui REMONTENT le corps de la tete vers la
+    // queue : c'est ce voyage, et non une pulsation sur place, qui donne l'impression que la
+    // matiere vit et suit le serpent.
+    const swirl = Math.sin(k * 0.30 - phase * 1.5 + side * 1.4 + t * 3.4 + seed * 2.0);
+    const swirl2 = Math.sin(k * 0.62 - phase * 0.9 + seed * 3.1);
+    const lobe = Math.sin(k * 0.13 - phase * 0.6 + seed * 1.7);    // grosses boursouflures
+    // Variation par ancrage : sans elle les nappes sortent trop regulieres et l'ensemble lit
+    // comme un ruban, pas comme de la fumee.
+    const vary = hash01(k, seed * 71 + 13);
+    return 0.30 + 0.34 * swirl + 0.24 * swirl2 + 0.55 * lobe + 0.45 * vary;
+}
 
 // Le rouge d'Abandonner n'est pas ici : c'est la seule couleur que le joueur ne choisit jamais.
 const UI_COLORS = [
@@ -1050,6 +1329,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile : le serpent suit ton doigt',
         ctrlKeys: '⌨️ Échap ou P : pause · Entrée / Espace : jouer',
         welcomeText: "Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort, tu réapparais aussitôt dans la même arène.",
+        rimTitle: 'LE LISERÉ DES SERPENTS', rimDanger: 'Il peut te dévorer — fuis',
+        rimNeutral: "Ni l'un ni l'autre ne mange", rimPrey: 'C’est ta proie — fonce',
         welcomeStart: "C'EST PARTI ▶",
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
         pausePartyHint: '⚠ Toi seul es en pause — tu peux te faire manger pendant ce temps.',
@@ -1091,6 +1372,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile: the snake follows your finger',
         ctrlKeys: '⌨️ Esc or P: pause · Enter / Space: play',
         welcomeText: 'Eat the pellets, grow, avoid snakes bigger than you — and devour the smaller ones. Touch their body to cut them. The game never ends: when you die, you respawn straight away in the same arena.',
+        rimTitle: 'THE SNAKE OUTLINE', rimDanger: 'It can devour you — run',
+        rimNeutral: 'Neither one can eat the other', rimPrey: 'It is your prey — charge',
         welcomeStart: "LET'S GO ▶",
         pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
         pausePartyHint: '⚠ Only you are paused — you can still get eaten meanwhile.',
@@ -1132,6 +1415,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Móvil: la serpiente sigue tu dedo',
         ctrlKeys: '⌨️ Esc o P: pausa · Intro / Espacio: jugar',
         welcomeText: 'Come las bolitas, crece, evita las serpientes más grandes que tú — y devora a las más pequeñas. Toca su cuerpo para cortarlas. El juego nunca termina: al morir, reapareces enseguida en la misma arena.',
+        rimTitle: 'EL BORDE DE LAS SERPIENTES', rimDanger: 'Puede devorarte — huye',
+        rimNeutral: 'Ninguna puede comerse a la otra', rimPrey: 'Es tu presa — a por ella',
         welcomeStart: '¡VAMOS! ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
         pausePartyHint: '⚠ Solo tú estás en pausa — pueden devorarte mientras tanto.',
@@ -1173,6 +1458,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobil: Die Schlange folgt deinem Finger',
         ctrlKeys: '⌨️ Esc oder P: Pause · Enter / Leertaste: spielen',
         welcomeText: 'Friss die Kugeln, wachse, meide größere Schlangen — und verschlinge die kleineren. Berühre ihren Körper, um sie zu zerteilen. Das Spiel endet nie: Stirbst du, erscheinst du sofort in derselben Arena wieder.',
+        rimTitle: 'DER RAND DER SCHLANGEN', rimDanger: 'Sie kann dich fressen — flieh',
+        rimNeutral: 'Keine kann die andere fressen', rimPrey: 'Sie ist deine Beute — los',
         welcomeStart: "LOS GEHT'S ▶",
         pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
         pausePartyHint: '⚠ Nur du bist pausiert — du kannst währenddessen gefressen werden.',
@@ -1214,6 +1501,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Mobile: il serpente segue il tuo dito',
         ctrlKeys: '⌨️ Esc o P: pausa · Invio / Spazio: gioca',
         welcomeText: 'Mangia le palline, cresci, evita i serpenti più grandi di te — e divora i più piccoli. Tocca il loro corpo per tagliarli. Il gioco non finisce mai: quando muori, riappari subito nella stessa arena.',
+        rimTitle: 'IL BORDO DEI SERPENTI', rimDanger: 'Può divorarti — scappa',
+        rimNeutral: 'Nessuno dei due può mangiare', rimPrey: 'È la tua preda — attacca',
         welcomeStart: 'SI PARTE ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
         pausePartyHint: '⚠ Solo tu sei in pausa — nel frattempo puoi essere mangiato.',
@@ -1255,6 +1544,8 @@ const TRANSLATIONS = {
         ctrlMobile: '👆 Telemóvel: a cobra segue o teu dedo',
         ctrlKeys: '⌨️ Esc ou P: pausa · Enter / Espaço: jogar',
         welcomeText: 'Come as bolinhas, cresce, evita as cobras maiores do que tu — e devora as mais pequenas. Toca no corpo delas para as cortares. O jogo nunca acaba: ao morreres, reapareces logo na mesma arena.',
+        rimTitle: 'O CONTORNO DAS COBRAS', rimDanger: 'Pode devorar-te — foge',
+        rimNeutral: 'Nenhuma pode comer a outra', rimPrey: 'É a tua presa — avança',
         welcomeStart: 'VAMOS ▶',
         pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
         pausePartyHint: '⚠ Só tu estás em pausa — podes ser comido entretanto.',
@@ -1814,25 +2105,63 @@ class PowerUp {
 // ============================================================
 
 class Snake {
-    constructor(x, y, isPlayer, name, color) {
+    constructor(x, y, isPlayer, name, color, skinStyle) {
         this.x = x; this.y = y;
         this.angle = Math.random() * TAU;
         this.speed = CONFIG.BASE_SPEED;
         this.radius = CONFIG.BASE_RADIUS;
         this.length = 10;
+        this.massValue = CONFIG.BASE_MASS;
         this.isPlayer = isPlayer;
         this.name = name;
         this.color = color;
+        // Style visuel du skin (joueur uniquement — les bots gardent une couleur plate, cf.
+        // cahier des charges UI §5.4/v0.4 "Bots sans skin"). null = rendu d'origine.
+        this.skinStyle = skinStyle || null;
+        this.skinPhase = 0;
+        this.lastTrailEmit = 0;
+        // Etat de traque (bots) : cible en cours, echeance d'abandon, repos avant reengagement.
+        this.chaseTarget = null;
+        this.chaseUntil = 0;
+        this.chaseCooldownUntil = 0;
         this.segments = [];
         this.alive = true;
         this.targetAngle = this.angle;
         this.kills = 0;
         this.turnSmoothing = 0.1;
         this.maxLength = isPlayer ? CONFIG.MAX_LENGTH : CONFIG.BOT_MAX_LENGTH;
+        // Plafond de masse des bots : sans lui, un bot laisse tourner 15 minutes atteignait
+        // 31 574 de masse — devenu indevorable, il remplissait l'ecran de son propre corps.
+        // Le joueur, lui, n'a aucun plafond de masse : c'est sa progression.
+        this.maxMass = isPlayer ? Infinity : CONFIG.BOT_MAX_MASS;
         // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
         this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
         for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
     }
+
+    // MASSE : ce qui a ete mange, cumule, SANS AUCUN PLAFOND. C'est elle, et jamais le rayon ni
+    // la longueur affichee, qui decide de la predation et de la vitesse. Le rayon est plafonne a
+    // MAX_RADIUS et la longueur a maxLength : deux serpents au plafond afficheraient le meme
+    // rayon quelle que soit leur masse reelle, et plus personne ne pourrait manger personne.
+    // Une comparaison de predation ne porte donc jamais sur une grandeur plafonnee
+    // (cf. analyse-concurrence.md §1).
+    get mass() { return this.massValue; }
+
+    // Rapport de force AVEC LE JOUEUR, du point de vue de celui qui regarde l'ecran.
+    // 'danger'  : ce serpent peut te devorer.
+    // 'proie'   : tu peux le devorer.
+    // 'neutre'  : ni l'un ni l'autre — c'est aussi le cas de ton propre serpent.
+    threatLevel() {
+        if (this.isPlayer || !player || !player.alive || this === player) return 'neutre';
+        if (this.beats(player)) return 'danger';
+        if (player.beats(this)) return 'proie';
+        return 'neutre';
+    }
+
+    // Modele agar.io, valide par Matt : il faut etre au moins EAT_MASS_RATIO fois plus lourd
+    // pour absorber. La marge existe pour eviter que deux serpents de masses quasi identiques
+    // ne s'absorbent au hasard des collisions.
+    beats(other) { return this.mass > other.mass * CONFIG.EAT_MASS_RATIO; }
 
     applyPowerUp(type) { this.powerupEnds[type] = gnow() + CONFIG.POWERUPS[type].duration; }
     hasPowerUp(type) { return this.powerupEnds[type] > gnow(); }
@@ -1841,9 +2170,16 @@ class Snake {
         // (vitesse pleine) et MAX_RADIUS (vitesse a MIN_SPEED_RATIO). La perte de vitesse est
         // presque imperceptible en début de croissance, plus sensible seulement en fin de
         // parcours. Le bonus vitesse s'applique par-dessus.
-        const t = Math.min(1, Math.max(0, (this.radius - CONFIG.BASE_RADIUS) / (CONFIG.MAX_RADIUS - CONFIG.BASE_RADIUS)));
+        // Indexe sur la MASSE, jamais sur le rayon : celui-ci est plafonne, donc deux serpents
+        // de masses tres differentes allaient exactement a la meme vitesse une fois au plafond.
+        // La courbe sature a SPEED_REF_MASS, la masse n'ayant elle-meme aucun plafond.
+        const t = Math.min(1, Math.max(0, (this.mass - CONFIG.BASE_MASS) / (CONFIG.SPEED_REF_MASS - CONFIG.BASE_MASS)));
         const eased = t * t;
-        const base = this.speed * (1 - eased * (1 - CONFIG.MIN_SPEED_RATIO));
+        let base = this.speed * (1 - eased * (1 - CONFIG.MIN_SPEED_RATIO));
+        // Un bot en chasse court MOINS vite que sa proie. Sans ce malus, deux serpents au rayon
+        // plafonne vont exactement a la meme vitesse : le poursuivant ne decroche jamais et la
+        // fuite devient impossible, quelle que soit la conduite du joueur.
+        if (!this.isPlayer && this.chaseTarget) base *= CONFIG.BOT_CHASE_SPEED;
         return this.hasPowerUp('speed') ? base * CONFIG.POWERUPS.speed.speedMultiplier : base;
     }
     addKill() { this.kills++; }
@@ -1858,6 +2194,10 @@ class Snake {
     // target : point vise en coordonnees MONDE (le pointeur est converti par screenToWorld).
     update(target, allSnakes, grid) {
         if (!this.alive) return;
+
+        // Horloge d'animation du skin, indexee sur le pas de simulation fixe (pas le framerate
+        // d'affichage) : une pulsation/degrade tourne a la meme vitesse en 60 Hz et en 120 Hz.
+        if (this.skinStyle) this.skinPhase += STEP_MS / 1000;
 
         if (this.pauseAI) {
             // Joueur en pause pendant une partie privee : son serpent passe sous l'IA des bots
@@ -1910,22 +2250,57 @@ class Snake {
     }
 
     botAI(allSnakes, grid) {
+        // Fuite : on s'ecarte de ce qui a la masse superieure, jamais du rayon (plafonne).
         if (!this.hasPowerUp('invincible')) {
             for (const o of allSnakes) {
                 if (o === this || !o.alive) continue;
-                if (o.radius > this.radius * 1.1) {
+                if (o.beats(this)) {
                     const d = Math.hypot(o.x - this.x, o.y - this.y);
                     if (d < 150) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
                 }
             }
         }
-        for (const o of allSnakes) {
-            if (o === this || !o.alive) continue;
-            if (o.radius < this.radius * 0.9 && o.canBeEaten()) {
-                const d = Math.hypot(o.x - this.x, o.y - this.y);
-                if (d < 300) { this.targetAngle = Math.atan2(o.y-this.y, o.x-this.x); return; }
+
+        // Chasse AVEC DESENGAGEMENT. Sans lui, un bot ne lachait jamais sa proie : sa vitesse
+        // etant quasi identique, il restait colle, et chaque fois que le joueur grossissait la
+        // queue fraichement allongee passait a sa portee et se faisait couper. Le joueur ne
+        // pouvait structurellement plus grossir tant qu'il etait suivi
+        // (cf. analyse-concurrence.md §2).
+        if (this.chaseUntil && gnow() > this.chaseUntil) {
+            this.chaseTarget = null;
+            this.chaseUntil = 0;
+            this.chaseCooldownUntil = gnow() + CONFIG.BOT_CHASE_COOLDOWN;
+        }
+        const peutChasser = gnow() > (this.chaseCooldownUntil || 0);
+        if (this.chaseTarget && (!this.chaseTarget.alive || !this.beats(this.chaseTarget))) {
+            this.chaseTarget = null; this.chaseUntil = 0;
+        }
+        if (!this.chaseTarget && peutChasser) {
+            for (const o of allSnakes) {
+                if (o === this || !o.alive) continue;
+                if (this.beats(o) && o.canBeEaten()) {
+                    const d = Math.hypot(o.x - this.x, o.y - this.y);
+                    if (d < CONFIG.BOT_CHASE_RANGE) {
+                        this.chaseTarget = o;
+                        this.chaseUntil = gnow() + CONFIG.BOT_CHASE_MAX_MS;
+                        break;
+                    }
+                }
             }
         }
+        if (this.chaseTarget) {
+            const t = this.chaseTarget;
+            const d = Math.hypot(t.x - this.x, t.y - this.y);
+            // Abandon aussi sur la distance : une proie qui a pris le large n'est plus suivie.
+            if (d > CONFIG.BOT_CHASE_GIVEUP) {
+                this.chaseTarget = null; this.chaseUntil = 0;
+                this.chaseCooldownUntil = gnow() + CONFIG.BOT_CHASE_COOLDOWN;
+            } else {
+                this.targetAngle = Math.atan2(t.y - this.y, t.x - this.x);
+                return;
+            }
+        }
+
         const closest = grid.nearest(this.x, this.y, 6);
         if (closest) { this.targetAngle = Math.atan2(closest.y-this.y, closest.x-this.x); return; }
         if (Math.random() < 0.05) this.targetAngle += (Math.random()-0.5);
@@ -1935,39 +2310,385 @@ class Snake {
         if (!this.alive || this.segments.length === 0) return;
         const segs = this.segments;
         const r = this.radius;
+        const style = this.skinStyle;
+        // Un skin animé se fige en reduced-motion ET au palier LOW (même règle que shadowBlur
+        // juste en dessous) : jamais de coût ou de mouvement supplémentaire sur ces deux réglages.
+        const animated = style && save.settings.quality !== 'LOW' && !neonReducedMotion();
+
+        // AURA ELEMENTAIRE, dessinee EN PREMIER — donc sous tout le reste. C'est cet ordre,
+        // et lui seul, qui autorise l'aura a deborder franchement sans nuire a la lisibilite :
+        // le coeur du corps est trace par-dessus a alpha 1 et ressort toujours net, quelle que
+        // soit la densite de l'aura. Ne jamais deplacer ce bloc apres le trace du coeur.
+        const preset = style && style.aura ? AURA_PRESETS[style.aura] : null;
+        let auraPts = null;
+        if (preset) {
+            // Phase gelee quand l'animation est coupee : l'aura reste, seule sa deformation
+            // s'arrete. Une aura qui disparaitrait en reduced-motion rendrait le skin invisible.
+            const phase = animated ? this.skinPhase : 0;
+            auraPts = this.sampleBody(r * AURA_STEP);
+            this.drawAuraCloud(ctx, auraPts, style.aura, phase);
+        }
 
         // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
-        // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments.
+        // c'est ce qui tient les 60 fps quand un serpent dépasse 200 segments. Aucun style de
+        // skin ne doit repasser par un dessin par segment (cf. cahier des charges UI §2 "Skins").
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(segs[0].x, segs[0].y);
         for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
 
-        ctx.globalAlpha = 0.22;
+        // Halo externe : seul endroit où une pulsation d'alpha est permise (jamais le cœur).
+        // Un skin qui pulse porte un halo franchement plus large et plus dense que le halo
+        // standard, et c'est CE halo qui respire. Il reste donc identifiable une fois figé
+        // (reduced-motion, LOW) : une pulsation seule, prise sur une image fixe, ne se voit pas.
+        // L'élargissement est proportionnel à r — le +10 de base est en pixels absolus et
+        // deviendrait négligeable au rayon plafond.
+        let glowAlpha = 0.22;
+        let glowWidth = r * 2 + 10;
+        if (style && style.pulse) {
+            const osc = animated ? Math.sin(this.skinPhase * 2.2) : 0;
+            glowAlpha = 0.42 + osc * 0.16;              // 0,26 à 0,58 (halo standard : 0,22)
+            glowWidth = r * 2 + 10 + r * (0.8 + osc * 0.5);
+        } else if (style && style.trail) {
+            // Halo de chaleur permanent : la traînée seule ne dit rien sur une image fixe, et
+            // elle est coupée en reduced-motion et au palier LOW.
+            glowAlpha = 0.36;
+            glowWidth = r * 2 + 10 + r * 0.55;
+        }
+        ctx.globalAlpha = glowAlpha;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = r * 2 + 10;
+        ctx.lineWidth = glowWidth;
         ctx.stroke();
 
+        // LISERE DE MENACE — plaqué sur le bord du corps, entre l'aura et le cœur.
+        //
+        // Deux rôles en un. D'abord il garde le bord tranché quelle que soit la densité de
+        // l'aura, sans avoir à ternir celle-ci (mesuré au gradient de traversée du bord :
+        // 109 % / 96 % / 106 % du même serpent sans skin ; attention à l'instrument, un écart
+        // entre deux points fixes ENCADRE ce liseré sans le toucher et le fait passer pour
+        // absent). Ensuite, et surtout, sa COULEUR répond à la seule question qui compte face à
+        // un autre serpent : est-ce que je fonce ou est-ce que je fuis ?
+        //
+        // Pourquoi ce canal et pas la taille : au-delà d'une certaine masse, l'écart d'épaisseur
+        // à l'écran entre deux serpents au seuil de prédation tombe à quelques pixels — illisible
+        // dans l'action. Ni agar.io ni slither.io ne résolvent ce cas, aucun des deux n'étant un
+        // jeu de serpent où la masse décide (cf. analyse-concurrence.md §2bis).
+        //
+        // Lisible sans distinguer les couleurs : l'ÉPAISSEUR du liseré porte la même information
+        // que sa teinte — épais pour un prédateur, fin pour une proie.
+        const menace = this.threatLevel();
+        ctx.globalAlpha = menace === 'neutre' ? 0.9 : 0.95;
+        ctx.strokeStyle = THREAT_RIM[menace].color;
+        ctx.lineWidth = r * 2 + r * THREAT_RIM[menace].width;
+        ctx.stroke();
+
+        // Cœur du corps : alpha 1 et largeur r*2 non négociables (repère de lisibilité) — un
+        // skin ne peut varier ici que la teinte (dégradé), jamais l'opacité ni des pointillés.
         ctx.globalAlpha = 1;
         ctx.lineWidth = r * 2;
+        ctx.strokeStyle = (style && style.gradient) ? this.skinGradient(ctx, style, animated) : this.color;
         ctx.stroke();
 
-        ctx.globalAlpha = 0.15;
-        ctx.strokeStyle = '#ffffff';
+        // Contour : seul endroit où un skin peut ajouter des pointillés (jamais le cœur).
+        // Un contour porteur de motif monte à 0.34 d'alpha : à 0.15 le motif existait dans le
+        // canvas mais ne se lisait pas à l'œil sur un corps saturé. Sa couleur suit la luminance
+        // du corps — en blanc sur un corps clair (Blanc Spectral) le motif serait invisible.
+        ctx.globalAlpha = (style && style.dash) ? 0.34 : 0.15;
+        ctx.strokeStyle = (style && style.dash && isLightColor(this.color)) ? '#0a0e18' : '#ffffff';
         ctx.lineWidth = r * 0.7;
+        if (style && style.dash) {
+            // Multiples de r -> le motif garde la même allure du rayon 8 au rayon 40.
+            ctx.setLineDash(style.dash.map(v => v * r));
+            ctx.lineDashOffset = (style.dashAnim && animated) ? -this.skinPhase * r * 2 : 0;
+        }
         ctx.stroke();
+        ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
+
+        // LECHAGE : la seule passe autorisee DEVANT le coeur, plafonnee a LICK_MAX_ALPHA.
+        // C'est elle qui donne les langues qui passent devant la lame. Au-dela du plafond on
+        // noierait le coeur, donc le reperage de la taille — ce qui decide de la vie ou de la
+        // mort, la predation se comparant sur le rayon.
+        if (preset && auraPts) {
+            const phase = animated ? this.skinPhase : 0;
+            const lick = preset.lick;
+            this.drawAuraLayer(ctx, auraPts, style.aura,
+                { amp: lick.amp, alpha: Math.min(LICK_MAX_ALPHA, lick.alpha), from: lick.from, to: lick.to },
+                phase + 1.7, 9);   // phase et graine decalees : le lechage ne doit se caler sur aucune couche
+            // Arcs : uniquement animes. En reduced-motion l'intermittence est precisement ce
+            // qui est proscrit, il ne reste que les nappes.
+            if (style.aura === 'bolt' && animated) this.drawBolts(ctx, auraPts, this.skinPhase);
+        }
+
+        // Etincelles de la flamme : accent secondaire, detache de l'aura. Rares et breves —
+        // elles ponctuent, elles ne portent pas l'effet, que l'aura assure deja seule.
+        if (preset && style.aura === 'flame' && animated && particles.room
+            && gnow() - this.lastTrailEmit > 90) {
+            this.lastTrailEmit = gnow();
+            const back = this.angle + Math.PI;
+            const tail = segs[segs.length - 1];
+            const spread = (Math.random() - 0.5) * 1.2;
+            particles.push(new Particle(
+                tail.x + Math.cos(back) * r * 1.2 + (Math.random()-0.5) * r,
+                tail.y + Math.sin(back) * r * 1.2 + (Math.random()-0.5) * r, {
+                vx: Math.cos(back + spread) * (1 + Math.random()),
+                vy: Math.sin(back + spread) * (1 + Math.random()),
+                life: 1, decay: 0.05, size: Math.max(1, r * 0.12),
+                color: '#ffe066', type: 'spark', friction: 0.99
+            }));
+        }
+
+        // Traînée : émise à la QUEUE, pas à la tête — le corps est un tube opaque qui repasse
+        // exactement sur la position de la tête à chaque pas ; une particule posée là serait
+        // recouverte en permanence. La queue est le seul point que le corps ne recouvre plus.
+        // Cadencée sur l'horloge de jeu (pas le framerate), et seulement si le budget de
+        // particules partagé a de la place (cf. QUALITY_PARTICLES).
+        // Cadence, durée de vie et taille calibrées pour qu'une vraie nappe de braises soit
+        // visible : à 80 ms d'intervalle et 0,22 s de vie, 3 particules seulement coexistaient.
+        // Ici ~50/s pendant ~0,75 s, soit une quarantaine à l'écran — loin du plafond même au
+        // palier MEDIUM (400). Seul le joueur porte un skin, donc un seul serpent en émet.
+        if (style && style.trail && animated && particles.room && gnow() - this.lastTrailEmit > 40) {
+            this.lastTrailEmit = gnow();
+            const tail = segs[segs.length - 1];
+            // Dérive vers l'ARRIÈRE (opposé au cap) avec un écart latéral : en vue de dessus,
+            // un sillage est la seule dérive qui garde un sens quel que soit le cap. Sans cette
+            // dérive les braises restaient dans le halo du corps et ne se voyaient pas.
+            const back = this.angle + Math.PI;
+            // Emission EN RETRAIT derriere la queue : posees dessus, les braises naissaient
+            // sous le halo du corps et n'en sortaient jamais. Teinte propre, plus vive que le
+            // corps (trailColor) : a la couleur du corps elles s'y confondaient.
+            // Recul de 2 r : les braises doivent naître DEHORS du corps. Une particule 'smoke'
+            // grossit en vieillissant (size * (2 - life)), d'où une base volontairement petite —
+            // sinon la nappe déborde sur la silhouette, que rien n'a le droit de brouiller
+            // (cahier des charges UI §2 : juger la taille d'un serpent reste vital).
+            const ox = tail.x + Math.cos(back) * r * 2;
+            const oy = tail.y + Math.sin(back) * r * 2;
+            for (let k = 0; k < 2 && particles.room; k++) {
+                const spread = (Math.random() - 0.5) * 0.8;
+                const speed = 1.2 + Math.random() * 1.4;
+                particles.push(new Particle(
+                    ox + (Math.random()-0.5) * r * 0.6,
+                    oy + (Math.random()-0.5) * r * 0.6, {
+                    vx: Math.cos(back + spread) * speed,
+                    vy: Math.sin(back + spread) * speed,
+                    life:1, decay:0.028, size:r*0.3,
+                    color: style.trailColor || this.color, type:'smoke', friction:0.99
+                }));
+            }
+        }
 
         const head = segs[0];
         ctx.beginPath();
         ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
         ctx.fillStyle = this.color;
-        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 14; ctx.shadowColor = this.color; }
+        // Halo statique de substitution quand la traînée est coupée (LOW/reduced-motion) : garde
+        // le skin distinctif sans mouvement ni particule supplémentaire.
+        let glowRadius = (style && style.glowBoost) ? 22 : 14;
+        if (style && style.trail && !animated) glowRadius = Math.max(glowRadius, 20);
+        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = glowRadius; ctx.shadowColor = this.color; }
         ctx.fill();
         ctx.shadowBlur = 0;
 
         const eo = r * 0.45, er = Math.max(2, r * 0.3);
+        if (style && style.head === 'viper') this.drawViperEyes(ctx, head, eo, er);
+        else this.drawRoundEyes(ctx, head, eo, er);
+        if (style && style.head === 'viper') this.drawHorns(ctx, head, r);
+        if (style && style.head === 'predator') this.drawFangs(ctx, head, r);
+    }
+
+    // Parcourt le corps a PAS CONSTANT EN PIXELS, jamais segment par segment. Le nombre
+    // d'ancrages reste de l'ordre de quelques dizaines quelle que soit la longueur, la ou un
+    // parcours par segment couterait jusqu'a MAX_LENGTH iterations par couche et par frame.
+    // Le pas etant proportionnel a r, le compte se borne tout seul : le rayon croit avec la
+    // longueur (grow()), donc un serpent long est forcement epais, donc echantillonne plus
+    // grossierement. Chaque ancrage porte sa position et sa normale au corps.
+    sampleBody(step) {
+        const segs = this.segments;
+        const pts = [];
+        // Plafond dur sur le compte : au-dela on elargit le pas plutot que d'ajouter des points.
+        // Garantit un cout borne meme sur un serpent long et fin, ou r*AURA_STEP est petit.
+        const bodyLen = segs.length * CONFIG.BASE_SPEED;
+        step = Math.max(step, bodyLen / AURA_MAX_POINTS);
+        let acc = step;                     // force l'emission du premier ancrage (la tete)
+        for (let i = 0; i < segs.length; i++) {
+            if (i > 0) acc += Math.hypot(segs[i].x - segs[i-1].x, segs[i].y - segs[i-1].y);
+            if (acc < step && i !== segs.length - 1) continue;
+            acc = 0;
+            const prev = segs[Math.max(0, i - 1)];
+            const next = segs[Math.min(segs.length - 1, i + 1)];
+            let tx = next.x - prev.x, ty = next.y - prev.y;
+            const len = Math.hypot(tx, ty) || 1;
+            tx /= len; ty /= len;
+            // tx,ty pointe de la tete vers la queue ; nx,ny lui est perpendiculaire.
+            pts.push({ x: segs[i].x, y: segs[i].y, nx: -ty, ny: tx, tx, ty });
+        }
+        return pts;
+    }
+
+    // Nappe de taches douces le long du corps. Remplace le remplissage de polygone : un fill()
+    // donne une decoupe nette au ciseau, qui ne lit jamais comme du feu ni comme de la fumee.
+    // Ici chaque tache est un degrade radial flou, et c'est leur SUPERPOSITION qui fait la
+    // matiere — en additif pour ce qui emet de la lumiere, en normal pour ce qui l'absorbe.
+    drawAuraCloud(ctx, pts, kind, phase) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const maxOff = r * AURA_MAX_EXTENT;
+        const ramp = AURA_RAMP[kind];
+        const lean = AURA_LEAN[kind] || 0;
+        const prevOp = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = AURA_BLEND[kind];
+        // Densite adaptee au nombre d'ancrages : le produit reste sous AURA_MAX_PUFFS, donc le
+        // cout par frame est borne quelle que soit la taille du serpent.
+        const perAnchor = Math.max(1, Math.min(8, Math.floor(AURA_MAX_PUFFS / (pts.length * 2))));
+        for (let k = 0; k < pts.length; k++) {
+            const p = pts[k];
+            for (const side of [1, -1]) {
+                for (let j = 0; j < perAnchor; j++) {
+                    const seed = j + 1;
+                    const prof = auraProfile(kind, k, pts.length, phase, side, seed);
+                    const d = Math.max(0, Math.min(maxOff, prof * r));
+                    // Position : on part du bord du corps et on s'en ecarte de d, en penchant
+                    // vers la queue. Le tirage par tache est indispensable : sans lui toutes
+                    // se posent aux memes distances et l'aura sort en BANDES CONCENTRIQUES,
+                    // un halo rubane au lieu de langues.
+                    const h1 = hash01(k * 7 + j, side * 31 + 11);
+                    const h2 = hash01(k * 13 + j * 5, side * 17 + 101);
+                    const rc = AURA_REACH[kind];
+                    let reach = r * rc.base + d * rc.gain * (0.20 + j * 0.34 + h1 * 0.75);
+                    // Ecart lateral le long du corps : casse l'alignement des taches sur la
+                    // normale, sans quoi on lit des rayons reguliers en peigne.
+                    const jx = p.tx * (h2 - 0.5) * r * 0.9, jy = p.ty * (h2 - 0.5) * r * 0.9;
+                    // Temperature : chaud au contact du corps, froid a la peripherie.
+                    const t = Math.min(0.999, reach / (r + maxOff));
+                    const col = ramp[Math.min(ramp.length - 1, Math.floor(t * ramp.length))];
+                    // Taches volontairement plus larges que l'ecart entre ancrages : il leur
+                    // faut se RECOUVRIR pour fondre en une masse continue. Trop petites, on
+                    // les lit une a une et l'aura sort perlee, comme un collier.
+                    const size = r * (1.85 - t * 0.55) * (0.45 + prof * 0.75 + h1 * 0.6);
+                    // Le plafond doit porter sur ce que la tache PEINT, pas sur son centre :
+                    // borner le centre laissait deborder de tout son rayon, soit 3 r mesures
+                    // pour un plafond de 1.8. PUFF_VISIBLE approxime le rayon reellement visible
+                    // (l'alpha du degrade s'annule bien avant le bord du sprite).
+                    reach = Math.min(reach, r * (1 + AURA_MAX_EXTENT) - size * PUFF_VISIBLE);
+                    let dx = p.nx * side + p.tx * lean, dy = p.ny * side + p.ty * lean;
+                    const l = Math.hypot(dx, dy) || 1;
+                    const x = p.x + dx / l * reach + jx, y = p.y + dy / l * reach + jy;
+                    const sprite = puffSprite(col);
+                    ctx.globalAlpha = AURA_PUFF_ALPHA[kind] * (1 - t * 0.45);
+                    ctx.drawImage(sprite, x - size, y - size, size * 2, size * 2);
+                }
+            }
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = prevOp;
+    }
+
+    // Ancienne couche en polygone, conservee pour la passe de lechage : la ou il faut une forme
+    // franche qui passe DEVANT le coeur, une decoupe nette est ce qu'on veut.
+    drawAuraLayer(ctx, pts, kind, layer, phase, seed) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const maxOff = r * AURA_MAX_EXTENT;
+        // Inclinaison des langues vers la QUEUE : la direction de sortie n'est pas la normale
+        // pure mais la normale melangee a la tangente. Sans cela les langues sortent
+        // perpendiculairement et l'aura lit comme une dent de scie, jamais comme un feu couche
+        // par la course. lean = 0 garde la sortie perpendiculaire (foudre).
+        const lean = AURA_LEAN[kind] || 0;
+        const off = (k, side) => {
+            const d = auraProfile(kind, k, pts.length, phase, side, seed) * layer.amp * r;
+            return r + Math.max(0, Math.min(maxOff, d));
+        };
+        const pt = (k, side) => {
+            const p = pts[k], d = off(k, side);
+            let dx = p.nx * side + p.tx * lean, dy = p.ny * side + p.ty * lean;
+            const l = Math.hypot(dx, dy) || 1;
+            return { x: p.x + dx / l * d, y: p.y + dy / l * d };
+        };
+        ctx.beginPath();
+        for (let k = 0; k < pts.length; k++) {
+            const q = pt(k, 1);
+            if (k === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+        }
+        for (let k = pts.length - 1; k >= 0; k--) {
+            const q = pt(k, -1);
+            ctx.lineTo(q.x, q.y);
+        }
+        ctx.closePath();
+        const head = pts[0], tail = pts[pts.length - 1];
+        const g = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
+        g.addColorStop(0, layer.to);
+        g.addColorStop(1, layer.from);
+        ctx.globalAlpha = layer.alpha;
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Arcs de foudre : partent perpendiculairement au corps depuis quelques ancrages tires au
+    // sort, avancent par segments courts et bifurquent. Chaque rupture est ANGULEUSE.
+    // Le tirage porte sur (ancrage, pas de temps) et se renouvelle 9 fois par seconde, ce qui
+    // donne l'intermittence — un arc permanent lirait comme un tentacule. Mesure sur 90 pas et
+    // 30 ancrages : les 30 sont touches au moins une fois, 1 a 8 arcs coexistent (moyenne 3,7),
+    // et les ecarts entre arcs voisins couvrent 1 a 23 ancrages. Un instant totalement vide
+    // reste rare (environ 1,5 % des pas) : l'effet ne s'eteint jamais completement.
+    drawBolts(ctx, pts, phase) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const tick = Math.floor(phase * 9);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        for (let k = 1; k < pts.length; k++) {
+            // Tirage deterministe par (ancrage, pas de temps) : pas de Math.random, donc pas
+            // de scintillement incoherent d'une frame a l'autre a l'interieur d'un meme pas.
+            // Peu d'arcs, mais LONGS et ramifies. A l'inverse (beaucoup d'arcs courts) le
+            // serpent se couvre d'un duvet regulier qui lit comme de la fourrure, pas comme
+            // des decharges. Le tirage porte sur (ancrage, pas de temps) : n'importe quel point
+            // du corps peut claquer, et la selection change a chaque pas.
+            if (hash01(k, tick) > 0.13) continue;
+            const p = pts[k];
+            const side = hash01(k, tick + 977) < 0.5 ? 1 : -1;
+            this.boltBranch(ctx, p.x + p.nx * side * r, p.y + p.ny * side * r,
+                            Math.atan2(p.ny * side, p.nx * side), r * BOLT_LEN, 2, k + tick);
+        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+
+    boltBranch(ctx, x, y, ang, len, depth, seed) {
+        if (depth <= 0 || len < 1.5) return;
+        const r = this.radius;
+        let cx = x, cy = y, a = ang;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        const steps = 4;
+        for (let i = 0; i < steps; i++) {
+            // Rupture d'angle vive a chaque pas : c'est ce zigzag anguleux qui lit "foudre".
+            a += (hash01(seed * 31 + i, i * 17 + 5) - 0.5) * 1.5;
+            cx += Math.cos(a) * (len / steps);
+            cy += Math.sin(a) * (len / steps);
+            ctx.lineTo(cx, cy);
+        }
+        // Halo puis trait franc : sans la passe large, un trait fin de 1 px se perd sur le
+        // halo bleu de l'aura. C'est le duo qui rend l'arc lisible.
+        const prevOp = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = '#2ea8ff';
+        ctx.globalAlpha = depth === 2 ? 0.55 : 0.35;
+        ctx.lineWidth = Math.max(2, r * (depth === 2 ? 0.34 : 0.20));
+        ctx.stroke();
+        ctx.globalCompositeOperation = prevOp;
+        ctx.strokeStyle = '#ffffff';
+        ctx.globalAlpha = depth === 2 ? 1 : 0.75;
+        ctx.lineWidth = Math.max(1.5, r * (depth === 2 ? 0.11 : 0.07));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Une seule bifurcation par niveau, deux niveaux au total : au-dela, l'arc devient
+        // un buisson illisible et le cout grimpe pour rien.
+        this.boltBranch(ctx, cx, cy, a + 0.9, len * 0.55, depth - 1, seed + 7);
+    }
+
+    drawRoundEyes(ctx, head, eo, er) {
         ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er, 0, TAU);
@@ -1980,9 +2701,100 @@ class Snake {
         ctx.fill();
     }
 
+    // Vert Vipère : même sclère blanche que les yeux ronds, pupille fendue (ellipse aplatie)
+    // au lieu d'un disque — silhouette de tête inchangée (toujours r*1.05).
+    drawViperEyes(ctx, head, eo, er) {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(head.x + Math.cos(this.angle+0.5)*eo, head.y + Math.sin(this.angle+0.5)*eo, er, 0, TAU);
+        ctx.arc(head.x + Math.cos(this.angle-0.5)*eo, head.y + Math.sin(this.angle-0.5)*eo, er, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#0a3d0a';
+        for (const sign of [0.5, -0.5]) {
+            const ex = head.x + Math.cos(this.angle+sign)*eo, ey = head.y + Math.sin(this.angle+sign)*eo;
+            ctx.save();
+            ctx.translate(ex, ey);
+            ctx.rotate(this.angle + Math.PI/2);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, er*0.28, er*0.85, 0, 0, TAU);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // Deux cornes triangulaires posées sur le dessus de la tête, hors de son disque —
+    // décoration pure, ne change jamais le rayon lu par les autres joueurs. Remplies en sombre
+    // et non à this.color : à la couleur du corps elles se noyaient dans la tête et son halo.
+    drawHorns(ctx, head, r) {
+        ctx.fillStyle = 'rgba(8,12,20,0.82)';
+        for (const sign of [0.85, -0.85]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.65, by = head.y + Math.sin(this.angle+sign)*r*0.65;
+            const tx = head.x + Math.cos(this.angle+sign)*r*2.1, ty = head.y + Math.sin(this.angle+sign)*r*2.1;
+            const perp = this.angle + sign + Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(perp)*r*0.3, by + Math.sin(perp)*r*0.3);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.3, by - Math.sin(perp)*r*0.3);
+            ctx.lineTo(tx, ty);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Deux crocs devant la tête, dans l'axe de déplacement — même logique que les cornes.
+    // Cerclés de sombre : du blanc seul sur une tête claire (Doré, Blanc) ne se détachait pas.
+    drawFangs(ctx, head, r) {
+        for (const sign of [0.3, -0.3]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.9, by = head.y + Math.sin(this.angle+sign)*r*0.9;
+            const tx = head.x + Math.cos(this.angle+sign*0.35)*r*2.2, ty = head.y + Math.sin(this.angle+sign*0.35)*r*2.2;
+            const perp = this.angle + Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(perp)*r*0.24, by + Math.sin(perp)*r*0.24);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.24, by - Math.sin(perp)*r*0.24);
+            ctx.lineTo(tx, ty);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(8,12,20,0.85)';
+            ctx.lineWidth = Math.max(1, r * 0.1);
+            ctx.stroke();
+        }
+    }
+
+    // Dégradé perpendiculaire à la direction de déplacement, positionné sur la seule tête :
+    // coût O(1) par frame, indépendant du nombre de segments (jamais de bounding box du corps).
+    skinGradient(ctx, style, animated) {
+        const head = this.segments[0];
+        const r = this.radius;
+        const nx = Math.cos(this.angle + Math.PI/2), ny = Math.sin(this.angle + Math.PI/2);
+        let stops = style.gradient;
+        if (style.hueShift) {
+            const idx = animated ? Math.floor(this.skinPhase / 2.5) % style.hueStops.length : 0;
+            stops = style.hueStops[idx];
+        }
+        const g = ctx.createLinearGradient(head.x - nx*r, head.y - ny*r, head.x + nx*r, head.y + ny*r);
+        g.addColorStop(0, stops[0]);
+        g.addColorStop(1, stops[1]);
+        return g;
+    }
+
     grow(amount) {
+        // La MASSE n'a aucun plafond : elle cumule tout ce qui a ete mange, et c'est elle qui
+        // decide de la predation et de la vitesse. La LONGUEUR affichee, elle, reste plafonnee
+        // — c'est une contrainte de rendu, pas de jeu. Les deux sont donc decouplees : au-dela
+        // du plafond, le serpent continue de prendre de la masse sans s'allonger a l'ecran.
+        // Meme principe que slither.io, ou le score continue de monter une fois la taille
+        // visuelle plafonnee (cf. analyse-concurrence.md §3).
+        this.massValue = Math.min(this.maxMass, this.massValue + amount);
         this.length = Math.min(this.maxLength, this.length + amount);
-        this.radius = Math.min(CONFIG.MAX_RADIUS, this.radius + amount * 0.05);
+        this.syncRadius();
+    }
+
+    // Le rayon DERIVE de la masse, il ne s'accumule plus de son cote. Deux serpents de meme masse
+    // ont donc toujours le meme rayon, quel que soit le chemin parcouru pour y arriver — ce qui
+    // n'etait pas garanti quand grow() et cut() ajustaient le rayon par increments separes.
+    syncRadius() {
+        const r = CONFIG.BASE_RADIUS * Math.pow(Math.max(1, this.massValue / CONFIG.BASE_MASS), CONFIG.RADIUS_EXPONENT);
+        this.radius = Math.max(CONFIG.BASE_RADIUS, Math.min(CONFIG.MAX_RADIUS, r));
     }
 
     // Toucher le CORPS ampute : le serpent perd la partie coupee mais reste vivant (raccourci),
@@ -1990,8 +2802,16 @@ class Snake {
     cut(atIndex) {
         const removed = this.length - atIndex;
         this.segments.length = Math.max(1, atIndex);
+        // Une amputation retire aussi de la masse : sans cela, un serpent coupe garderait son
+        // rang de predateur alors qu'il n'a plus le corps qui va avec. La perte est
+        // PROPORTIONNELLE a la portion perdue, et non egale au nombre de segments retires :
+        // `removed` se compte sur la longueur nominale, qui depasse les segments reellement
+        // presents tant que le corps n'a pas fini de s'allonger. Perdre la moitie de son corps
+        // coute donc la moitie de sa masse, quel que soit cet ecart.
+        const perdu = Math.min(1, removed / Math.max(1, this.length));
         this.length = this.segments.length;
-        this.radius = Math.max(CONFIG.BASE_RADIUS, this.radius - removed * 0.05);
+        this.massValue = Math.max(CONFIG.BASE_MASS, this.massValue * (1 - perdu));
+        this.syncRadius();
         return removed;
     }
 
@@ -2227,7 +3047,7 @@ function updateLeaderboard() {
             const info = netRoster.get(id);
             const mine = id === party.selfId;
             html += '<div class="lb-entry ' + (mine ? 'lb-player' : '') + '">' +
-                    LB_MEDALS[i] + ' ' + escapeHtml(info ? info.name : '?') + ' (' + e.l + ')</div>';
+                    LB_MEDALS[i] + ' ' + escapeHtml(info ? info.name : '?') + ' (' + Math.round(e.m) + ')</div>';
         });
         const rank = netLeaderboard.rank;
         if (player && player.alive && rank > 3) {
@@ -2237,11 +3057,11 @@ function updateLeaderboard() {
         return;
     }
 
-    const all = aliveSnakes().sort((a, b) => b.length - a.length);
+    const all = aliveSnakes().sort((a, b) => b.mass - a.mass);
     let html = '';
     all.slice(0, 3).forEach((s, i) => {
         html += '<div class="lb-entry ' + (s.isPlayer ? 'lb-player' : '') + '">' +
-                LB_MEDALS[i] + ' ' + s.name + ' (' + Math.round(s.length) + ')</div>';
+                LB_MEDALS[i] + ' ' + s.name + ' (' + Math.round(s.mass) + ')</div>';
     });
     if (player && player.alive) {
         const rank = all.indexOf(player);
@@ -2276,6 +3096,13 @@ function drawMinimap() {
     // Client d'une partie privée : la minimap doit montrer TOUT le monde, alors que le filtrage
     // par intérêt ne lui envoie que ses voisins. D'où une carte compacte à part, à 3 Hz —
     // positions arrondies au 1/255e du monde, ce qui dépasse déjà la précision de 100 px d'écran.
+    //
+    // INCOMPLET, cf. §8 du cahier des charges : ce chemin dessine encore des points de taille
+    // fixe et sans liseré de menace, parce que le paquet minimap ne transporte aujourd'hui que
+    // des positions. Un client voit donc OÙ sont les autres, mais pas lesquels le menacent —
+    // et ce sont justement les serpents hors de son champ de vision, ceux dont la minimap est
+    // la seule source. L'hôte devra y joindre menace et amplitude, qu'il est seul à pouvoir
+    // calculer.
     if (party.inGame && !party.isHost) {
         const K = NET_MM_PRECISION;
         for (const p of netMinimap) {
@@ -2290,11 +3117,24 @@ function drawMinimap() {
         return;
     }
 
+    // Le point grossit avec la MASSE : a taille fixe, un colosse et un nouveau-ne etaient deux
+    // points identiques, et une menace occupant une region entiere de la carte passait inapercue.
+    // Echelle logarithmique, sinon un serpent tres lourd noierait la carte comme il noyait
+    // l'ecran. Le lisere reprend le code de menace du jeu, pour que la carte reponde a la meme
+    // question : ou sont les predateurs, ou sont les proies.
     for (const s of aliveSnakes()) {
+        const ampleur = Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS));
+        const rad = s.isPlayer ? 3 : Math.min(6, 1.6 + ampleur * 0.55);
         minimapCtx.beginPath();
-        minimapCtx.arc(mx(s.x), my(s.y), s.isPlayer ? 3 : 1.8, 0, TAU);
+        minimapCtx.arc(mx(s.x), my(s.y), rad, 0, TAU);
         minimapCtx.fillStyle = s.isPlayer ? '#00ffcc' : s.color;
         minimapCtx.fill();
+        const menace = s.threatLevel();
+        if (menace !== 'neutre') {
+            minimapCtx.strokeStyle = THREAT_RIM[menace].color;
+            minimapCtx.lineWidth = menace === 'danger' ? 1.4 : 0.8;
+            minimapCtx.stroke();
+        }
     }
 }
 
@@ -2391,7 +3231,7 @@ function startGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color
+        true, playerName(), currentSkin().color, currentSkin().style
     );
 
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
@@ -2429,7 +3269,7 @@ let pauseVictory = false;   // la sortie proposee par l'ecran Pause en cours est
 // serpents vivants.
 function playerIsFirst() {
     if (!player || !player.alive) return false;
-    return aliveSnakes().sort((a, b) => b.length - a.length)[0] === player;
+    return aliveSnakes().sort((a, b) => b.mass - a.mass)[0] === player;
 }
 
 // Prepare la sortie proposee par l'ecran Pause. En tete du classement, "Abandonner" devient
@@ -2710,7 +3550,7 @@ function respawnPlayer() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color
+        true, playerName(), currentSkin().color, currentSkin().style
     );
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     sessionKills = 0;
@@ -2793,8 +3633,8 @@ function checkCollisions() {
 
             if (!a.canBeEaten() || !b.canBeEaten()) continue;
 
-            if (a.radius > b.radius * 1.1) devour(a, b);
-            else if (b.radius > a.radius * 1.1) devour(b, a);
+            if (a.beats(b)) devour(a, b);
+            else if (b.beats(a)) devour(b, a);
             if (!simActive()) return;
             if (!a.alive) break;
         }
@@ -2841,10 +3681,12 @@ function checkCollisions() {
             }
             hitIndex = bestIndex;
 
-            if (attacker.radius > target.radius * 1.1) {
+            if (attacker.beats(target)) {
                 cutSnake(attacker, target, hitIndex);
             } else {
-                // Mur : on repousse juste la tete hors du corps touché.
+                // Mur : on repousse juste la tete hors du corps touché. Ne s'applique QUE si
+                // l'attaquant n'a pas la masse superieure — on ne bute jamais sur plus petit
+                // que soi (cf. analyse-concurrence.md §1).
                 const seg = segs[hitIndex];
                 const dx = attacker.x - seg.x, dy = attacker.y - seg.y;
                 const d = Math.hypot(dx, dy) || 1;
@@ -3097,9 +3939,58 @@ function render() {
     if (gameState === 'PLAYING' || gameState === 'SPECTATING') drawMinimap();
 }
 
+// ============================================================
+//  TELEMETRIE HUD (ping / FPS)
+// ============================================================
+// FPS : moyenne glissante sur une seconde d'horloge d'affichage reelle, pas sur le pas de
+// simulation — c'est le confort percu qu'on veut montrer, pas la cadence de la physique.
+let fpsFrames = 0, fpsSince = 0, fpsValue = 0;
+
+// PING : le jeu est SOLO et HORS-LIGNE, il n'existe aucun serveur de jeu. Afficher un ping
+// invente serait un chiffre faux. On mesure donc un aller-retour reel vers l'hebergeur (itch.io
+// ou autre), ce qui renseigne bien la connexion du joueur, et on affiche "—" quand il n'y en a
+// pas. cache:'no-store' et parametre unique : sans eux le service worker repondrait depuis le
+// cache et on mesurerait zero.
+let pingValue = null, pingBusy = false, lastPingAt = -Infinity;
+const PING_INTERVAL = 5000;
+
+function mesurePing() {
+    if (pingBusy || location.protocol === 'file:') return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { pingValue = null; return; }
+    pingBusy = true;
+    const t0 = performance.now();
+    fetch(location.pathname + '?ping=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+        .then(() => { pingValue = Math.round(performance.now() - t0); })
+        .catch(() => { pingValue = null; })
+        .finally(() => { pingBusy = false; });
+}
+
+function updateNetDisplay() {
+    const el = $('netDisplay');
+    if (!el) return;
+    el.textContent = (pingValue === null ? '—' : pingValue + ' ms') + ' / ' +
+                     (fpsValue ? fpsValue + ' fps' : '—');
+}
+
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
     lastRafAt = rnow();
+
+    // La télémétrie reste ICI, et non dans advanceGame : elle compte les IMAGES. advanceGame est
+    // aussi appelée par l'horloge de secours de l'hôte quand le navigateur suspend
+    // requestAnimationFrame — y placer ce compteur ferait afficher des « images par seconde »
+    // alors que plus rien n'est dessiné.
+    fpsFrames++;
+    if (!fpsSince) fpsSince = ts;
+    else if (ts - fpsSince >= 1000) {
+        fpsValue = Math.round(fpsFrames * 1000 / (ts - fpsSince));
+        fpsFrames = 0; fpsSince = ts;
+        // Cadence sur l'horloge d'affichage et non sur gnow() : celle-ci ne progresse qu'en
+        // partie, le ping ne se rafraichirait donc jamais depuis les menus.
+        if (ts - lastPingAt > PING_INTERVAL) { lastPingAt = ts; mesurePing(); }
+        updateNetDisplay();
+    }
+
     advanceGame(ts);
     render();
 }
@@ -3167,6 +4058,14 @@ function neonBlob(ctx, x, y, r, color, a) {
     g.addColorStop(1, neonRgba(color, 0));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+}
+
+// Luminance perçue d'une couleur #rrggbb (coefficients ITU-R BT.601). Sert à choisir un motif
+// clair ou sombre : un motif blanc sur un corps clair ne se voit pas.
+function isLightColor(hex) {
+    if (typeof hex !== 'string' || hex.length < 7) return false;
+    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+    return (0.299*r + 0.587*g + 0.114*b) > 170;
 }
 
 function neonReducedMotion() {
@@ -3804,7 +4703,7 @@ const POWERUP_TYPES = Object.keys(CONFIG.POWERUPS);
 const u16 = v => Math.max(0, Math.min(NET_MAX_U16, Math.round(v)));
 
 function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, minimap) {
-    const size = 11 + 2 + snakes.length * 9 + 1 + lb.length * 4 + 1 + pups.length * 7
+    const size = 11 + 2 + snakes.length * 13 + 1 + lb.length * 6 + 1 + pups.length * 7
                + 2 + foodsDelta.length * 7 + 2 + minimap.length * 4;
     const buf = new ArrayBuffer(size);
     const dv = new DataView(buf);
@@ -3822,10 +4721,14 @@ function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, mi
         let a = s.a % TAU; if (a < 0) a += TAU;
         dv.setUint8(o, Math.round(a / TAU * NET_ANGLE_STEPS)); o += 1;
         dv.setUint16(o, u16(s.l)); o += 2;
+        // La MASSE decide de la predation et du classement, et le rayon en derive (syncRadius).
+        // Sur 4 octets et non 2 : mesure reelle d'un bot a 31 574 en quinze minutes, soit
+        // ~126 000 projetes a une heure — un Uint16 boucherait en silence (cf. §8 du cahier).
+        dv.setUint32(o, Math.max(0, Math.round(s.m))); o += 4;
     }
 
     dv.setUint8(o, lb.length); o += 1;
-    for (const e of lb) { dv.setUint16(o, e.i); o += 2; dv.setUint16(o, u16(e.l)); o += 2; }
+    for (const e of lb) { dv.setUint16(o, e.i); o += 2; dv.setUint32(o, Math.max(0, Math.round(e.m))); o += 4; }
 
     dv.setUint8(o, pups.length); o += 1;
     for (const p of pups) {
@@ -3867,11 +4770,12 @@ function decodeSnapshot(buf) {
         const y = dv.getUint16(o); o += 2;
         const a = dv.getUint8(o) / NET_ANGLE_STEPS * TAU; o += 1;
         const l = dv.getUint16(o); o += 2;
-        out.s.push({ i, x, y, a, l });
+        const m = dv.getUint32(o); o += 4;
+        out.s.push({ i, x, y, a, l, m });
     }
 
     n = dv.getUint8(o); o += 1;
-    for (let k = 0; k < n; k++) { const i = dv.getUint16(o); o += 2; const l = dv.getUint16(o); o += 2; out.lb.push({ i, l }); }
+    for (let k = 0; k < n; k++) { const i = dv.getUint16(o); o += 2; const m = dv.getUint32(o); o += 4; out.lb.push({ i, m }); }
 
     n = dv.getUint8(o); o += 1;
     for (let k = 0; k < n; k++) {
@@ -4165,7 +5069,7 @@ function launchPrivateGame() {
 // par l'hôte, et une carte compacte à 3 Hz pour la minimap.
 function hostSendSnapshot(dt) {
     const all = [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
-    const sorted = all.slice().sort((a, b) => b.length - a.length);
+    const sorted = all.slice().sort((a, b) => b.mass - a.mass);
     const top3 = sorted.slice(0, 3);
 
     // Une seule fois par instantané, pas une fois par client : la boîte est la même pour tous.
@@ -4174,7 +5078,7 @@ function hostSendSnapshot(dt) {
     // Pastilles et bonus : identiques pour tous, construits une seule fois.
     const food = Array.from(foodDirty, f => ({ id: f.id, x: f.x, y: f.y, r: f.radius }));
     const pups = powerups.map(p => ({ id: p.id, x: p.x, y: p.y, t: POWERUP_TYPES.indexOf(p.type) }));
-    const lb = top3.map(s => ({ i: netIndexOf.get(s.netId), l: s.length }));
+    const lb = top3.map(s => ({ i: netIndexOf.get(s.netId), m: s.mass }));
 
     netMinimapAccum += dt;
     let minimap = [];
@@ -4193,7 +5097,7 @@ function hostSendSnapshot(dt) {
         const snakes = [];
         for (const s of all) {
             if (s !== me && !hostRelevant(s, view)) continue;
-            snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length });
+            snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length, m: s.mass });
         }
 
         lobbySend(conn, encodeSnapshot(gameClock, me.kills, sorted.indexOf(me) + 1,
@@ -4286,8 +5190,8 @@ function applySnapshot(buf) {
         // partirait de son ancienne position et traverserait la carte en traînant tout son corps
         // derrière lui avant de rejoindre sa vraie place. Un serpent qui revient dans le champ
         // après en être sorti passe par le même chemin, pour la même raison.
-        if (!netTargets.has(id) || !s.alive) netTeleport(s, e.x, e.y, e.a, e.l);
-        netTargets.set(id, { x: e.x, y: e.y, angle: e.a, length: e.l });
+        if (!netTargets.has(id) || !s.alive) netTeleport(s, e.x, e.y, e.a, e.l, e.m);
+        netTargets.set(id, { x: e.x, y: e.y, angle: e.a, length: e.l, mass: e.m });
         // Ma propre mort m'arrive par DEAD, jamais par l'instantané : entre ma réapparition
         // locale et l'accusé de l'hôte, un instantané périmé me re-tuerait.
         if (s !== player) s.alive = true;
@@ -4340,7 +5244,7 @@ function netClientStep() {
         if (tgt) {
             player.x += (tgt.x - player.x) * NET_SELF_CORRECTION;
             player.y += (tgt.y - player.y) * NET_SELF_CORRECTION;
-            netApplyLength(player, tgt.length);
+            netApplyState(player, tgt.length, tgt.mass);
         }
     }
 
@@ -4351,7 +5255,7 @@ function netClientStep() {
         s.x += (tgt.x - s.x) * NET_LERP;
         s.y += (tgt.y - s.y) * NET_LERP;
         s.angle = tgt.angle;
-        netApplyLength(s, tgt.length);
+        netApplyState(s, tgt.length, tgt.mass);
         s.segments.unshift({ x: s.x, y: s.y });
         while (s.segments.length > s.length) s.segments.pop();
     });
@@ -4376,16 +5280,17 @@ let netKillsFrozen = false;
 // et doit en déduire le rayon. Même courbe que grow()/cut() appliquée d'un coup, mêmes bornes.
 // À REVOIR après la fusion avec la branche skins : c'est la MASSE qui décidera du rayon
 // (syncRadius), et c'est donc elle qu'il faudra transporter ici.
-function netApplyLength(s, length) {
+function netApplyState(s, length, mass) {
     s.length = length;
-    s.radius = Math.min(CONFIG.MAX_RADIUS, CONFIG.BASE_RADIUS + Math.max(0, length - 10) * 0.05);
+    s.massValue = mass;
+    s.syncRadius();   // le rayon derive entierement de la masse : jamais recalcule ici
 }
 
 // Repose le serpent d'un bloc, corps compris : aucune traînée entre l'ancienne position et la
 // nouvelle. Utilisé à la première vue d'un serpent et à chaque réapparition.
-function netTeleport(s, x, y, angle, length) {
+function netTeleport(s, x, y, angle, length, mass) {
     s.x = x; s.y = y; s.angle = angle; s.targetAngle = angle;
-    netApplyLength(s, length);
+    netApplyState(s, length, mass);
     s.segments.length = 0;
     for (let i = 0; i < Math.max(1, Math.round(length)); i++) s.segments.push({ x, y });
 }
