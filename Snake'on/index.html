@@ -876,16 +876,20 @@ const CONFIG = {
     // Chaque skin ne touche jamais la hitbox ni la vitesse ; le coeur du corps (alpha 1,
     // largeur r*2) reste toujours plein — seule sa teinte peut varier (degrade). Pointilles et
     // pulsations d'alpha sont reserves au contour/halo (cf. cahier des charges UI §2 "Skins").
+    // `dash` s'exprime en MULTIPLES DE r, jamais en pixels : le contour fait r*0.7 de large et
+    // lineCap='round' rallonge chaque tiret de r*0.35 de chaque cote. Un trou plus court que
+    // r*0.7 est donc entierement comble par les deux caps et le pointille disparait — mesure :
+    // un dash [6,4] sur un serpent de rayon 15 changeait exactement 0 pixel.
     SKINS: [
         { name:'Cyan Classique', color:'#00ffcc', unlockLevel:1, style:{} },
-        { name:'Rose Écailles', color:'#ff00ff', unlockLevel:2, style:{ dash:[6,4], dashAnim:true } },
+        { name:'Rose Écailles', color:'#ff00ff', unlockLevel:2, style:{ dash:[0.45,1.3], dashAnim:true } },
         { name:'Jaune Dégradé', color:'#ffcc00', unlockLevel:3, style:{ gradient:['#ffcc00','#fff6c8'] } },
         { name:'Bleu Pulsé', color:'#00ccff', unlockLevel:4, style:{ pulse:true } },
         { name:'Vert Vipère', color:'#00ff66', unlockLevel:5, style:{ head:'viper' } },
         { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true } },
         { name:'Rouge Prédateur', color:'#ff0055', unlockLevel:9, style:{ head:'predator' } },
-        { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[3,5], dashAnim:true, pulse:true } },
-        { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[8,3], dashAnim:true } },
+        { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[0.25,1.0], dashAnim:true, pulse:true } },
+        { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[0.6,1.15], dashAnim:true } },
         { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
             hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
             head:'predator', glowBoost:true } },
@@ -1787,12 +1791,16 @@ class Snake {
         ctx.stroke();
 
         // Contour : seul endroit où un skin peut ajouter des pointillés (jamais le cœur).
-        ctx.globalAlpha = 0.15;
-        ctx.strokeStyle = '#ffffff';
+        // Un contour porteur de motif monte à 0.34 d'alpha : à 0.15 le motif existait dans le
+        // canvas mais ne se lisait pas à l'œil sur un corps saturé. Sa couleur suit la luminance
+        // du corps — en blanc sur un corps clair (Blanc Spectral) le motif serait invisible.
+        ctx.globalAlpha = (style && style.dash) ? 0.34 : 0.15;
+        ctx.strokeStyle = (style && style.dash && isLightColor(this.color)) ? '#0a0e18' : '#ffffff';
         ctx.lineWidth = r * 0.7;
         if (style && style.dash) {
-            ctx.setLineDash(style.dash);
-            ctx.lineDashOffset = (style.dashAnim && animated) ? -this.skinPhase * 30 : 0;
+            // Multiples de r -> le motif garde la même allure du rayon 8 au rayon 40.
+            ctx.setLineDash(style.dash.map(v => v * r));
+            ctx.lineDashOffset = (style.dashAnim && animated) ? -this.skinPhase * r * 2 : 0;
         }
         ctx.stroke();
         ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
@@ -1865,36 +1873,41 @@ class Snake {
         }
     }
 
-    // Deux petites cornes triangulaires posées sur le dessus de la tête, hors de son disque —
-    // décoration pure, ne change jamais le rayon lu par les autres joueurs.
+    // Deux cornes triangulaires posées sur le dessus de la tête, hors de son disque —
+    // décoration pure, ne change jamais le rayon lu par les autres joueurs. Remplies en sombre
+    // et non à this.color : à la couleur du corps elles se noyaient dans la tête et son halo.
     drawHorns(ctx, head, r) {
-        ctx.fillStyle = this.color;
-        for (const sign of [0.9, -0.9]) {
-            const bx = head.x + Math.cos(this.angle+sign)*r*0.7, by = head.y + Math.sin(this.angle+sign)*r*0.7;
-            const tx = head.x + Math.cos(this.angle+sign)*r*1.5, ty = head.y + Math.sin(this.angle+sign)*r*1.5;
+        ctx.fillStyle = 'rgba(8,12,20,0.82)';
+        for (const sign of [0.85, -0.85]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.65, by = head.y + Math.sin(this.angle+sign)*r*0.65;
+            const tx = head.x + Math.cos(this.angle+sign)*r*2.1, ty = head.y + Math.sin(this.angle+sign)*r*2.1;
             const perp = this.angle + sign + Math.PI/2;
             ctx.beginPath();
-            ctx.moveTo(bx + Math.cos(perp)*r*0.18, by + Math.sin(perp)*r*0.18);
-            ctx.lineTo(bx - Math.cos(perp)*r*0.18, by - Math.sin(perp)*r*0.18);
+            ctx.moveTo(bx + Math.cos(perp)*r*0.3, by + Math.sin(perp)*r*0.3);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.3, by - Math.sin(perp)*r*0.3);
             ctx.lineTo(tx, ty);
             ctx.closePath();
             ctx.fill();
         }
     }
 
-    // Deux petits crocs devant la tête, dans l'axe de déplacement — même logique que les cornes.
+    // Deux crocs devant la tête, dans l'axe de déplacement — même logique que les cornes.
+    // Cerclés de sombre : du blanc seul sur une tête claire (Doré, Blanc) ne se détachait pas.
     drawFangs(ctx, head, r) {
-        ctx.fillStyle = '#ffffff';
-        for (const sign of [0.22, -0.22]) {
-            const bx = head.x + Math.cos(this.angle+sign)*r*0.95, by = head.y + Math.sin(this.angle+sign)*r*0.95;
-            const tx = head.x + Math.cos(this.angle)*r*1.6, ty = head.y + Math.sin(this.angle)*r*1.6;
+        for (const sign of [0.3, -0.3]) {
+            const bx = head.x + Math.cos(this.angle+sign)*r*0.9, by = head.y + Math.sin(this.angle+sign)*r*0.9;
+            const tx = head.x + Math.cos(this.angle+sign*0.35)*r*2.2, ty = head.y + Math.sin(this.angle+sign*0.35)*r*2.2;
             const perp = this.angle + Math.PI/2;
             ctx.beginPath();
-            ctx.moveTo(bx + Math.cos(perp)*r*0.12, by + Math.sin(perp)*r*0.12);
-            ctx.lineTo(bx - Math.cos(perp)*r*0.12, by - Math.sin(perp)*r*0.12);
+            ctx.moveTo(bx + Math.cos(perp)*r*0.24, by + Math.sin(perp)*r*0.24);
+            ctx.lineTo(bx - Math.cos(perp)*r*0.24, by - Math.sin(perp)*r*0.24);
             ctx.lineTo(tx, ty);
             ctx.closePath();
+            ctx.fillStyle = '#ffffff';
             ctx.fill();
+            ctx.strokeStyle = 'rgba(8,12,20,0.85)';
+            ctx.lineWidth = Math.max(1, r * 0.1);
+            ctx.stroke();
         }
     }
 
@@ -2943,6 +2956,14 @@ function neonBlob(ctx, x, y, r, color, a) {
     g.addColorStop(1, neonRgba(color, 0));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+}
+
+// Luminance perçue d'une couleur #rrggbb (coefficients ITU-R BT.601). Sert à choisir un motif
+// clair ou sombre : un motif blanc sur un corps clair ne se voit pas.
+function isLightColor(hex) {
+    if (typeof hex !== 'string' || hex.length < 7) return false;
+    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+    return (0.299*r + 0.587*g + 0.114*b) > 170;
 }
 
 function neonReducedMotion() {
