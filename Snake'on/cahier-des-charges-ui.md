@@ -66,7 +66,7 @@ version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin
 épouse le contour du serpent et **déborde franchement de ses bords**. La lisibilité n'est alors
 plus garantie par la distance mais par l'**ordre de dessin** — l'aura passe sous le cœur, tracé
 par-dessus à opacité pleine, et une seule passe repasse devant lui, plafonnée à 0,25 d'alpha.
-Le débordement est borné à 1,8 fois le rayon. L'aura est une composante permanente : seule sa
+Le débordement est borné à 2,2 fois le rayon. L'aura est une composante permanente : seule sa
 déformation s'anime, elle demeure donc sous `prefers-reduced-motion`.
 
 ### Typographie *(nouveau, v0.3)*
@@ -248,7 +248,9 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 20. **Une aura peut déborder de la silhouette.** Révise la décision 15 : la lisibilité est
     assurée par l'ordre de dessin et une hiérarchie d'opacité, non plus par l'absence de
     recouvrement.
-21. **Débordement borné à 1,8 r** et passe avant-plan plafonnée à 0,25 d'alpha.
+21. **Débordement borné à 2,2 r** et passe avant-plan plafonnée à 0,25 d'alpha. Ce que le
+    plafond protège est la lecture de la taille, et celle-ci est assurée par le liseré tracé
+    sur le bord du corps, non par l'étroitesse de l'aura.
 22. **Trois auras** : Flamme Ardente (25), Orage (30), Volutes (35).
 
 ---

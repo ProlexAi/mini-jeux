@@ -946,7 +946,7 @@ const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
 // franchement de la silhouette, et c'est l'ORDRE DE DESSIN qui preserve la lisibilite —
 // les couches passent sous le coeur du corps, qui reste trace a alpha 1 par-dessus.
 // Seule une passe de "lechage" repasse devant le coeur, plafonnee a LICK_MAX_ALPHA.
-const AURA_MAX_EXTENT = 1.8;    // debordement max, en multiples de r (borne dure, cf. clamp)
+const AURA_MAX_EXTENT = 2.2;    // debordement max, en multiples de r (borne dure, cf. clamp)
 const LICK_MAX_ALPHA = 0.25;    // plafond de la passe repassee DEVANT le coeur
 // Pas d'echantillonnage du corps, en multiples de r. A 1.5 le corps ne donnait qu'une quinzaine
 // d'ancrages : bien trop peu pour dessiner des langues, l'aura sortait lisse. A 0.6 on a le
@@ -991,13 +991,32 @@ const AURA_REACH = {
     smoke: { base: 1.15, gain: 1.0 },
 };
 const AURA_MAX_PUFFS = 560;   // plafond dur du nombre de drawImage par frame et par serpent
-// Fraction du rayon d'une tache reellement visible : son degrade tombe a zero bien avant le
-// bord du sprite. Sert a faire porter le plafond de debordement sur les pixels peints.
-const PUFF_VISIBLE = 0.62;
+// Rayon de coupe des taches, CALIBRE sur le rendu et non deduit : en fusion additive, ce sont
+// les recouvrements qui portent loin, pas la tache isolee (mesuree visible sur 0,11 a 0,40 de
+// son rayon nominal seulement). Aucune formule par tache ne predit donc l'etendue de la nappe ;
+// cette valeur est reglee pour que le debordement MESURE tienne sous AURA_MAX_EXTENT.
+const PUFF_VISIBLE = 1.0;
+// Longueur d'un arc de foudre, en multiples de r. Bornee pour que l'arc et sa ramification
+// tiennent dans AURA_MAX_EXTENT : les arcs echappaient au plafond de l'aura et portaient a eux
+// seuls le debordement de l'Orage a 2,75 r.
+const BOLT_LEN = 1.25;
 
 // Tache douce a degrade radial, generee UNE FOIS puis teintee et mise en cache par couleur.
 // C'est la brique qui remplace le polygone rempli en aplat : ses bords sont flous par
 // construction, la ou un fill() de polygone donne une decoupe nette qui ne lit jamais "feu".
+// Hachage entier -> [0,1[, deterministe et sans etat. Melange non lineaire (decalages et XOR)
+// pour casser toute regularite.
+// A NE PAS remplacer par un simple (a*A + b*B) % M : si B partage un facteur avec M, le terme
+// b devient identiquement nul et disparait. C'est arrive ici — un tirage d'arcs en % 23 avec
+// un coefficient de temps multiple de 23 gelait les eclairs sur trois positions fixes, a vie.
+// Et meme sans ce piege, une forme lineaire modulo M donne des positions regulierement
+// espacees, jamais un tirage.
+function hash01(a, b) {
+    let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
 const PUFF_CACHE = new Map();
 function puffSprite(color) {
     let c = PUFF_CACHE.get(color);
@@ -1079,15 +1098,15 @@ function auraProfile(kind, k, n, phase, side, seed) {
         const lo = Math.sin(k * 0.4 - phase * 2.1 + seed * 1.1);
         // Longueur variable d'une langue a l'autre : sans cette variation les pics sortaient
         // tous identiques et l'aura lisait comme une dent de scie, pas comme du feu.
-        const vary = 0.55 + ((k * 2654435761 + seed * 40503) % 100) / 100 * 0.9;
+        const vary = 0.55 + hash01(k, seed * 37 + 3) * 0.9;
         return trail * (0.30 + 0.95 * spike * vary + 0.30 * lo);
     }
     if (kind === 'bolt') {
         // Relief anguleux FIXE par ancrage (il ne doit pas sauter d'une frame a l'autre), que
         // fait respirer une onde continue qui remonte le corps. Auparavant tout le relief etait
         // retire a chaque palier de temps : l'aura sautait au lieu d'onduler.
-        const jag = ((k * 7919 + seed * 31337) % 7) / 7;
-        const jag2 = ((k * 15485863 + seed * 2038074743) % 3) / 3;
+        const jag = hash01(k, seed * 53 + 7);
+        const jag2 = hash01(k * 3 + 1, seed * 91 + 29);
         const wave = Math.sin(k * 0.55 - phase * 4.0 + seed * 1.3);
         return 0.15 + jag * 0.55 + jag2 * 0.25 + 0.35 * (0.5 + 0.5 * wave);
     }
@@ -1101,7 +1120,7 @@ function auraProfile(kind, k, n, phase, side, seed) {
     const lobe = Math.sin(k * 0.13 - phase * 0.6 + seed * 1.7);    // grosses boursouflures
     // Variation par ancrage : sans elle les nappes sortent trop regulieres et l'ensemble lit
     // comme un ruban, pas comme de la fumee.
-    const vary = ((k * 374761393 + seed * 668265263) % 100) / 100;
+    const vary = hash01(k, seed * 71 + 13);
     return 0.30 + 0.34 * swirl + 0.24 * swirl2 + 0.55 * lobe + 0.45 * vary;
 }
 
@@ -2166,8 +2185,8 @@ class Snake {
                     // vers la queue. Le tirage par tache est indispensable : sans lui toutes
                     // se posent aux memes distances et l'aura sort en BANDES CONCENTRIQUES,
                     // un halo rubane au lieu de langues.
-                    const h1 = ((k * 374761393 + j * 668265263 + side * 2147483647) % 1000) / 1000;
-                    const h2 = ((k * 2654435761 + j * 40503) % 1000) / 1000;
+                    const h1 = hash01(k * 7 + j, side * 31 + 11);
+                    const h2 = hash01(k * 13 + j * 5, side * 17 + 101);
                     const rc = AURA_REACH[kind];
                     let reach = r * rc.base + d * rc.gain * (0.20 + j * 0.34 + h1 * 0.75);
                     // Ecart lateral le long du corps : casse l'alignement des taches sur la
@@ -2241,8 +2260,11 @@ class Snake {
 
     // Arcs de foudre : partent perpendiculairement au corps depuis quelques ancrages tires au
     // sort, avancent par segments courts et bifurquent. Chaque rupture est ANGULEUSE.
-    // Intermittents par construction : le tirage depend d'un pas de temps discret, donc il
-    // existe de vrais instants sans aucun arc — un arc permanent lirait comme un tentacule.
+    // Le tirage porte sur (ancrage, pas de temps) et se renouvelle 9 fois par seconde, ce qui
+    // donne l'intermittence — un arc permanent lirait comme un tentacule. Mesure sur 90 pas et
+    // 30 ancrages : les 30 sont touches au moins une fois, 1 a 8 arcs coexistent (moyenne 3,7),
+    // et les ecarts entre arcs voisins couvrent 1 a 23 ancrages. Un instant totalement vide
+    // reste rare (environ 1,5 % des pas) : l'effet ne s'eteint jamais completement.
     drawBolts(ctx, pts, phase) {
         if (pts.length < 2) return;
         const r = this.radius;
@@ -2254,12 +2276,13 @@ class Snake {
             // de scintillement incoherent d'une frame a l'autre a l'interieur d'un meme pas.
             // Peu d'arcs, mais LONGS et ramifies. A l'inverse (beaucoup d'arcs courts) le
             // serpent se couvre d'un duvet regulier qui lit comme de la fourrure, pas comme
-            // des decharges.
-            if (((k * 2654435761 + tick * 40503) % 23) > 2) continue;
+            // des decharges. Le tirage porte sur (ancrage, pas de temps) : n'importe quel point
+            // du corps peut claquer, et la selection change a chaque pas.
+            if (hash01(k, tick) > 0.13) continue;
             const p = pts[k];
-            const side = ((k + tick) % 2) ? 1 : -1;
+            const side = hash01(k, tick + 977) < 0.5 ? 1 : -1;
             this.boltBranch(ctx, p.x + p.nx * side * r, p.y + p.ny * side * r,
-                            Math.atan2(p.ny * side, p.nx * side), r * 2.2, 2, k + tick);
+                            Math.atan2(p.ny * side, p.nx * side), r * BOLT_LEN, 2, k + tick);
         }
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -2274,7 +2297,7 @@ class Snake {
         const steps = 4;
         for (let i = 0; i < steps; i++) {
             // Rupture d'angle vive a chaque pas : c'est ce zigzag anguleux qui lit "foudre".
-            a += ((((seed * 31 + i * 17) % 11) / 11) - 0.5) * 1.5;
+            a += (hash01(seed * 31 + i, i * 17 + 5) - 0.5) * 1.5;
             cx += Math.cos(a) * (len / steps);
             cy += Math.sin(a) * (len / steps);
             ctx.lineTo(cx, cy);
