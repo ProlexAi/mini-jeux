@@ -4,7 +4,7 @@ Arène survivor-like néon dans un **grand monde qui défile** : mange, grossis,
 plus petits que toi. **100 % HTML/JS/CSS**, aucune dépendance, aucun build, aucun serveur.
 Installable comme une vraie appli (**PWA**) et **jouable hors-ligne**.
 
-▶️ **Jouer : https://prolexai.github.io/mini-jeux/neon-snake/**
+▶️ **Jouer : https://prolexai.github.io/mini-jeux/Snake'on/**
 *(ce jeu fait partie du dépôt [mini-jeux](../README.md), qui en regroupe plusieurs)*
 
 ---
@@ -71,7 +71,7 @@ Le **mur cyan** marque le bord du monde.
 
 L'activation de GitHub Pages se fait une seule fois, au niveau du dépôt `mini-jeux` — voir le
 [README racine](../README.md#mettre-le-portail-en-ligne-github-pages). Une fois activée, ce jeu
-est automatiquement servi sur `https://prolexai.github.io/mini-jeux/neon-snake/`.
+est automatiquement servi sur `https://prolexai.github.io/mini-jeux/Snake'on/`.
 
 ---
 

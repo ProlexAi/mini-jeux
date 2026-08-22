@@ -1,7 +1,7 @@
 /* Service worker — Snake'on
    Bump CACHE_VERSION à chaque déploiement pour forcer la mise à jour côté joueurs. */
 const CACHE_VERSION = 'v2';
-const CACHE = 'neon-snake-' + CACHE_VERSION;
+const CACHE = 'snakeon-' + CACHE_VERSION;
 
 const ASSETS = [
   './index.html',
