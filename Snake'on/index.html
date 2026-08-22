@@ -538,6 +538,10 @@
         .abandon-row.victory .abandon-code { color: var(--accent); opacity: 0.65; }
         .abandon-row.victory .abandon-btn:active { background: rgba(255,255,255,0.10); color: var(--accent); }
         #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
+        /* En partie privée, mettre pause ne fige pas le monde : l'avertissement du §6 doit se
+           lire d'un coup d'œil, il quitte donc le gris des indices pour la couleur d'alerte. */
+        #pausePartyHint { color: var(--warning); max-width: 300px; }
+        #pauseSoloHint.hidden, #pausePartyHint.hidden { display: none; }
 
         /* ===== TABS ===== */
         .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
@@ -825,7 +829,8 @@
                 <h1 style="margin-bottom:0" data-i18n="pause">⏸ PAUSE</h1>
                 <span class="pause-subtitle">SYS//HALT</span>
             </div>
-            <p class="hint" data-i18n="pauseHint">La partie reprend où tu l’as laissée.</p>
+            <p class="hint" id="pauseSoloHint" data-i18n="pauseHint">La partie reprend où tu l’as laissée.</p>
+            <p class="hint hidden" id="pausePartyHint" data-i18n="pausePartyHint">Toi seul es en pause — tu peux te faire manger pendant ce temps.</p>
             <div class="btn-row">
                 <button id="resumeBtn" class="btn-primary cta-hachured"><span data-i18n="resume">▶ REPRENDRE</span><span class="hachure" style="width:26px"></span></button>
             </div>
@@ -1056,6 +1061,7 @@ const TRANSLATIONS = {
         welcomeText: "Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort, tu réapparais aussitôt dans la même arène.",
         welcomeStart: "C'EST PARTI ▶",
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
+        pausePartyHint: '⚠ Toi seul es en pause — tu peux te faire manger pendant ce temps.',
         resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
         abandonTitle: 'Abandonner ?', abandonHint: 'La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.',
         finish: 'TERMINER LA PARTIE', finishTitle: 'Terminer en tête ?',
@@ -1825,7 +1831,13 @@ class Snake {
     update(target, allSnakes, grid) {
         if (!this.alive) return;
 
-        if (this.isPlayer) {
+        if (this.pauseAI) {
+            // Joueur en pause pendant une partie privee : son serpent passe en pilotage
+            // automatique (profil "peureux") au lieu de figer le monde des autres — c'est la
+            // regle tranchee au §6 du cahier des charges. Prioritaire sur tout le reste : le
+            // pointeur local comme le cap reseau se taisent tant que la pause dure.
+            this.botAI(allSnakes, grid);
+        } else if (this.isPlayer) {
             if (target && target.x !== undefined && target.y !== undefined) {
                 const dx = target.x - this.x;
                 const dy = target.y - this.y;
@@ -1833,9 +1845,7 @@ class Snake {
             }
         } else if (this.netControlled) {
             // Humain distant (partie privee, cote hote) : son cap arrive par le reseau, il n'est
-            // pilote ni par le pointeur local ni par l'IA. Sauf en pause, ou l'IA reprend la main
-            // pour que son serpent se defende seul (cahier des charges UI §6).
-            if (this.netPaused) this.botAI(allSnakes, grid);
+            // pilote ni par le pointeur local ni par l'IA.
         } else {
             this.botAI(allSnakes, grid);
         }
@@ -2059,6 +2069,14 @@ function aliveSnakes() {
     if (party.inGame && !party.isHost) return Array.from(netSnakes.values()).filter(s => s && s.alive);
     if (party.inGame) return [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
     return [player, ...bots].filter(s => s && s.alive);
+}
+
+// La simulation doit-elle encore avancer ? En solo, la pause fige tout — c'est ce qu'on veut.
+// En partie privee elle ne fige RIEN : mettre pause ne doit jamais arreter la partie des autres
+// (cahier des charges UI §6), donc collisions, bots et instantanes continuent pendant PAUSED.
+function simActive() {
+    return gameState === 'PLAYING' || gameState === 'SPECTATING'
+        || (party.inGame && gameState === 'PAUSED');
 }
 
 // ============================================================
@@ -2443,6 +2461,10 @@ function pauseGame() {
     gameState = 'PAUSED';
     $('pauseConfirm').classList.add('hidden');
     $('pauseNormal').classList.remove('hidden');
+    // Deux promesses opposées selon le mode : en solo la partie attend, en partie privée non.
+    $('pauseSoloHint').classList.toggle('hidden', party.inGame);
+    $('pausePartyHint').classList.toggle('hidden', !party.inGame);
+    partySetPaused(true);
     applyPauseExitMode();
     showScreen('pause');
 }
@@ -2473,6 +2495,7 @@ function resumeGame() {
     gameState = 'PLAYING';
     accumulator = 0;
     lastFrameTs = 0;
+    partySetPaused(false);
     audio.resume();
     showScreen('game');
 }
@@ -2526,7 +2549,7 @@ function endGame(opts) {
 }
 
 function respawnBot(idx, name, color) {
-    if ((gameState !== 'PLAYING' && gameState !== 'SPECTATING') || idx < 0 || idx >= bots.length) return;
+    if (!simActive() || idx < 0 || idx >= bots.length) return;
     const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
     bot.grow(Math.floor(Math.random() * 10));
     bot.netId = 'b' + idx;   // meme identite reseau qu'avant sa mort : le roster reste valable
@@ -2758,7 +2781,7 @@ function checkCollisions() {
 
             if (a.length > b.length * CONFIG.EAT_RATIO) devour(a, b);
             else if (b.length > a.length * CONFIG.EAT_RATIO) devour(b, a);
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+            if (!simActive()) return;
             if (!a.alive) break;
         }
     }
@@ -2815,7 +2838,7 @@ function checkCollisions() {
                 attacker.x += (dx / d) * push;
                 attacker.y += (dy / d) * push;
             }
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+            if (!simActive()) return;
         }
     }
 }
@@ -3017,7 +3040,7 @@ function simulate() {
     // construite en haut de fonction leur est d'un pas périmée.
     foodGrid.build(foods);
     checkCollisions();
-    if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+    if (!simActive()) return;
 
     particles.update();
     screenShake.update();
@@ -3073,7 +3096,7 @@ function gameLoop(ts) {
     lastFrameTs = ts;
     if (dt > 250) dt = 250;   // onglet réveillé : on ne rattrape pas 10 minutes de simulation
 
-    if (gameState === 'PLAYING' || gameState === 'SPECTATING') {
+    if (simActive()) {
         accumulator += dt;
         let steps = 0;
         while (accumulator >= STEP_MS && steps < MAX_STEPS_PER_FRAME) {
@@ -3081,7 +3104,7 @@ function gameLoop(ts) {
             gameClock += STEP_MS;
             simulate();
             steps++;
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') { accumulator = 0; break; }
+            if (!simActive()) { accumulator = 0; break; }
         }
         if (steps >= MAX_STEPS_PER_FRAME) accumulator = 0;
 
@@ -3631,6 +3654,8 @@ function handleHostMessage(conn, msg) {
         if (s && s.alive && typeof msg.a === 'number') s.targetAngle = msg.a;
     } else if (msg.type === 'RESPAWN') {
         hostSpawnRemote(conn.peer);
+    } else if (msg.type === 'PAUSE' || msg.type === 'RESUME') {
+        setPausedAutopilot(remotes.get(conn.peer), msg.type === 'PAUSE');
     }
 }
 
@@ -3684,7 +3709,9 @@ function handleClientMessage(msg, code) {
     } else if (msg.type === 'DEAD') {
         // Mort décidée par l'hôte. La suite est locale et identique au solo : spectateur, puis
         // endGame() (XP, stats, historique dans MON localStorage), puis réapparition.
-        if (gameState === 'PLAYING' && player) {
+        // PAUSED compte aussi : en partie privée on peut se faire manger pendant sa pause — c'est
+        // précisément ce que l'avertissement du §6 annonce.
+        if ((gameState === 'PLAYING' || gameState === 'PAUSED') && player) {
             player.alive = false;
             screenShake.trigger(10);
             startSpectate(netSnakes.get(msg.killer) || player);
@@ -3718,6 +3745,29 @@ function markFoodDirty(f) {
 }
 
 function partySendToHost(msg) { if (party.hostConn) lobbySend(party.hostConn, msg); }
+
+// Le profil d'IA prêté à un joueur en pause : "peureux" fuit tôt et ne chasse jamais. On ne
+// veut pas qu'un joueur revienne de pause avec des kills qu'il n'a pas faits.
+const BOT_PROFILE_SHY = CONFIG.BOT_PROFILES.find(p => p.id === 'peureux')
+    || CONFIG.BOT_PROFILES[CONFIG.BOT_PROFILES.length - 1];
+
+// Bascule un serpent entre pilotage humain et pilotage automatique. Réutilise botAI() tel quel :
+// il lui suffit d'un état d'IA garni, que le joueur local n'a pas (son `ai` vaut null).
+function setPausedAutopilot(s, on) {
+    if (!s) return;
+    s.pauseAI = on;
+    if (on) s.ai = { profile: BOT_PROFILE_SHY, target: null, lockUntil: 0, ignoreUid: -1, ignoreUntil: 0 };
+    else if (s.isPlayer) s.ai = null;
+}
+
+// Pause pendant une partie privée. L'hôte bascule son serpent sur-le-champ ; le client le
+// demande à l'hôte, seul juge de la simulation — son propre serpent cesse alors d'être prédit
+// localement (voir netClientStep) puisqu'il n'est plus piloté par lui.
+function partySetPaused(on) {
+    if (!party.inGame) return;
+    if (party.isHost) setPausedAutopilot(player, on);
+    else partySendToHost({ type: on ? 'PAUSE' : 'RESUME' });
+}
 
 // Le monde n'est calculé QUE par l'hôte, sur SON écran (premier problème posé par le cahier des
 // charges) : deux joueurs sur deux écrans différents doivent voir le même monde, pas chacun le
@@ -3932,7 +3982,10 @@ function netClientStep() {
     // MON serpent est prédit localement — sinon chaque virage attendrait l'aller-retour réseau,
     // ce qui se sent immédiatement au doigt. L'hôte reste juge : sa position rappelle la mienne
     // en douceur, au lieu de la remplacer d'un coup (ce qui se verrait comme un saut).
-    if (player && player.alive) {
+    // Exception : en pause, ce n'est plus moi qui pilote mais l'IA chez l'hôte — je n'ai donc
+    // plus rien à prédire, et mon serpent se suit comme n'importe quel autre.
+    const predictSelf = player && player.alive && gameState !== 'PAUSED';
+    if (predictSelf) {
         player.update(screenToWorld(pointer.x, pointer.y), NET_NO_SNAKES, foodGrid);
         const tgt = netTargets.get(party.selfId);
         if (tgt) {
@@ -3943,7 +3996,7 @@ function netClientStep() {
     }
 
     netSnakes.forEach((s, id) => {
-        if (s === player || !s.alive) return;
+        if (!s.alive || (s === player && predictSelf)) return;
         const tgt = netTargets.get(id);
         if (!tgt) return;
         s.x += (tgt.x - s.x) * NET_LERP;
