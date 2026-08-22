@@ -959,6 +959,59 @@ const AURA_MAX_POINTS = 90;
 // perpendiculairement.
 const AURA_LEAN = { flame: 0.85, smoke: 0.55, bolt: 0 };
 
+// Rampe de temperature de chaque aura : du plus chaud (au contact du corps) au plus froid
+// (a la peripherie). Une tache prend sa couleur selon sa distance au corps.
+const AURA_RAMP = {
+    flame: ['#fff6d0', '#ffc247', '#ff7a00', '#e02200'],
+    // Pas de blanc pur ici : en additif le halo saturait a blanc et NOYAIT les arcs, qui sont
+    // precisement ce qui fait lire "foudre". Le blanc est reserve aux arcs eux-memes.
+    bolt:  ['#8fd8ff', '#3fb4ff', '#1878d8', '#0a3f7a'],
+    smoke: ['#ffffff', '#e8eef5', '#cdd8e4', '#9fb0c4'],
+};
+// Le feu et la foudre EMETTENT de la lumiere : leurs taches se cumulent en additif, ce qui
+// blanchit naturellement les zones denses — c'est ce qui donne le coeur incandescent. La fumee
+// ABSORBE : en additif elle brillerait, ce qui serait faux. D'ou deux modes distincts.
+const AURA_BLEND = { flame: 'lighter', bolt: 'lighter', smoke: 'source-over' };
+// La foudre reste basse : en additif, un halo dense sature a blanc et NOIE les arcs, qui sont
+// pourtant ce qui fait lire "foudre". Le halo assoit, les arcs signent.
+const AURA_PUFF_ALPHA = { flame: 0.22, bolt: 0.085, smoke: 0.11 };
+// base = distance de naissance des taches, en multiples de r ; gain = amplification du profil.
+// La flamme naît AU-DELA du bord (0.95) : a 0.45 les taches se posaient a l'interieur du corps
+// et l'aura sortait en anneau colle a la silhouette, sans aucune langue. La fumee, elle, doit
+// mordre sur le corps pour l'envelopper, d'ou une base basse.
+const AURA_REACH = {
+    flame: { base: 0.95, gain: 1.6 },
+    bolt:  { base: 0.80, gain: 1.0 },
+    smoke: { base: 0.45, gain: 1.0 },
+};
+const AURA_MAX_PUFFS = 260;   // plafond dur du nombre de drawImage par frame et par serpent
+
+// Tache douce a degrade radial, generee UNE FOIS puis teintee et mise en cache par couleur.
+// C'est la brique qui remplace le polygone rempli en aplat : ses bords sont flous par
+// construction, la ou un fill() de polygone donne une decoupe nette qui ne lit jamais "feu".
+const PUFF_CACHE = new Map();
+function puffSprite(color) {
+    let c = PUFF_CACHE.get(color);
+    if (c) return c;
+    const S = 64;
+    c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(S/2, S/2, 0, S/2, S/2, S/2);
+    grd.addColorStop(0,    'rgba(255,255,255,1)');
+    grd.addColorStop(0.30, 'rgba(255,255,255,0.62)');
+    grd.addColorStop(0.65, 'rgba(255,255,255,0.20)');
+    grd.addColorStop(1,    'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, S, S);
+    // source-in : on repeint la tache a la couleur voulue en conservant son alpha.
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color;
+    g.fillRect(0, 0, S, S);
+    PUFF_CACHE.set(color, c);
+    return c;
+}
+
 // amp est en multiples de r. Les couches vont de la plus large et la plus froide (dessous)
 // a la plus etroite et la plus chaude (au contact du corps).
 const AURA_PRESETS = {
@@ -1880,7 +1933,7 @@ class Snake {
             // s'arrete. Une aura qui disparaitrait en reduced-motion rendrait le skin invisible.
             const phase = animated ? this.skinPhase : 0;
             auraPts = this.sampleBody(r * AURA_STEP);
-            preset.layers.forEach((layer, li) => this.drawAuraLayer(ctx, auraPts, style.aura, layer, phase, li + 1));
+            this.drawAuraCloud(ctx, auraPts, style.aura, phase);
         }
 
         // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
@@ -2058,10 +2111,62 @@ class Snake {
         return pts;
     }
 
-    // Construit UNE couche d'aura : on longe le corps d'un cote a la distance r + profil, on
-    // contourne la queue, on revient par l'autre cote, on ferme et on remplit en degrade.
-    // Le debordement est borne dur a AURA_MAX_EXTENT * r : sans ce plafond, un serpent au rayon
-    // max couvrirait une fraction de l'ecran et masquerait le terrain.
+    // Nappe de taches douces le long du corps. Remplace le remplissage de polygone : un fill()
+    // donne une decoupe nette au ciseau, qui ne lit jamais comme du feu ni comme de la fumee.
+    // Ici chaque tache est un degrade radial flou, et c'est leur SUPERPOSITION qui fait la
+    // matiere — en additif pour ce qui emet de la lumiere, en normal pour ce qui l'absorbe.
+    drawAuraCloud(ctx, pts, kind, phase) {
+        if (pts.length < 2) return;
+        const r = this.radius;
+        const maxOff = r * AURA_MAX_EXTENT;
+        const ramp = AURA_RAMP[kind];
+        const lean = AURA_LEAN[kind] || 0;
+        const prevOp = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = AURA_BLEND[kind];
+        // Densite adaptee au nombre d'ancrages : le produit reste sous AURA_MAX_PUFFS, donc le
+        // cout par frame est borne quelle que soit la taille du serpent.
+        const perAnchor = Math.max(1, Math.min(4, Math.floor(AURA_MAX_PUFFS / (pts.length * 2))));
+        for (let k = 0; k < pts.length; k++) {
+            const p = pts[k];
+            for (const side of [1, -1]) {
+                for (let j = 0; j < perAnchor; j++) {
+                    const seed = j + 1;
+                    const prof = auraProfile(kind, k, pts.length, phase, side, seed);
+                    const d = Math.max(0, Math.min(maxOff, prof * r));
+                    // Position : on part du bord du corps et on s'en ecarte de d, en penchant
+                    // vers la queue. Le tirage par tache est indispensable : sans lui toutes
+                    // se posent aux memes distances et l'aura sort en BANDES CONCENTRIQUES,
+                    // un halo rubane au lieu de langues.
+                    const h1 = ((k * 374761393 + j * 668265263 + side * 2147483647) % 1000) / 1000;
+                    const h2 = ((k * 2654435761 + j * 40503) % 1000) / 1000;
+                    const rc = AURA_REACH[kind];
+                    // Le plafond porte sur la distance FINALE, pas sur d : borner d seul
+                    // laissait passer des taches bien au-dela de AURA_MAX_EXTENT une fois le
+                    // gain et l'echelonnement appliques.
+                    const reach = Math.min(r * (1 + AURA_MAX_EXTENT),
+                        r * rc.base + d * rc.gain * (0.20 + j * 0.34 + h1 * 0.75));
+                    // Ecart lateral le long du corps : casse l'alignement des taches sur la
+                    // normale, sans quoi on lit des rayons reguliers en peigne.
+                    const jx = p.tx * (h2 - 0.5) * r * 0.9, jy = p.ty * (h2 - 0.5) * r * 0.9;
+                    let dx = p.nx * side + p.tx * lean, dy = p.ny * side + p.ty * lean;
+                    const l = Math.hypot(dx, dy) || 1;
+                    const x = p.x + dx / l * reach + jx, y = p.y + dy / l * reach + jy;
+                    // Temperature : chaud au contact du corps, froid a la peripherie.
+                    const t = Math.min(0.999, reach / (r + maxOff));
+                    const col = ramp[Math.min(ramp.length - 1, Math.floor(t * ramp.length))];
+                    const size = r * (1.35 - t * 0.45) * (0.55 + prof * 0.55 + h1 * 0.4);
+                    const sprite = puffSprite(col);
+                    ctx.globalAlpha = AURA_PUFF_ALPHA[kind] * (1 - t * 0.45);
+                    ctx.drawImage(sprite, x - size, y - size, size * 2, size * 2);
+                }
+            }
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = prevOp;
+    }
+
+    // Ancienne couche en polygone, conservee pour la passe de lechage : la ou il faut une forme
+    // franche qui passe DEVANT le coeur, une decoupe nette est ce qu'on veut.
     drawAuraLayer(ctx, pts, kind, layer, phase, seed) {
         if (pts.length < 2) return;
         const r = this.radius;
@@ -2114,11 +2219,14 @@ class Snake {
         for (let k = 1; k < pts.length; k++) {
             // Tirage deterministe par (ancrage, pas de temps) : pas de Math.random, donc pas
             // de scintillement incoherent d'une frame a l'autre a l'interieur d'un meme pas.
-            if (((k * 2654435761 + tick * 40503) % 17) > 2) continue;
+            // Peu d'arcs, mais LONGS et ramifies. A l'inverse (beaucoup d'arcs courts) le
+            // serpent se couvre d'un duvet regulier qui lit comme de la fourrure, pas comme
+            // des decharges.
+            if (((k * 2654435761 + tick * 40503) % 23) > 2) continue;
             const p = pts[k];
             const side = ((k + tick) % 2) ? 1 : -1;
             this.boltBranch(ctx, p.x + p.nx * side * r, p.y + p.ny * side * r,
-                            Math.atan2(p.ny * side, p.nx * side), r * 0.9, 2, k + tick);
+                            Math.atan2(p.ny * side, p.nx * side), r * 2.2, 2, k + tick);
         }
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -2138,9 +2246,18 @@ class Snake {
             cy += Math.sin(a) * (len / steps);
             ctx.lineTo(cx, cy);
         }
-        ctx.strokeStyle = depth === 2 ? '#ffffff' : '#7fe8ff';
-        ctx.globalAlpha = depth === 2 ? 0.85 : 0.55;
-        ctx.lineWidth = Math.max(1, r * (depth === 2 ? 0.10 : 0.06));
+        // Halo puis trait franc : sans la passe large, un trait fin de 1 px se perd sur le
+        // halo bleu de l'aura. C'est le duo qui rend l'arc lisible.
+        const prevOp = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = '#2ea8ff';
+        ctx.globalAlpha = depth === 2 ? 0.55 : 0.35;
+        ctx.lineWidth = Math.max(2, r * (depth === 2 ? 0.34 : 0.20));
+        ctx.stroke();
+        ctx.globalCompositeOperation = prevOp;
+        ctx.strokeStyle = '#ffffff';
+        ctx.globalAlpha = depth === 2 ? 1 : 0.75;
+        ctx.lineWidth = Math.max(1.5, r * (depth === 2 ? 0.11 : 0.07));
         ctx.stroke();
         ctx.globalAlpha = 1;
         // Une seule bifurcation par niveau, deux niveaux au total : au-dela, l'arc devient
