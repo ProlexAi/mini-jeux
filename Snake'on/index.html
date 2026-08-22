@@ -4239,8 +4239,11 @@ function applyGameStart(msg) {
     particles.clear(); killStreak.reset(); screenShake.reset();
     spectateTarget = null;
 
+    // `player` DOIT pointer sur mon propre serpent chez le client : tout le jeu s'y réfère —
+    // caméra, HUD, et le rapport de force affiché sur les autres serpents se calcule par
+    // rapport à lui.
     player = netEnsureSnake(party.selfId);
-    player.isPlayer = true; player.ai = null;
+    player.isPlayer = true;
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
     clampCamera();
 
