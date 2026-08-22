@@ -311,6 +311,20 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
   de la longueur. Sans ça, deux joueurs au plafond s'afficheraient à égalité en étant très
   différents.
 
+  Quatre points arbitrés d'avance avec ce chantier, pour que la fusion n'ait pas à les redécouvrir :
+  1. **La masse voyage en plus de la longueur, pas à sa place.** La longueur reste nécessaire : le
+     client s'en sert pour savoir combien de segments dessiner. La masse s'y ajoute pour le
+     classement, le liseré de menace et la minimap.
+  2. **Sur 4 octets, pas 2.** Deux mesures divergent d'un facteur deux — une partie simulée projette
+     ~57 500 à une heure, l'observation réelle d'un bot à 31 574 en quinze minutes en projette
+     ~126 000. C'est l'observation réelle qui prime : un Uint16 déborderait en partie longue, et un
+     compteur qui boucle en silence coûte plus cher que deux octets par serpent.
+  3. **Arrondie au transport.** La masse est fractionnaire (les pastilles de découpe valent une
+     fraction), mais côté client elle ne sert qu'à afficher — la décision de prédation reste chez
+     l'hôte, à pleine précision.
+  4. **Le champ transporté est `massValue`, pas `mass`** : ce dernier est un accesseur, qui ne
+     survivrait pas à une sérialisation.
+
 ---
 
 ## 9. Contrôles rejouables

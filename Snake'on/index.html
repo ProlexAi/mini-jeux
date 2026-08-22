@@ -3654,7 +3654,10 @@ function handleHostMessage(conn, msg) {
         const name = String(msg.name || '').slice(0, 14) || t('you');
         const color = String(msg.color || CONFIG.SKINS[0].color).slice(0, 9);
         // Sa taille d'écran : sans elle, l'hôte ne peut pas savoir ce qu'il voit, et donc pas
-        // tailler ses instantanés (hostViewFor).
+        // tailler ses instantanés (hostViewFor). Le test > 0 n'est PAS une politesse : une page
+        // qui n'est pas composée par son navigateur rapporte innerWidth = 0, et un champ de
+        // vision nul ne laisserait plus rien passer — ce joueur ne recevrait plus aucun serpent.
+        // À défaut, hostViewFor retombe sur NET_SCREEN_DEFAULT.
         if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
         party.players.set(conn.peer, { name, color, isHost: false });
         lobbySend(conn, {
@@ -3684,7 +3687,7 @@ function handleHostMessage(conn, msg) {
     } else if (msg.type === 'PAUSE' || msg.type === 'RESUME') {
         setPausedAutopilot(remotes.get(conn.peer), msg.type === 'PAUSE');
     } else if (msg.type === 'VIEW') {
-        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
+        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });   // cf. HELLO
     }
 }
 
