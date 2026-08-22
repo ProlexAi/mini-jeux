@@ -53,6 +53,12 @@ quitte, la partie s'arrête pour tout le monde — mais chacun **garde l'XP** de
 personne ne paie une coupure qu'il n'a pas causée. Aucun compte, aucune donnée qui sort de ton
 appareil : la progression reste dans ton navigateur, comme en solo.
 
+**Qui héberge doit avoir une bonne connexion montante.** L'hôte simule toute la partie et envoie
+à chacun ce qu'il voit — les corps ne voyagent jamais, chaque joueur redessine la traînée chez
+lui. Mesuré en montée chez l'hôte : ~10 ko/s par joueur connecté en début de partie, ~15 ko/s en
+fin quand les serpents s'allongent. **Confortable jusqu'à 4-5 joueurs** sur n'importe quelle
+connexion ; au-delà, mieux vaut que l'hôte soit en fibre.
+
 ⚠️ **Mettre pause ne fige pas la partie des autres.** Pendant ta pause, ton serpent passe en
 pilotage automatique (il fuit, il ne chasse pas) — **tu peux te faire manger pendant ce temps**,
 et le jeu te le dit. Le bouton Partie Privée est désactivé hors ligne, avec le motif affiché.

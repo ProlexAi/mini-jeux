@@ -2321,13 +2321,31 @@ function updateHUD() {
     }
 }
 
+const LB_MEDALS = ['🥇','🥈','🥉'];
+
 function updateLeaderboard() {
+    // Client d'une partie privée : il ne voit qu'une fraction des serpents (filtrage par
+    // intérêt), il ne peut donc PAS calculer le classement. L'hôte, qui voit tout, le lui donne.
+    if (party.inGame && !party.isHost) {
+        if (!netLeaderboard) { $('lbContent').innerHTML = '<div class="lb-entry">—</div>'; return; }
+        let html = '';
+        netLeaderboard.top.forEach(([name, len, mine], i) => {
+            html += '<div class="lb-entry ' + (mine ? 'lb-player' : '') + '">' +
+                    LB_MEDALS[i] + ' ' + escapeHtml(name) + ' (' + len + ')</div>';
+        });
+        const rank = netLeaderboard.rank;
+        if (player && player.alive && rank > 3) {
+            html += '<div class="lb-entry lb-player">📊 ' + escapeHtml(playerName()) + ': #' + rank + ' (' + Math.round(player.length) + ')</div>';
+        }
+        $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
+        return;
+    }
+
     const all = aliveSnakes().sort((a, b) => b.length - a.length);
-    const medals = ['🥇','🥈','🥉'];
     let html = '';
     all.slice(0, 3).forEach((s, i) => {
         html += '<div class="lb-entry ' + (s.isPlayer ? 'lb-player' : '') + '">' +
-                medals[i] + ' ' + s.name + ' (' + Math.round(s.length) + ')</div>';
+                LB_MEDALS[i] + ' ' + s.name + ' (' + Math.round(s.length) + ')</div>';
     });
     if (player && player.alive) {
         const rank = all.indexOf(player);
@@ -2359,6 +2377,23 @@ function drawMinimap() {
     minimapCtx.strokeRect(mx(cam.x) - vw/2, my(cam.y) - vh/2, vw, vh);
 
     // Pas la nourriture : 600 points sur 100x75 px ne seraient qu'un aplat.
+    // Client d'une partie privée : la minimap doit montrer TOUT le monde, alors que le filtrage
+    // par intérêt ne lui envoie que ses voisins. D'où une carte compacte à part, à 3 Hz —
+    // positions arrondies au 1/255e du monde, ce qui dépasse déjà la précision de 100 px d'écran.
+    if (party.inGame && !party.isHost) {
+        const K = NET_MM_PRECISION;
+        for (const [idx, cx, cy] of netMinimap) {
+            const id = netOrder[idx];
+            const mine = id === party.selfId;
+            const info = netRoster.get(id);
+            minimapCtx.beginPath();
+            minimapCtx.arc(mx(cx / K * CONFIG.WORLD_WIDTH), my(cy / K * CONFIG.WORLD_HEIGHT), mine ? 3 : 1.8, 0, TAU);
+            minimapCtx.fillStyle = mine ? '#00ffcc' : (info ? info.color : '#888');
+            minimapCtx.fill();
+        }
+        return;
+    }
+
     for (const s of aliveSnakes()) {
         minimapCtx.beginPath();
         minimapCtx.arc(mx(s.x), my(s.y), s.isPlayer ? 3 : 1.8, 0, TAU);
@@ -3637,8 +3672,11 @@ function resetParty() {
     if (peer) { try { peer.destroy(); } catch(e) {} }
     party.players.clear(); party.selfId = 'host';
     remotes.clear(); netSnakes.clear(); netTargets.clear();
-    netRoster.clear(); netPowerups.clear(); foodDirty.clear();
-    netSnapshotAccum = 0; netInputAccum = 0; netLastSentAngle = null;
+    netRoster.clear(); netPowerups.clear(); foodDirty.clear(); netScreens.clear();
+    netResetIdentity();
+    netMinimap = []; netLeaderboard = null;
+    netSnapshotAccum = 0; netInputAccum = 0; netMinimapAccum = 0;
+    netLastSentAngle = null; netLastSentScreen = '';
 }
 
 function lobbySend(conn, msg) { try { conn.send(msg); } catch(e) {} }
@@ -3720,6 +3758,9 @@ function handleHostMessage(conn, msg) {
     if (msg.type === 'HELLO') {
         const name = String(msg.name || '').slice(0, 14) || t('you');
         const color = String(msg.color || CONFIG.SKINS[0].color).slice(0, 9);
+        // Sa taille d'écran : sans elle, l'hôte ne peut pas savoir ce qu'il voit, et donc pas
+        // tailler ses instantanés (hostViewFor).
+        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
         party.players.set(conn.peer, { name, color, isHost: false });
         lobbySend(conn, {
             type: 'WELCOME', selfId: conn.peer,
@@ -3747,6 +3788,8 @@ function handleHostMessage(conn, msg) {
         hostSpawnRemote(conn.peer);
     } else if (msg.type === 'PAUSE' || msg.type === 'RESUME') {
         setPausedAutopilot(remotes.get(conn.peer), msg.type === 'PAUSE');
+    } else if (msg.type === 'VIEW') {
+        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
     }
 }
 
@@ -3762,7 +3805,10 @@ async function joinParty() {
     peer.on('open', () => {
         const conn = peer.connect(peerIdForCode(code));
         party.hostConn = conn;
-        conn.on('open', () => { lobbySend(conn, { type: 'HELLO', name: playerName(), color: currentSkin().color }); });
+        conn.on('open', () => {
+            netLastSentScreen = WIDTH + 'x' + HEIGHT;
+            lobbySend(conn, { type: 'HELLO', name: playerName(), color: currentSkin().color, w: WIDTH, h: HEIGHT });
+        });
         conn.on('data', (msg) => handleClientMessage(msg, code));
         conn.on('close', () => {
             // En pleine partie, la perte de l'hôte arrête la partie (décision actée). Le joueur
@@ -3787,6 +3833,9 @@ function handleClientMessage(msg, code) {
     } else if (msg.type === 'PLAYER_JOINED') {
         party.players.set(msg.id, { name: msg.name, color: msg.color, isHost: false });
         netRoster.set(msg.id, { name: msg.name, color: msg.color });
+        // En jeu seulement : l'index compact s'ajoute à la fin, comme chez l'hôte, donc tout le
+        // monde numérote pareil. Avant le lancement il n'y a pas d'ordre — le GAME_START l'apporte.
+        if (party.inGame) netRegisterId(msg.id);
         renderLobbyPlayers();
     } else if (msg.type === 'PLAYER_LEFT') {
         party.players.delete(msg.id);
@@ -3821,14 +3870,78 @@ const NET_INPUT_MS = 33;         // le client envoie son cap ~30 fois par second
 const NET_LERP = 0.28;           // rattrapage des adversaires vers la position de l'hôte
 const NET_SELF_CORRECTION = 0.12; // rappel de MON serpent prédit vers celle de l'hôte
 
+const NET_MINIMAP_MS = 330;      // vue d'ensemble : 3 fois par seconde suffit
+const NET_MM_PRECISION = 255;    // la minimap fait ~100 px de large : 255 pas suffisent largement
+
 const remotes = new Map();       // hôte : peerId -> Snake de cet humain
 const netSnakes = new Map();     // client : netId -> Snake reconstruit
 const netTargets = new Map();    // client : netId -> dernier état reçu de l'hôte
 const netRoster = new Map();     // client : netId -> { name, color }
 const netPowerups = new Map();   // client : id -> PowerUp
 let foodDirty = new Set();       // hôte : pastilles modifiées depuis le dernier instantané
-let netSnapshotAccum = 0, netInputAccum = 0;
+let netSnapshotAccum = 0, netInputAccum = 0, netMinimapAccum = 0;
 let netLastSentAngle = null;
+let netLastSentScreen = '';
+
+// Identité compacte. Un netId d'humain est un UUID PeerJS de 36 caractères : mesuré, il coûte
+// 34 des 63 octets d'une entrée d'instantané. Les instantanés ne transportent donc qu'un INDEX,
+// position du netId dans l'ordre du roster — le même chez tout le monde, puisque l'hôte le fixe
+// au lancement et n'ajoute qu'à la fin. Un joueur qui part ne libère pas son index : le décalage
+// désynchroniserait tous les autres.
+let netOrder = [];               // index -> netId
+const netIndexOf = new Map();    // netId -> index
+
+function netRegisterId(netId) {
+    if (netIndexOf.has(netId)) return netIndexOf.get(netId);
+    netIndexOf.set(netId, netOrder.length);
+    netOrder.push(netId);
+    return netOrder.length - 1;
+}
+
+function netResetIdentity() { netOrder = []; netIndexOf.clear(); }
+
+// Ce que l'hôte sait de l'écran de chaque client, pour calculer ce qu'il voit réellement.
+const netScreens = new Map();    // hôte : peerId -> { w, h }
+const NET_SCREEN_DEFAULT = { w: 1280, h: 720 };
+
+// Vue d'un joueur, en coordonnées monde. Le zoom est recalculé d'après son rayon avec la même
+// formule que updateCamera() : l'hôte n'a pas besoin que le client la lui dise.
+function hostViewFor(s, screen) {
+    const zoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, Math.pow(CONFIG.BASE_RADIUS / s.radius, 0.35)));
+    return { x: s.x, y: s.y, hw: (screen.w / zoom) / 2, hh: (screen.h / zoom) / 2 };
+}
+
+const NET_BOUNDS_STRIDE = 32;    // 1 segment sur 32 suffit à cerner un corps
+const NET_REBUILD_MARGIN = 400;  // ~130 segments d'avance : le temps de reconstruire la traînée
+
+// Boîte englobante du corps, échantillonnée. Première version de hostRelevant() : une marge
+// proportionnelle à la LONGUEUR (segments × vitesse). Mesuré, ça ne filtrait plus rien en fin de
+// partie — un serpent de 4448 segments donnait 26 688 px de marge, soit plus que le monde entier,
+// donc tout le monde restait pertinent pour tout le monde (gain tombé de 65 % à 13 %). La vraie
+// question n'est pas « quelle longueur fait ce serpent » mais « où est-il réellement » : un long
+// serpent enroulé tient dans un mouchoir de poche.
+function snakeBounds(s) {
+    const segs = s.segments;
+    let x0 = s.x, x1 = s.x, y0 = s.y, y1 = s.y;
+    for (let i = 0; i < segs.length; i += NET_BOUNDS_STRIDE) {
+        const p = segs[i];
+        if (p.x < x0) x0 = p.x; else if (p.x > x1) x1 = p.x;
+        if (p.y < y0) y0 = p.y; else if (p.y > y1) y1 = p.y;
+    }
+    // Ce que l'échantillonnage a pu sauter, majoré : 32 pas de simulation d'écart au plus.
+    const slack = NET_BOUNDS_STRIDE * CONFIG.BASE_SPEED;
+    return { x0: x0 - slack, x1: x1 + slack, y0: y0 - slack, y1: y1 + slack };
+}
+
+// Faut-il envoyer ce serpent à ce joueur ? Oui si une partie quelconque de son corps peut entrer
+// dans sa vue, élargie d'une marge fixe — celle qui laisse au client le temps de reconstruire la
+// traînée à 60 Hz avant que le serpent n'arrive à l'écran.
+function hostRelevant(s, view) {
+    const b = s.netBounds || (s.netBounds = snakeBounds(s));
+    const m = NET_REBUILD_MARGIN;
+    return b.x1 > view.x - view.hw - m && b.x0 < view.x + view.hw + m
+        && b.y1 > view.y - view.hh - m && b.y0 < view.y + view.hh + m;
+}
 
 // Appelée à chaque changement d'une pastille (respawn, découpe). Ne coûte rien hors partie privée.
 function markFoodDirty(f) {
@@ -3875,12 +3988,20 @@ function serializeFoods() {
     return foods.map(f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius]);
 }
 
+function hostSnakeByNetId(id) {
+    if (id === 'host') return player;
+    if (remotes.has(id)) return remotes.get(id);
+    if (/^b\d+$/.test(id)) return bots[+id.slice(1)];
+    return null;
+}
+
 // Noms et couleurs ne bougent jamais : envoyés UNE fois au lancement, jamais dans les instantanés.
+// L'ORDRE de ce tableau est ce qui fixe les index compacts — il ne doit jamais être réordonné.
 function hostBuildRoster() {
-    const roster = [['host', playerName(), player.color]];
-    bots.forEach((b, i) => roster.push(['b' + i, b.name, b.color]));
-    remotes.forEach((s, id) => roster.push([id, s.name, s.color]));
-    return roster;
+    return netOrder.map(id => {
+        const s = hostSnakeByNetId(id);
+        return [id, s ? s.name : '?', s ? s.color : CONFIG.SKINS[0].color];
+    });
 }
 
 function hostSpawnRemote(peerId) {
@@ -3894,6 +4015,7 @@ function hostSpawnRemote(peerId) {
     s.netControlled = true;          // ni pointeur local, ni IA : son cap arrive par le réseau
     s.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     remotes.set(peerId, s);
+    netRegisterId(peerId);           // idempotent : une réapparition garde le même index
     return s;
 }
 
@@ -3922,6 +4044,10 @@ function launchPrivateGame() {
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
     clampCamera();
 
+    // L'ordre des index compacts se fige ici : l'hôte, puis les bots, puis les humains.
+    netResetIdentity();
+    netRegisterId('host');
+
     bots = [];
     for (let i = 0; i < CONFIG.BOT_COUNT; i++) {
         const bot = new Snake(
@@ -3932,6 +4058,7 @@ function launchPrivateGame() {
         if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
         bot.kills = Math.floor(Math.random() * 15);
         bot.netId = 'b' + i;
+        netRegisterId(bot.netId);
         bots.push(bot);
     }
 
@@ -3955,22 +4082,58 @@ function launchPrivateGame() {
 // Instantané : uniquement de la cinématique. Les corps ne voyagent JAMAIS — chaque client
 // rejoue la traînée de la tête à 60 Hz, exactement comme le fait Snake.update(). Le coût dépend
 // donc du nombre de serpents, pas de leur longueur.
-function hostSendSnapshot() {
-    const snakes = [];
-    for (const s of [player, ...bots, ...remotes.values()]) {
-        if (!s) continue;
-        snakes.push([s.netId, Math.round(s.x), Math.round(s.y), +s.angle.toFixed(3),
-                     Math.round(s.length), s.alive ? 1 : 0, s.kills]);
+//
+// Chaque client reçoit SON instantané, taillé à ce qu'il peut voir (hostRelevant) : mesuré,
+// 6 à 10 serpents sur 45 en début de partie, 15 à 21 en fin quand les corps s'allongent.
+// Ce que le filtrage retire à la vue, deux envois séparés le rendent : le classement, calculé
+// par l'hôte, et une carte compacte à 3 Hz pour la minimap.
+function hostSendSnapshot(dt) {
+    const all = [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
+    const sorted = all.slice().sort((a, b) => b.length - a.length);
+    const top3 = sorted.slice(0, 3);
+
+    // Une seule fois par instantané, pas une fois par client : la boîte est la même pour tous.
+    for (const s of all) s.netBounds = snakeBounds(s);
+
+    // Pastilles et bonus : identiques pour tous, construits une seule fois.
+    const food = foodDirty.size
+        ? Array.from(foodDirty, f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius])
+        : null;
+    const pups = powerups.map(p => [p.id, Math.round(p.x), Math.round(p.y), p.type]);
+
+    netMinimapAccum += dt;
+    let minimap = null;
+    if (netMinimapAccum >= NET_MINIMAP_MS) {
+        netMinimapAccum = 0;
+        const K = NET_MM_PRECISION;
+        minimap = all.map(s => [netIndexOf.get(s.netId),
+            Math.round(s.x / CONFIG.WORLD_WIDTH * K), Math.round(s.y / CONFIG.WORLD_HEIGHT * K)]);
     }
-    const msg = {
-        type: 'S', c: gameClock, s: snakes,
-        p: powerups.map(p => [p.id, Math.round(p.x), Math.round(p.y), p.type]),
-    };
-    if (foodDirty.size) {
-        msg.f = Array.from(foodDirty, f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius]);
-        foodDirty.clear();
-    }
-    hostBroadcast(msg);
+
+    party.conns.forEach((conn, peerId) => {
+        const me = remotes.get(peerId);
+        if (!me) return;
+        const view = hostViewFor(me, netScreens.get(peerId) || NET_SCREEN_DEFAULT);
+
+        const snakes = [];
+        for (const s of all) {
+            if (s !== me && !hostRelevant(s, view)) continue;
+            snakes.push([netIndexOf.get(s.netId), Math.round(s.x), Math.round(s.y),
+                         +s.angle.toFixed(3), Math.round(s.length), 1, s.kills]);
+        }
+
+        const msg = {
+            type: 'S', c: gameClock, s: snakes, p: pups,
+            lb: top3.map(s => [s.name, Math.round(s.length), s === me ? 1 : 0]),
+            r: sorted.indexOf(me) + 1,
+        };
+        if (food) msg.f = food;
+        if (minimap) msg.mm = minimap;
+        lobbySend(conn, msg);
+    });
+
+    foodDirty.clear();   // vidé APRÈS l'envoi à tous, jamais pendant : sinon les derniers
+                         // clients de la boucle perdraient les pastilles déjà consommées.
 }
 
 function hostNotifyDeath(loserSnake, winner) {
@@ -3996,7 +4159,10 @@ function applyGameStart(msg) {
     foodGrid.build(foods);
 
     netRoster.clear(); netSnakes.clear(); netTargets.clear(); netPowerups.clear();
-    msg.roster.forEach(([id, name, color]) => netRoster.set(id, { name, color }));
+    netResetIdentity();
+    netMinimap = [];
+    netLeaderboard = null;
+    msg.roster.forEach(([id, name, color]) => { netRoster.set(id, { name, color }); netRegisterId(id); });
 
     gameState = 'PLAYING';
     gameClock = 0; accumulator = 0; lastFrameTs = 0;
@@ -4029,12 +4195,20 @@ function netEnsureSnake(netId) {
 function applySnapshot(msg) {
     gameClock = msg.c;   // une seule horloge fait foi : celle de l'hôte
 
-    for (const [id, x, y, angle, length, alive, kills] of msg.s) {
+    netLeaderboard = { top: msg.lb || [], rank: msg.r || 0 };
+    if (msg.mm) netMinimap = msg.mm;
+
+    const seenSnakes = new Set();
+    for (const [idx, x, y, angle, length, alive, kills] of msg.s) {
+        const id = netOrder[idx];
+        if (id === undefined) continue;   // index inconnu : roster pas encore à jour
+        seenSnakes.add(id);
         const s = netEnsureSnake(id);
         s.kills = kills;
         // Première vue, ou serpent qui vient de réapparaître ailleurs : calage SEC. Sans ça il
         // partirait de son ancienne position et traverserait la carte en traînant tout son corps
-        // derrière lui avant de rejoindre sa vraie place.
+        // derrière lui avant de rejoindre sa vraie place. Un serpent qui revient dans le champ
+        // après en être sorti passe par le même chemin, pour la même raison.
         const isNew = !netTargets.has(id) || (!s.alive && alive);
         if (isNew) netTeleport(s, x, y, angle, length);
         netTargets.set(id, { x, y, angle, length });
@@ -4043,6 +4217,15 @@ function applySnapshot(msg) {
         if (s === player) sessionKills = kills;
         else s.alive = !!alive;
     }
+
+    // Absent de l'instantané = hors de mon champ d'intérêt (ou mort). Sans cet oubli, le client
+    // continuerait d'interpoler ces serpents vers une position périmée : ils resteraient figés
+    // au bord de l'écran. Leur cible est effacée pour qu'ils soient recalés à sec au retour.
+    netSnakes.forEach((s, id) => {
+        if (s === player || seenSnakes.has(id)) return;
+        s.alive = false;
+        netTargets.delete(id);
+    });
 
     if (msg.f) {
         for (const [id, x, y, value, radius] of msg.f) {
@@ -4106,6 +4289,8 @@ function netClientStep() {
 }
 
 const NET_NO_SNAKES = [];   // le client ne fait aucune détection : rien à lui passer
+let netLeaderboard = null;  // client : classement calculé par l'hôte, qui seul voit tout le monde
+let netMinimap = [];        // client : [index, x, y] compactés, pour la vue d'ensemble
 
 function netApplyLength(s, length) {
     s.length = length;
@@ -4136,12 +4321,25 @@ function partyRegisterOwnSnake() {
 function netPump(dt) {
     if (party.isHost) {
         netSnapshotAccum += dt;
-        if (netSnapshotAccum >= NET_SNAPSHOT_MS) { netSnapshotAccum = 0; hostSendSnapshot(); }
+        if (netSnapshotAccum >= NET_SNAPSHOT_MS) {
+            const elapsed = netSnapshotAccum;
+            netSnapshotAccum = 0;
+            hostSendSnapshot(elapsed);
+        }
         return;
     }
     netInputAccum += dt;
     if (netInputAccum < NET_INPUT_MS) return;
     netInputAccum = 0;
+
+    // Sa taille d'écran, quand elle change (rotation, redimensionnement) : c'est elle qui dit à
+    // l'hôte ce que ce joueur voit, donc ce qu'il faut lui envoyer.
+    const screen = WIDTH + 'x' + HEIGHT;
+    if (screen !== netLastSentScreen) {
+        netLastSentScreen = screen;
+        partySendToHost({ type: 'VIEW', w: WIDTH, h: HEIGHT });
+    }
+
     if (!player || !player.alive) return;
     const a = +player.targetAngle.toFixed(3);
     if (a === netLastSentAngle) return;   // cap inchangé : rien à dire
