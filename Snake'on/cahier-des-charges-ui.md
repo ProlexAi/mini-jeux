@@ -302,6 +302,14 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
 - **Écran de Salon en paysage mobile** : non maquetté, comme les autres écrans (voir premier point).
 - **Reconnexion après coupure brève** : une coupure réseau, même d'une seconde, compte comme un
   départ. Assumé pour un jeu entre amis ; à rouvrir si l'usage montre que ça gêne.
+- **Classement et protocole réseau à aligner sur la MASSE.** Le classement trie aujourd'hui sur la
+  **longueur**, et les instantanés réseau transportent la longueur. Or la longueur et le rayon sont
+  tous deux plafonnés (contraintes de rendu) : au-delà du plafond, ils ne départagent plus personne.
+  C'est la **masse** qui décide de la prédation et du classement — modèle arbitré par Matt, apporté
+  par le chantier « skins et équilibrage ». Dès sa fusion, `updateLeaderboard()` doit trier sur
+  `snake.mass`, et `netApplyLength()` déduire le rayon de la masse reçue (`syncRadius`) plutôt que
+  de la longueur. Sans ça, deux joueurs au plafond s'afficheraient à égalité en étant très
+  différents.
 
 ---
 

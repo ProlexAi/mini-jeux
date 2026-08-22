@@ -156,7 +156,7 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | `FOOD_GROWTH: 2` | taille gagnée par pastille |
 | `WORLD_SCREENS: 16` | taille du monde, en écrans de surface — monte-le pour une carte plus vaste |
 | `BOT_COUNT: 45` | nombre d'adversaires (la densité de rencontres) |
-| `EAT_RATIO: 1.1` | de combien il faut être plus long que l'autre pour le manger (aucun plafond de longueur n'existe) |
+| `BOT_MAX_LENGTH: 300` | plafond des bots, pour qu'aucun ne finisse par dominer toute l'arène |
 | `SPAWN_SHIELD_MS: 3000` | invincibilité à l'apparition (et à chaque réapparition) |
 | `SPECTATE_MS: 4000` | durée de la vue sur le tueur avant de réapparaître |
 | `FOOD_AREA_PER_ITEM` | densité de nourriture (px² par pastille) |
@@ -253,8 +253,8 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
 - **Pop-up de bienvenue** : affichée une seule fois à la toute première partie, jamais aux
   suivantes (vérifié sur une sauvegarde vidée puis rejouée)
 - **Quitter (Pause → 🏳, ou bannière spectateur)** : confirmation obligatoire côté Pause, et les
-  deux sorties comptent la vie — mesuré : taille 102 → +51 XP hors du top 1, taille 2100 → +1575
-  en tête (bonus de victoire ×1,5), avec dans les deux cas +1 partie et +1 entrée d'historique
+  deux sorties comptent la vie — mesuré : hors du top 1 l'XP est celui d'une mort, en tête il est
+  majoré du bonus de victoire (×1,5), avec dans les deux cas +1 partie et +1 entrée d'historique
 - **Réglages** : les interrupteurs Musique/Effets et le choix de qualité graphique se
   sauvegardent et survivent à un rechargement ; couper les effets coupe bien tous les sons
   (vérifié sur `AudioManager.play()`) ; les trois niveaux de qualité (résolution, budget de
