@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0f0f13">
-    <meta name="description" content="Neon Snake.io Ultimate - arène survivor-like jouable au doigt ou à la souris, installable et jouable hors-ligne.">
-    <title>Neon Snake.io Ultimate</title>
+    <meta name="description" content="Snake'on - arène survivor-like jouable au doigt ou à la souris, installable et jouable hors-ligne.">
+    <title>Snake'on</title>
 
     <!-- PWA -->
     <link rel="manifest" href="./manifest.webmanifest">
@@ -14,7 +14,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Neon Snake">
+    <meta name="apple-mobile-web-app-title" content="Snake'on">
 
     <style>
         :root {
@@ -228,6 +228,29 @@
         .achievement.unlocked .ach-name { color: var(--warning); }
         .achievement.unlocked .ach-desc { color: #aaa; }
 
+        /* ===== REGLAGES ===== */
+        .setting-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            max-width: 380px; width: 100%; margin: 0 auto;
+        }
+        .setting-label { font-size: 14px; }
+        .toggle-btn { min-width: 64px; }
+        .toggle-btn:not(.active) { border-color: #666; color: #666; box-shadow: none; }
+        .quality-row { margin: 4px auto 14px; max-width: 380px; }
+        .controls-hint { max-width: 380px; margin: 6px auto 0; font-size: 13px; color: #aaa; text-align: left; }
+        .controls-hint p { margin: 6px 0; }
+
+        /* ===== ABANDON (Pause) — rouge = la seule action destructrice de l'interface ===== */
+        .flag-btn {
+            display: block; margin: 20px auto 0; width: 48px; height: 48px;
+            border-radius: 50%; border: 2px solid var(--danger); color: var(--danger);
+            background: transparent; font-size: 20px; padding: 0;
+            box-shadow: 0 0 10px rgba(255,0,85,0.25);
+        }
+        .flag-btn:active { background: var(--danger); color: var(--bg); transform: scale(0.95); }
+        #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
+
         /* ===== TABS ===== */
         .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
         .tab-btn {
@@ -299,17 +322,18 @@
 
     <!-- MENU -->
     <div id="menuScreen" class="overlay">
-        <h1>🐍 NEON SNAKE.IO</h1>
+        <h1>🐍 SNAKE'ON</h1>
         <div style="text-align:center;">
             <div style="font-size:16px;">Niveau <span id="menuLevel" class="accent">1</span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
         </div>
-        <div class="tabs">
+        <div class="tabs" id="mainTabs">
             <button class="tab-btn active" data-tab="skins">🎨 Skins</button>
             <button class="tab-btn" data-tab="stats">📊 Stats</button>
             <button class="tab-btn" data-tab="history">📜 Historique</button>
             <button class="tab-btn" data-tab="achievements">🏅 Succès</button>
+            <button class="tab-btn" data-tab="settings">⚙️ Réglages</button>
         </div>
         <div id="tab-skins" class="tab-content active">
             <div class="skins-row" id="skinsRow"></div>
@@ -332,18 +356,62 @@
         <div id="tab-achievements" class="tab-content">
             <div class="achievements-grid" id="achievementsGrid"></div>
         </div>
+        <div id="tab-settings" class="tab-content">
+            <h2>Audio</h2>
+            <div class="setting-row">
+                <span class="setting-label">🎵 Musique</span>
+                <button type="button" id="toggleMusic" class="tab-btn toggle-btn active">ON</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🔊 Effets sonores</span>
+                <button type="button" id="toggleSfx" class="tab-btn toggle-btn active">ON</button>
+            </div>
+            <h2 style="margin-top:16px">Qualité graphique</h2>
+            <div class="tabs quality-row" id="qualityRow">
+                <button type="button" class="tab-btn" data-quality="LOW">Low</button>
+                <button type="button" class="tab-btn" data-quality="MEDIUM">Medium</button>
+                <button type="button" class="tab-btn" data-quality="HIGH">High</button>
+            </div>
+            <h2 style="margin-top:16px">Commandes</h2>
+            <div class="controls-hint">
+                <p>🖱️ Ordinateur : le serpent suit la souris</p>
+                <p>👆 Mobile : le serpent suit ton doigt</p>
+                <p>⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
+            </div>
+        </div>
         <button id="playBtn" class="btn-primary">▶ JOUER</button>
         <button id="installBtn">📱 Installer l'appli</button>
         <div class="hint" id="offlineHint"></div>
     </div>
 
+    <!-- BIENVENUE (1ere partie uniquement) -->
+    <div id="welcomeScreen" class="overlay hidden">
+        <h1>🐍 SNAKE'ON</h1>
+        <p style="max-width:340px;text-align:center;">
+            Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les
+            plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
+            tu réapparais aussitôt dans la même arène.
+        </p>
+        <button id="welcomeStartBtn" class="btn-primary">C'EST PARTI ▶</button>
+    </div>
+
     <!-- PAUSE -->
     <div id="pauseScreen" class="overlay hidden">
-        <h1>⏸ PAUSE</h1>
-        <p class="hint">La partie reprend où tu l’as laissée.</p>
-        <div class="btn-row">
-            <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
-            <button id="quitBtn" class="btn-secondary">🏠 MENU</button>
+        <div id="pauseNormal">
+            <h1>⏸ PAUSE</h1>
+            <p class="hint">La partie reprend où tu l’as laissée.</p>
+            <div class="btn-row">
+                <button id="resumeBtn" class="btn-primary">▶ REPRENDRE</button>
+            </div>
+            <button id="abandonBtn" class="flag-btn" type="button" aria-label="Abandonner la partie">🏳</button>
+        </div>
+        <div id="pauseConfirm" class="hidden">
+            <h1>Abandonner ?</h1>
+            <p class="hint">Cette vie ne sera pas comptée.</p>
+            <div class="btn-row">
+                <button id="abandonNoBtn" class="btn-primary">NON, CONTINUER</button>
+                <button id="abandonYesBtn" class="btn-secondary">🏳 ABANDONNER</button>
+            </div>
         </div>
     </div>
 
@@ -438,6 +506,11 @@ const TAU = Math.PI * 2;
 const STEP_MS = 1000 / 60;           // pas de simulation fixe : même vitesse en 60 Hz et en 120 Hz
 const MAX_STEPS_PER_FRAME = 5;
 
+// Qualité graphique (Réglages) : Low coupe le plafond de résolution, le budget de particules
+// et les halos (shadowBlur) ; High les augmente. Medium = comportement d'avant ce réglage.
+const QUALITY_DPR = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
+
 // Horloge de simulation : n'avance QUE pendant le jeu (donc pause exacte, aucun timer qui fuit).
 let gameClock = 0;
 const gnow = () => gameClock;
@@ -461,7 +534,7 @@ class AudioManager {
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     }
     play(type) {
-        if (!this.enabled || !this.initialized || !this.ctx) return;
+        if (!this.enabled || !this.initialized || !this.ctx || !save.settings.sfxOn) return;
         this.resume();
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -534,6 +607,8 @@ const audio = new AudioManager();
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
     kills: 0, games: 0, totalTime: 0, selectedSkin: 0,
+    seenWelcome: false,
+    settings: { musicOn: true, sfxOn: true, quality: 'MEDIUM' },
     history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 }
 };
 
@@ -547,11 +622,12 @@ function loadSave() {
                 ...parsed,
                 history: Array.isArray(parsed.history) ? parsed.history : [],
                 achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
-                powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected, ...(parsed.powerupsCollected || {}) }
+                powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected, ...(parsed.powerupsCollected || {}) },
+                settings: { ...DEFAULT_SAVE.settings, ...(parsed.settings || {}) }
             };
         }
     } catch(e) { /* sauvegarde illisible : on repart propre */ }
-    return { ...DEFAULT_SAVE, history: [], achievements: [], powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected } };
+    return { ...DEFAULT_SAVE, history: [], achievements: [], powerupsCollected: { ...DEFAULT_SAVE.powerupsCollected }, settings: { ...DEFAULT_SAVE.settings } };
 }
 
 function writeSave() {
@@ -657,7 +733,7 @@ class Particle {
 }
 
 class ParticleSystem {
-    constructor() { this.particles = []; this.maxParticles = 400; }
+    constructor() { this.particles = []; this.maxParticles = QUALITY_PARTICLES[save.settings.quality] || 400; }
     get room() { return this.particles.length < this.maxParticles; }
     push(p) { if (this.room) this.particles.push(p); }
     emit(x, y, count, opts) {
@@ -885,8 +961,7 @@ class PowerUp {
         ctx.arc(this.x, this.y, r + 5, 0, TAU);
         ctx.strokeStyle = this.config.color;
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = this.config.color;
+        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 12; ctx.shadowColor = this.config.color; }
         ctx.stroke();
         ctx.shadowBlur = 0;
         ctx.beginPath();
@@ -1045,8 +1120,7 @@ class Snake {
         ctx.beginPath();
         ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 14;
-        ctx.shadowColor = this.color;
+        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 14; ctx.shadowColor = this.color; }
         ctx.fill();
         ctx.shadowBlur = 0;
 
@@ -1080,7 +1154,7 @@ const minimapCanvas = document.getElementById('minimap');
 const minimapCtx = minimapCanvas.getContext('2d');
 
 let WIDTH = 0, HEIGHT = 0, DPR = 1, MM_W = 100, MM_H = 70;
-let gameState = 'MENU';                     // MENU | PLAYING | PAUSED | SPECTATING | END
+let gameState = 'MENU';                     // MENU | WELCOME | PLAYING | PAUSED | SPECTATING | END
 let player = null, bots = [], foods = [], powerups = [];
 let spectateTarget = null, spectateEndsAt = 0;   // mode spectateur : vue du serpent qui t'a tué
 let pointer = { x: 0, y: 0 };                 // position du doigt / de la souris, en pixels ECRAN
@@ -1149,6 +1223,7 @@ function inView(x, y, margin, v) {
 // ============================================================
 function showScreen(screen) {
     $('menuScreen').classList.toggle('hidden', screen !== 'menu');
+    $('welcomeScreen').classList.toggle('hidden', screen !== 'welcome');
     $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
 
     const inGame = (screen === 'game');
@@ -1175,6 +1250,7 @@ function renderMenu() {
 
     $('statBest').textContent = save.bestSize;
     $('statKills').textContent = save.kills;
+    applySettingsUI();
     $('statGames').textContent = save.games;
     $('statTime').textContent = formatTime(save.totalTime);
 
@@ -1317,7 +1393,7 @@ function drawMinimap() {
 function resizeCanvas() {
     WIDTH = Math.max(1, window.innerWidth);
     HEIGHT = Math.max(1, window.innerHeight);
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    DPR = Math.min(window.devicePixelRatio || 1, QUALITY_DPR[save.settings.quality] || 2);
 
     canvas.width = Math.round(WIDTH * DPR);
     canvas.height = Math.round(HEIGHT * DPR);
@@ -1361,6 +1437,23 @@ function computeWorld() {
     const clusterCount = Math.max(6, Math.round(CONFIG.FOOD_COUNT / CONFIG.FOOD_PER_CLUSTER));
     foodClusters = [];
     for (let i = 0; i < clusterCount; i++) foodClusters.push({ x: Math.random() * w, y: Math.random() * h });
+}
+
+// La toute première partie du joueur passe par la pop-up de bienvenue ; les suivantes
+// démarrent directement — vu une seule fois, jamais reproposée (cf. cahier des charges UI §3).
+function requestStartGame() {
+    if (!save.seenWelcome) {
+        gameState = 'WELCOME';
+        showScreen('welcome');
+    } else {
+        startGame();
+    }
+}
+
+function dismissWelcomeAndStart() {
+    save.seenWelcome = true;
+    writeSave();
+    startGame();
 }
 
 function startGame() {
@@ -1422,7 +1515,19 @@ function startGame() {
 function pauseGame() {
     if (gameState !== 'PLAYING') return;
     gameState = 'PAUSED';
+    $('pauseConfirm').classList.add('hidden');
+    $('pauseNormal').classList.remove('hidden');
     showScreen('pause');
+}
+
+function showAbandonConfirm() {
+    $('pauseNormal').classList.add('hidden');
+    $('pauseConfirm').classList.remove('hidden');
+}
+
+function hideAbandonConfirm() {
+    $('pauseConfirm').classList.add('hidden');
+    $('pauseNormal').classList.remove('hidden');
 }
 
 function resumeGame() {
@@ -1826,6 +1931,7 @@ function drawAuras(snake) {
 }
 
 function drawGrid(v) {
+    if (save.settings.quality === 'LOW') return;
     // Meme raison que pour Food.pulse : phase basee sur le temps de simulation, pas sur le
     // nombre de frames rendues (0.0005/frame a 60 fps ~= 0.00003/ms).
     const phase = gnow() * 0.00003;
@@ -1847,8 +1953,7 @@ function drawWorldBorder() {
     ctx.save();
     ctx.strokeStyle = 'rgba(0,255,204,0.35)';
     ctx.lineWidth = 6 / cam.zoom;
-    ctx.shadowBlur = 20 / cam.zoom;
-    ctx.shadowColor = '#00ffcc';
+    if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 20 / cam.zoom; ctx.shadowColor = '#00ffcc'; }
     ctx.strokeRect(0, 0, CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
     ctx.restore();
 }
@@ -1962,26 +2067,57 @@ function gameLoop(ts) {
 // ============================================================
 //  ÉVÉNEMENTS
 // ============================================================
-document.querySelectorAll('.tab-btn').forEach(btn => {
+// Scopé à #mainTabs : les boutons de qualité graphique (Réglages) réutilisent la classe
+// .tab-btn pour son style, mais ne sont PAS des onglets — un sélecteur non scopé les aurait
+// vidés de leur classe "active" à chaque changement d'onglet du menu.
+document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         audio.init(); audio.play('click');
         const tab = this.getAttribute('data-tab');
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('#mainTabs .tab-btn').forEach(el => el.classList.remove('active'));
         const content = $('tab-' + tab);
         if (content) content.classList.add('active');
         this.classList.add('active');
     });
 });
 
+function applySettingsUI() {
+    const music = $('toggleMusic'), sfx = $('toggleSfx');
+    music.classList.toggle('active', save.settings.musicOn);
+    music.textContent = save.settings.musicOn ? 'ON' : 'OFF';
+    sfx.classList.toggle('active', save.settings.sfxOn);
+    sfx.textContent = save.settings.sfxOn ? 'ON' : 'OFF';
+    document.querySelectorAll('#qualityRow .tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.quality === save.settings.quality);
+    });
+}
+
 function bindBtn(id, fn) {
     $(id).addEventListener('click', () => { audio.init(); audio.play('click'); fn(); });
 }
-bindBtn('playBtn', startGame);
+bindBtn('playBtn', requestStartGame);
+bindBtn('welcomeStartBtn', dismissWelcomeAndStart);
 bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
-bindBtn('quitBtn', goToMenu);
+bindBtn('abandonBtn', showAbandonConfirm);
+bindBtn('abandonNoBtn', hideAbandonConfirm);
+bindBtn('abandonYesBtn', goToMenu);
 bindBtn('spectateSkipBtn', finishSpectate);
+
+bindBtn('toggleMusic', () => { save.settings.musicOn = !save.settings.musicOn; writeSave(); applySettingsUI(); });
+bindBtn('toggleSfx', () => { save.settings.sfxOn = !save.settings.sfxOn; writeSave(); applySettingsUI(); });
+document.querySelectorAll('#qualityRow .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        audio.init(); audio.play('click');
+        save.settings.quality = btn.dataset.quality;
+        writeSave();
+        applySettingsUI();
+        particles.maxParticles = QUALITY_PARTICLES[save.settings.quality] || 400;
+        resizeCanvas();
+    });
+});
+applySettingsUI();
 
 canvas.addEventListener('mousemove', handleInput);
 canvas.addEventListener('touchmove', handleInput, { passive: false });
@@ -1995,7 +2131,8 @@ window.addEventListener('keydown', (e) => {
     } else if (e.key === 'Enter' || e.key === ' ') {
         // preventDefault : sinon un bouton focus (Jouer, Reprendre) reçoit AUSSI le clic natif
         // du clavier et l'action se déclenche deux fois.
-        if (gameState === 'MENU' || gameState === 'END') { e.preventDefault(); audio.init(); startGame(); }
+        if (gameState === 'MENU' || gameState === 'END') { e.preventDefault(); audio.init(); requestStartGame(); }
+        else if (gameState === 'WELCOME') { e.preventDefault(); audio.init(); dismissWelcomeAndStart(); }
         else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
         else if (gameState === 'SPECTATING') { e.preventDefault(); finishSpectate(); }
     }

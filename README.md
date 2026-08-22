@@ -9,7 +9,7 @@ installable comme une PWA et jouable hors-ligne. Un seul dépôt, un dossier par
 
 | Jeu | Lien | Dossier |
 |---|---|---|
-| 🐍 Neon Snake.io Ultimate | https://prolexai.github.io/mini-jeux/neon-snake/ | [`neon-snake/`](neon-snake/) |
+| 🐍 Snake'on | https://prolexai.github.io/mini-jeux/neon-snake/ | [`neon-snake/`](neon-snake/) |
 
 ## Ajouter un jeu
 

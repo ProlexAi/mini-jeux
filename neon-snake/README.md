@@ -1,4 +1,4 @@
-# 🐍 Neon Snake.io Ultimate
+# 🐍 Snake'on
 
 Arène survivor-like néon dans un **grand monde qui défile** : mange, grossis, dévore les serpents
 plus petits que toi. **100 % HTML/JS/CSS**, aucune dépendance, aucun build, aucun serveur.
@@ -22,10 +22,19 @@ Face à 45 adversaires, tête contre tête, le plus gros mange le plus petit (il
 gros) ; toucher le **corps** d'un serpent plus petit le découpe aussi (le tronçon du point d'impact
 jusqu'à la queue devient de la nourriture) — toucher un corps plus gros ou égal agit comme un mur.
 Tu es **invincible 3 secondes** à l'apparition, le temps de te placer. À la mort, la caméra suit
-4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**.
+4 secondes le serpent qui t'a mangé, puis tu réapparais aussitôt dans la **même arène**. Une
+pop-up explique tout ça en quelques secondes à la toute première partie — jamais revue ensuite.
+
+Le bouton pause propose **🏳 Abandonner** (contour rouge, confirmation obligatoire) pour retourner
+à l'accueil sans attendre la mort — l'abandon ne compte pas comme une vie (pas de XP, pas
+d'entrée à l'historique), à la différence d'une mort.
 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
 **Progression :** XP, niveaux, 10 skins à débloquer, 8 succès, historique des 10 dernières vies.
+**Réglages :** son (musique / effets séparés), qualité graphique (Low/Medium/High), rappel des
+commandes — accessibles à tout moment depuis l'onglet ⚙️ du menu. *Le jeu n'a pas de musique pour
+l'instant (seulement des effets sonores) : le réglage existe et se sauvegarde, mais n'a encore
+rien à couper.*
 Tout est sauvegardé dans le navigateur (`localStorage`), rien n'est envoyé nulle part.
 
 ---
@@ -111,6 +120,10 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | `MIN_SPEED_RATIO: 0.65` | vitesse minimale (fraction de la vitesse de base) à la taille max |
 | `POWERUPS` / `SKINS` | durées, couleurs, niveaux de déblocage |
 
+Juste après l'objet `CONFIG`, deux tables séparées pilotent la qualité graphique (onglet
+Réglages) : `QUALITY_DPR` (plafond de résolution de l'écran) et `QUALITY_PARTICLES` (nombre max
+de particules à l'écran) — une entrée par niveau (`LOW` / `MEDIUM` / `HIGH`).
+
 ⚠️ Le manifest et les icônes sont en cache-first : **après une modification de `manifest.webmanifest`
 ou de `icons/`**, change `CACHE_VERSION` dans `sw.js` (`'v1'` → `'v2'`…) sinon les joueurs gardent
 l'ancienne version en cache. `index.html` (donc `CONFIG`) est en network-first : il arrive à jour
@@ -144,5 +157,13 @@ Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en
   et en bout de corps, sans traversée sur 300 pas
 - Pause qui **fige réellement** l'horloge de jeu, nourriture, combo ×2, les 3 bonus, kill + réapparition,
   sauvegarde persistée, **rechargement hors-ligne**, zéro erreur console
+- **Pop-up de bienvenue** : affichée une seule fois à la toute première partie, jamais aux
+  suivantes (vérifié sur une sauvegarde vidée puis rejouée)
+- **Abandon (Pause → 🏳)** : confirmation obligatoire (Oui repart au menu sans compter la vie —
+  ni XP ni historique —, Non revient à la pause normale), testé aussi après une reprise
+- **Réglages** : les interrupteurs Musique/Effets et le choix de qualité graphique se
+  sauvegardent et survivent à un rechargement ; couper les effets coupe bien tous les sons
+  (vérifié sur `AudioManager.play()`) ; les trois niveaux de qualité (résolution, budget de
+  particules, halos lumineux, grille de fond) tournent sans erreur sur 60 s simulées chacun
 
 Le jeu tourne à **pas de simulation fixe (60 Hz)** : même vitesse sur un écran 60, 90 ou 120 Hz.

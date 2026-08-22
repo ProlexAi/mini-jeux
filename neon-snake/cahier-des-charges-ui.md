@@ -1,4 +1,4 @@
-# Cahier des charges — UI de Neon Snake.io Ultimate
+# Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
 et leurs actions — pas d'implémentation, pas de code. Version 2 : les 6 points ouverts de la V1
@@ -146,7 +146,7 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
 5. **Couleurs : clarifiées, pas de refonte.** Le jaune reste légitime pour Pause — ce n'était pas
    le vrai problème. Le rouge devient le contour de l'action Abandonner. Le violet reste
    volontairement hors interface. Voir tableau §2.
-6. **Portée du document : confirmée propre à Neon Snake.** Sa structure (les sections, la
+6. **Portée du document : confirmée propre à Snake'on.** Sa structure (les sections, la
    méthode) pourra servir de gabarit pour de futurs mini-jeux du dépôt `mini-jeux`, mais le
    contenu de chaque futur cahier des charges sera spécifique à son jeu.
 
