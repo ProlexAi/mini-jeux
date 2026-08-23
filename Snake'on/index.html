@@ -1413,6 +1413,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Aucun salon avec ce code.',
         lobbyErrorHostLeft: 'L’hôte a quitté la partie.',
         lobbyErrorGeneric: 'Connexion impossible.',
+        awayTooLong: 'Trop longtemps absent — la partie a continué sans toi.',
     },
     en: {
         tabSkins: '🛒 Shop', tabStats: '📊 Stats', tabHistory: '📜 History',
@@ -1457,6 +1458,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'No lobby with that code.',
         lobbyErrorHostLeft: 'The host has left the game.',
         lobbyErrorGeneric: 'Connection failed.',
+        awayTooLong: 'Away too long — the game went on without you.',
     },
     es: {
         tabSkins: '🛒 Tienda', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
@@ -1501,6 +1503,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'No hay ninguna sala con ese código.',
         lobbyErrorHostLeft: 'El anfitrión ha salido de la partida.',
         lobbyErrorGeneric: 'No se pudo conectar.',
+        awayTooLong: 'Demasiado tiempo ausente — la partida siguió sin ti.',
     },
     de: {
         tabSkins: '🛒 Shop', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
@@ -1545,6 +1548,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Keine Lobby mit diesem Code.',
         lobbyErrorHostLeft: 'Der Gastgeber hat die Partie verlassen.',
         lobbyErrorGeneric: 'Verbindung fehlgeschlagen.',
+        awayTooLong: 'Zu lange weg — die Partie ging ohne dich weiter.',
     },
     it: {
         tabSkins: '🛒 Negozio', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
@@ -1589,6 +1593,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Nessuna sala con questo codice.',
         lobbyErrorHostLeft: 'L’host ha lasciato la partita.',
         lobbyErrorGeneric: 'Connessione non riuscita.',
+        awayTooLong: 'Assente troppo a lungo — la partita è andata avanti senza di te.',
     },
     pt: {
         tabSkins: '🛒 Loja', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
@@ -1633,6 +1638,7 @@ const TRANSLATIONS = {
         lobbyErrorCodeNotFound: 'Nenhuma sala com esse código.',
         lobbyErrorHostLeft: 'O anfitrião saiu do jogo.',
         lobbyErrorGeneric: 'Não foi possível ligar.',
+        awayTooLong: 'Ausente demasiado tempo — o jogo continuou sem ti.',
     },
 };
 
@@ -3266,23 +3272,26 @@ function drawMinimap() {
     // Client d'une partie privée : la minimap doit montrer TOUT le monde, alors que le filtrage
     // par intérêt ne lui envoie que ses voisins. D'où une carte compacte à part, à 3 Hz —
     // positions arrondies au 1/255e du monde, ce qui dépasse déjà la précision de 100 px d'écran.
-    //
-    // INCOMPLET, cf. §8 du cahier des charges : ce chemin dessine encore des points de taille
-    // fixe et sans liseré de menace, parce que le paquet minimap ne transporte aujourd'hui que
-    // des positions. Un client voit donc OÙ sont les autres, mais pas lesquels le menacent —
-    // et ce sont justement les serpents hors de son champ de vision, ceux dont la minimap est
-    // la seule source. L'hôte devra y joindre menace et amplitude, qu'il est seul à pouvoir
-    // calculer.
+    // Le client ne calcule ni l'ampleur ni la menace : il ne connaît la masse que des serpents
+    // qu'il voit, et la carte sert justement à repérer ceux qu'il ne voit PAS. L'hôte les lui
+    // envoie donc tout calculés — il peint, il n'arbitre pas.
     if (party.inGame && !party.isHost) {
         const K = NET_MM_PRECISION;
         for (const p of netMinimap) {
-            const id = netOrder[p.i];
-            const mine = id === party.selfId;
-            const info = netRoster.get(id);
+            const info = netRoster.get(netOrder[p.i]);
+            const mine = p.t === NET_MM_SOI;
+            const px = mx(p.x / K * CONFIG.WORLD_WIDTH), py = my(p.y / K * CONFIG.WORLD_HEIGHT);
+            const rad = mine ? 3 : Math.min(6, 1.6 + p.a * 0.55);
             minimapCtx.beginPath();
-            minimapCtx.arc(mx(p.x / K * CONFIG.WORLD_WIDTH), my(p.y / K * CONFIG.WORLD_HEIGHT), mine ? 3 : 1.8, 0, TAU);
+            minimapCtx.arc(px, py, rad, 0, TAU);
             minimapCtx.fillStyle = mine ? '#00ffcc' : (info ? info.color : '#888');
             minimapCtx.fill();
+            const menace = p.t === NET_MM_DANGER ? 'danger' : p.t === NET_MM_PROIE ? 'proie' : null;
+            if (menace) {
+                minimapCtx.strokeStyle = THREAT_RIM[menace].color;
+                minimapCtx.lineWidth = menace === 'danger' ? 1.4 : 0.8;
+                minimapCtx.stroke();
+            }
         }
         return;
     }
@@ -4541,9 +4550,42 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => { resizeCanvas(); });
 window.addEventListener('orientationchange', () => { setTimeout(resizeCanvas, 300); });
 
-// Passer en arrière-plan met le jeu en pause : au retour on ne meurt pas pendant le chargement.
+// Quitter l'écran des yeux met le jeu en pause : au retour on ne meurt pas pendant le chargement.
+//
+// En SOLO, la pause fige tout et peut durer indéfiniment — personne n'attend.
+// En PARTIE PRIVÉE, elle ne fige rien : les autres continuent de jouer, et le serpent laissé
+// derrière passe en pilotage automatique. Le laisser ainsi sans limite reviendrait à occuper une
+// place dans l'arène sans y jouer, en laissant l'IA récolter à sa place. Au-delà de
+// AWAY_GRACE_MS, la partie s'arrête donc pour ce joueur — sa vie est comptée comme une mort
+// (§5.26 : une sortie subie ne se paie pas), et il revient au menu.
+const AWAY_GRACE_MS = 5000;
+let awayTimer = null;
+
+function clearAwayTimer() {
+    if (awayTimer !== null) { clearTimeout(awayTimer); awayTimer = null; }
+}
+
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameState === 'PLAYING') pauseGame();
+    if (document.hidden) {
+        if (gameState === 'PLAYING') pauseGame();
+        // setTimeout et non l'horloge de jeu : celle-ci s'arrête avec requestAnimationFrame dans
+        // un onglet caché, le délai n'expirerait donc jamais — c'est exactement le cas visé.
+        if (party.inGame && awayTimer === null) {
+            awayTimer = setTimeout(() => {
+                awayTimer = null;
+                if (!document.hidden || !party.inGame) return;
+                if (gameState === 'SPECTATING') gameState = 'PLAYING';
+                if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                    gameState = 'PLAYING';   // endGame() n'accepte que cet état
+                    endGame();
+                }
+                goToMenu();
+                showToast('⏳ ' + t('awayTooLong'));
+            }, AWAY_GRACE_MS);
+        }
+    } else {
+        clearAwayTimer();   // revenu à temps : la pause suffit, il reprend la main en Reprendre
+    }
 });
 
 document.addEventListener('touchstart', () => { audio.init(); audio.resume(); }, { once: true });
@@ -4649,6 +4691,7 @@ const party = {
 
 function resetParty() {
     hostStopBackgroundClock();
+    clearAwayTimer();   // plus de partie privée : plus de délai d'absence à faire courir
     // Les drapeaux tombent AVANT la destruction du pair, jamais après : destroy() referme les
     // connexions, et le gestionnaire de fermeture aurait pris ce départ volontaire pour une
     // perte de l'hôte — toast trompeur, et resetParty rappelée depuis sa propre exécution.
@@ -4866,6 +4909,9 @@ const NET_SELF_CORRECTION = 0.12; // rappel de MON serpent prédit vers celle de
 
 const NET_MINIMAP_MS = 330;      // vue d'ensemble : 3 fois par seconde suffit
 const NET_MM_PRECISION = 255;    // la minimap fait ~100 px de large : 255 pas suffisent largement
+// Code de menace transporté par la minimap, sur 2 bits. « Soi » est distinct de « neutre » :
+// le client doit pouvoir peindre son propre point sans avoir à se reconnaître dans la liste.
+const NET_MM_NEUTRE = 0, NET_MM_DANGER = 1, NET_MM_PROIE = 2, NET_MM_SOI = 3;
 
 // ---------- Format binaire des instantanés ----------
 //
@@ -4875,18 +4921,27 @@ const NET_MM_PRECISION = 255;    // la minimap fait ~100 px de large : 255 pas s
 // le re-sérialiser.
 //
 //   u8   MSG_SNAPSHOT              u8   nombre d'entrées de classement
-//   u32  horloge de jeu (ms)         u16 index · u16 longueur          (4 o)
+//   u32  horloge de jeu (ms)         u16 index · u32 masse             (6 o)
 //   u16  MES kills                 u8   nombre de bonus
 //   u16  MON rang                    u16 id · u16 x · u16 y · u8 type  (7 o)
 //   u16  nombre de serpents        u16  nombre de pastilles modifiées
 //     u16 index · u16 x · u16 y      u16 id · u16 x · u16 y · u8 rayon (7 o)
-//     u8 cap · u16 longueur (9 o)  u16  nombre de points de minimap
-//                                    u16 index · u8 x · u8 y           (4 o)
+//     u8 cap · u16 longueur        u16  nombre de points de minimap
+//     u32 masse           (13 o)     u16 index · u8 x · u8 y
+//                                    u8 menace+ampleur         (5 o)
 //
 // Trois champs du format JSON ont disparu, non par compression mais parce que personne ne s'en
 // servait : le drapeau « vivant » (un instantané ne contient QUE des vivants), les kills de
 // chaque serpent (seuls les miens s'affichent), et la valeur nutritive d'une pastille (c'est
 // l'hôte qui la mange, jamais le client). Les noms du classement viennent du roster, par index.
+//
+// La MINIMAP est le seul paquet propre à chaque destinataire : elle montre TOUS les serpents,
+// y compris ceux que le filtrage par intérêt exclut de l'instantané, et ceux-là n'ont donc
+// aucune masse à jour côté client. Elle transporte pour eux la RÉPONSE plutôt que la donnée —
+// 2 bits de menace et 4 d'ampleur, calculés par l'hôte, qui seul connaît toutes les masses.
+// La menace se jugeant par rapport au serpent de celui qui regarde, ce paquet ne peut pas être
+// commun ; l'ampleur, elle, est absolue, mais la séparer coûterait plus en complexité qu'elle
+// n'économiserait d'octets à 3 Hz.
 const MSG_SNAPSHOT = 1;
 const NET_ANGLE_STEPS = 255;     // 1,4° de précision : invisible sur l'orientation d'une tête
 const NET_RADIUS_SCALE = 16;     // rayon d'une pastille au 1/16e de pixel
@@ -4897,7 +4952,7 @@ const u16 = v => Math.max(0, Math.min(NET_MAX_U16, Math.round(v)));
 
 function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, minimap) {
     const size = 11 + 2 + snakes.length * 13 + 1 + lb.length * 6 + 1 + pups.length * 7
-               + 2 + foodsDelta.length * 7 + 2 + minimap.length * 4;
+               + 2 + foodsDelta.length * 7 + 2 + minimap.length * 5;
     const buf = new ArrayBuffer(size);
     const dv = new DataView(buf);
     let o = 0;
@@ -4944,6 +4999,7 @@ function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, mi
         dv.setUint16(o, m.i); o += 2;
         dv.setUint8(o, m.x); o += 1;
         dv.setUint8(o, m.y); o += 1;
+        dv.setUint8(o, (m.t << 6) | (m.a & 15)); o += 1;
     }
     return buf;
 }
@@ -4995,7 +5051,8 @@ function decodeSnapshot(buf) {
             const i = dv.getUint16(o); o += 2;
             const x = dv.getUint8(o); o += 1;
             const y = dv.getUint8(o); o += 1;
-            out.mm.push({ i, x, y });
+            const b = dv.getUint8(o); o += 1;
+            out.mm.push({ i, x, y, t: b >> 6, a: (b & 15) / 2 });
         }
     }
     return out;
@@ -5273,13 +5330,22 @@ function hostSendSnapshot(dt) {
     const pups = powerups.map(p => ({ id: p.id, x: p.x, y: p.y, t: POWERUP_TYPES.indexOf(p.type) }));
     const lb = top3.map(s => ({ i: netIndexOf.get(s.netId), m: s.mass }));
 
+    // Base de la minimap : position et ampleur, identiques pour tous. Seule la MENACE se juge par
+    // rapport à celui qui regarde, et s'ajoute donc dans la boucle des clients.
     netMinimapAccum += dt;
-    let minimap = [];
+    let mmBase = null;
     if (netMinimapAccum >= NET_MINIMAP_MS) {
         netMinimapAccum = 0;
         const K = NET_MM_PRECISION;
-        minimap = all.map(s => ({ i: netIndexOf.get(s.netId),
-            x: Math.round(s.x / CONFIG.WORLD_WIDTH * K), y: Math.round(s.y / CONFIG.WORLD_HEIGHT * K) }));
+        mmBase = all.map(s => ({
+            s,
+            i: netIndexOf.get(s.netId),
+            x: Math.round(s.x / CONFIG.WORLD_WIDTH * K),
+            y: Math.round(s.y / CONFIG.WORLD_HEIGHT * K),
+            // Ampleur logarithmique quantifiée au demi-palier : le rayon du point sature vers
+            // 8 paliers, 4 bits suffisent donc sans perte visible.
+            a: Math.max(0, Math.min(15, Math.round(Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS)) * 2))),
+        }));
     }
 
     party.conns.forEach((conn, peerId) => {
@@ -5292,6 +5358,17 @@ function hostSendSnapshot(dt) {
             if (s !== me && !hostRelevant(s, view)) continue;
             snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length, m: s.mass });
         }
+
+        // Même code de menace qu'en jeu (THREAT_RIM), mais calculé ICI : le client ne connaît
+        // pas la masse des serpents hors de sa vue, et ce sont justement ceux-là que sa minimap
+        // doit lui signaler.
+        const minimap = mmBase ? mmBase.map(b => ({
+            i: b.i, x: b.x, y: b.y, a: b.a,
+            t: b.s === me ? NET_MM_SOI
+             : b.s.beats(me) ? NET_MM_DANGER
+             : me.beats(b.s) ? NET_MM_PROIE
+             : NET_MM_NEUTRE,
+        })) : [];
 
         lobbySend(conn, encodeSnapshot(gameClock, me.kills, sorted.indexOf(me) + 1,
                                        snakes, lb, pups, food, minimap));
