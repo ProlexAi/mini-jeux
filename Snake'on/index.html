@@ -258,6 +258,9 @@
         /* L'overlay est un conteneur flex colonne : sans ça, un contenu plus haut que l'écran
            écrase ses enfants (les boutons tombaient sous les 44px tactiles). Il défile déjà. */
         .overlay > * { flex-shrink: 0; }
+        /* Transparent à la mise en page : en portrait, navigation et onglets restent enfants
+           directs de l'overlay, exactement comme avant. Seul le paysage lui donne un rôle. */
+        #menuBrowse { display: contents; }
         .overlay.hidden { display: none !important; }
         h1 {
             text-shadow: 0 0 10px var(--accent); margin-bottom: 10px; font-size: 26px; text-align: center;
@@ -687,6 +690,82 @@
         @media (max-height: 520px) {
             .overlay { justify-content: flex-start; }
         }
+
+        /* ===== PAYSAGE MOBILE (844×390) =====
+           Mesuré avant : l'Accueil réclamait 927 px de haut pour 390 disponibles, Pause 643.
+           On ne rétrécit pas, on RÉORGANISE — le cahier des charges §3 demande des layouts
+           adaptés en largeur plutôt qu'en hauteur, à contenu identique. Deux colonnes : à
+           gauche l'identité et les actions, à droite la navigation et son contenu, seul à
+           défiler. Le contenu ne change pas, sa disposition seule s'adapte. */
+        @media (max-height: 460px) and (orientation: landscape) {
+            .overlay { padding: 8px calc(10px + var(--safe-r)) 8px calc(10px + var(--safe-l)); }
+            h1 { font-size: 17px; margin-bottom: 4px; }
+            h2 { font-size: 13px; margin: 6px 0 3px; }
+            .hint { margin-top: 3px; font-size: 11px; }
+
+            /* La colonne de droite est sortie du flux et calée sur toute la hauteur ; la gauche
+               reste une simple pile verticale. Une grille à deux colonnes semblait plus naturelle,
+               mais elle rendait la hauteur des lignes dépendante du contenu de droite : la colonne
+               gauche se retrouvait poussée hors de l'écran dès qu'un onglet était long. */
+            #menuScreen {
+                justify-content: flex-start; align-items: stretch;
+                padding-right: calc(63% + 10px); overflow: hidden;
+            }
+            #menuScreen > h1 { text-align: left; }
+            #menuScreen > .btn-primary { margin-top: 6px; min-height: 46px; font-size: 16px; }
+            #menuScreen > #privateGameBtn { min-height: 44px; font-size: 13px; }
+            /* 44 px est un plancher, pas une cible d'ajustement (cahier des charges §2) : la
+               place se prend sur les marges et les interlignes, jamais sur la zone touchable. */
+            .pseudo-input { width: 100%; max-width: none; min-height: 44px; margin-bottom: 4px; }
+            .xp-bar-container { width: 100%; margin: 3px auto; }
+            .xp-text { margin: 0; }
+            /* Colonne droite : navigation puis onglet ouvert, dans un conteneur qui défile seul.
+               C'est le seul rôle de #menuBrowse — sans lui, les deux se disputeraient la même
+               cellule de grille et le contenu se retrouvait coupé sous la navigation. */
+            #menuBrowse {
+                display: flex; flex-direction: column;
+                position: absolute;
+                top: 8px; bottom: 8px; right: calc(10px + var(--safe-r));
+                width: 61%;
+                overflow-y: auto; -webkit-overflow-scrolling: touch;
+            }
+            #menuBrowse > .nav-bars {
+                display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px;
+                align-content: start; margin: 0 0 8px; flex: 0 0 auto;
+            }
+            #menuBrowse > .tab-content { width: 100%; margin: 0; }
+            .nav-bar { min-height: 44px; padding: 0 0 0 10px; }
+            .nav-underline { display: none; }
+
+            /* Pause : titre et sortie à gauche, réglages condensés à droite. */
+            #pauseNormal {
+                display: grid; grid-template-columns: minmax(180px, 38%) 1fr;
+                column-gap: 16px; align-content: start; width: 100%;
+                max-width: 700px; margin: 0 auto;
+            }
+            #pauseNormal > .pause-title-row, #pauseNormal > .hint,
+            #pauseNormal > .btn-row, #pauseNormal > .abandon-row { grid-column: 1; }
+            #pauseNormal > .pause-settings {
+                grid-column: 2; grid-row: 1 / span 5; margin: 0;
+                overflow-y: auto; max-height: 340px;
+            }
+            #pauseNormal > .abandon-row { margin-top: 8px; }
+
+            /* Salon : code et état à gauche, joueurs à droite — il ne débordait pas, mais la
+               liste mérite la largeur disponible plutôt qu'une colonne étroite. */
+            #lobbyRoom {
+                display: grid; grid-template-columns: minmax(170px, 38%) 1fr;
+                column-gap: 16px; align-content: start; width: 100%; max-width: 640px;
+            }
+            #lobbyRoom > #lobbyCodeDisplay, #lobbyRoom > #lobbyStatus,
+            #lobbyRoom > .btn-row, #lobbyRoom > #lobbyLeaveBtn { grid-column: 1; }
+            #lobbyRoom > #lobbyPlayers {
+                grid-column: 2; grid-row: 1 / span 4; margin: 0;
+                max-width: none; overflow-y: auto; max-height: 330px;
+            }
+            .lobby-code-display { font-size: 26px; margin: 2px 0; }
+            .lobby-player { min-height: 40px; padding: 5px 12px; }
+        }
     </style>
 </head>
 <body>
@@ -716,12 +795,16 @@
     <!-- MENU -->
     <div id="menuScreen" class="overlay">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
-        <div style="text-align:center;">
+        <div id="menuIdentity" style="text-align:center;">
             <input type="text" id="pseudoInput" class="pseudo-input" maxlength="14" data-i18n-ph="pseudoPlaceholder" placeholder="Ton pseudo">
             <div style="font-size:16px;"><span data-i18n="level">Niveau</span> <span id="menuLevel" class="accent">1</span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
         </div>
+        <!-- Enveloppe la navigation et ses contenus pour que le paysage mobile puisse les traiter
+             comme UNE colonne. `display: contents` par défaut : en portrait, ce conteneur
+             n'existe pas pour la mise en page, rien ne change. -->
+        <div id="menuBrowse">
         <div class="nav-bars" id="mainTabs">
             <div class="nav-entry">
                 <button class="tab-btn nav-bar active" data-tab="skins">
@@ -837,6 +920,7 @@
                 <button type="button" class="tab-btn lang-back" id="langBackBtn" data-i18n="back">❮ Retour</button>
             </div>
         </div>
+        </div><!-- /#menuBrowse -->
         <button id="playBtn" class="btn-primary cta-hachured"><span data-i18n="play">▶ JOUER</span><span class="hachure" style="width:26px"></span></button>
         <button id="privateGameBtn" class="cta-hachured"><span data-i18n="privateGame">🌐 PARTIE PRIVÉE</span><span class="cta-code">A06</span><span class="hachure" style="width:20px"></span></button>
         <div class="hint hidden" id="privateGameHint" data-i18n="privateGameOffline"></div>
