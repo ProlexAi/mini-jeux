@@ -78,9 +78,9 @@ par un Web Worker de secours dès qu'elle héberge (mesuré : 0 instantané par 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
 **Progression :** XP, niveaux, 10 skins à débloquer, 8 succès, historique des 10 dernières vies.
 **Réglages :** son (musique / effets séparés), qualité graphique (Low/Medium/High), rappel des
-commandes — accessibles à tout moment depuis l'onglet ⚙️ du menu. *Le jeu n'a pas de musique pour
-l'instant (seulement des effets sonores) : le réglage existe et se sauvegarde, mais n'a encore
-rien à couper.*
+commandes — accessibles à tout moment depuis l'onglet ⚙️ du menu. La **musique est générée**, comme
+les sons : aucun fichier, une boucle de seize secondes sur quatre accords, volontairement discrète.
+À zéro, le curseur l'arrête vraiment ; un onglet en arrière-plan la met en veille.
 Tout est sauvegardé dans le navigateur (`localStorage`), rien n'est envoyé nulle part.
 
 ---
