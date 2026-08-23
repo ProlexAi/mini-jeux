@@ -917,8 +917,10 @@
             </div>
             <!-- Contenu de Boutique NESTÉ ici, entre Boutique et Stats, au lieu d'être un simple
                  frère de #mainTabs après Réglages : Boutique est le seul onglet repliable (cf.
-                 handler #mainTabs .tab-btn), donc ses trois entrées doivent apparaitre juste sous
-                 son propre bouton, jamais en bas de toute la liste. -->
+                 handler ONGLETS_MENU), donc ses trois entrées doivent apparaitre juste sous son
+                 propre bouton, jamais en bas de toute la liste.
+                 Ce bloc est un enfant DIRECT de #mainTabs sans être une .nav-entry : c'est ce qui
+                 le tient hors de ONGLETS_MENU, et donc hors du handler d'onglet. -->
             <div id="tab-skins" class="tab-content active">
                 <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. Chacune est une
                      ENTRÉE qui ouvre sa sous-page au clic, jamais un onglet dont le contenu reste
@@ -5116,10 +5118,17 @@ function bindNeonClicks(root) {
 // ============================================================
 //  ÉVÉNEMENTS
 // ============================================================
-// Scopé à #mainTabs : les boutons de qualité graphique (Réglages) réutilisent la classe
-// .tab-btn pour son style, mais ne sont PAS des onglets — un sélecteur non scopé les aurait
-// vidés de leur classe "active" à chaque changement d'onglet du menu.
-document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
+// Les onglets du menu sont les ENFANTS DIRECTS de #mainTabs, jamais ses descendants : d'autres
+// boutons réutilisent la classe .tab-btn pour son style sans être des onglets — la qualité
+// graphique dans Réglages, et les trois entrées de la boutique, qui vivent DANS #mainTabs depuis
+// qu'elles s'ouvrent sous le bouton Boutique.
+//
+// Un descendant (`#mainTabs .tab-btn`) les attrapait toutes : cliquer « Couleurs » jouait le
+// handler d'onglet EN PLUS du sien, et son shopRetour() final refermait la sous-page dans la
+// foulée de son ouverture — la catégorie semblait ne pas répondre. Le chemin direct est ce qui
+// garantit que seuls les cinq onglets répondent ici, quoi qu'on niche plus tard sous eux.
+const ONGLETS_MENU = '#mainTabs > .nav-entry > .tab-btn';
+document.querySelectorAll(ONGLETS_MENU).forEach(btn => {
     btn.addEventListener('click', function() {
         audio.init(); audio.play('click');
         const tab = this.getAttribute('data-tab');
@@ -5132,7 +5141,7 @@ document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
             return;
         }
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('#mainTabs .tab-btn').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll(ONGLETS_MENU).forEach(el => el.classList.remove('active'));
         const content = $('tab-' + tab);
         if (content) content.classList.add('active');
         this.classList.add('active');
