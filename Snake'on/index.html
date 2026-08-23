@@ -232,6 +232,10 @@
         }
         #spectateBanner.hidden { display: none; }
         #spectateBanner button { margin: 0; padding: 6px 14px; font-size: 12px; white-space: nowrap; }
+        /* Quitter reste irréversible (on ne revient pas dans la même arène), donc rouge — mais
+           ce n'est plus une punition : l'XP de la vie est encaissé dans les deux cas. */
+        #spectateQuitBtn { border-color: var(--danger); color: var(--danger-text); box-shadow: none; }
+        #spectateQuitBtn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); }
         #killStreak {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -318,6 +322,8 @@
             -webkit-tap-highlight-color: transparent;
         }
         button:active { background: var(--accent); color: var(--bg); transform: scale(0.95); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        button:disabled:active { background: transparent; color: var(--accent); transform: none; }
         .btn-primary { font-size: 20px; padding: 14px 45px; margin-top: 15px; }
         .btn-secondary { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
         .btn-secondary:active { background: var(--warning); color: var(--bg); }
@@ -340,6 +346,11 @@
         }
         .cta-hachured > span:first-child { flex: 1; text-align: left; align-self: center; }
         .cta-hachured .hachure { align-self: stretch; }
+        .cta-hachured .cta-code {
+            font-family: var(--font-head); font-size: 10px; letter-spacing: 0.1em;
+            color: color-mix(in srgb, var(--accent) 45%, transparent);
+            transform: skewX(8deg); align-self: center; padding-right: 4px;
+        }
         #installBtn.cta-hachured { padding: 0 0 0 18px; min-height: 44px; }
         #installBtn { display: none; font-size: 14px; padding: 9px 20px; }
 
@@ -588,7 +599,17 @@
         .abandon-btn > span:first-child { flex: 1; text-align: left; transform: skewX(8deg); }
         .abandon-code { font-family: var(--font-head); font-size: 10px; color: rgba(255,92,138,0.65); padding-right: 8px; }
         .abandon-btn:active { background: rgba(255,0,85,0.18); color: var(--danger-text); transform: none; }
+        /* Variante victoire : en tete du classement, l'action n'a plus rien de destructeur —
+           elle quitte le rouge pour la couleur d'interface et les deux ⚠ deviennent des 🏆. */
+        .abandon-row.victory .abandon-warn { background: rgba(255,255,255,0.04); border-color: var(--accent); color: var(--accent); }
+        .abandon-row.victory .abandon-btn { background: rgba(255,255,255,0.03); border-color: var(--accent); color: var(--accent); border-left: 0; border-right: 0; }
+        .abandon-row.victory .abandon-code { color: var(--accent); opacity: 0.65; }
+        .abandon-row.victory .abandon-btn:active { background: rgba(255,255,255,0.10); color: var(--accent); }
         #pauseNormal.hidden, #pauseConfirm.hidden { display: none; }
+        /* En partie privée, mettre pause ne fige pas le monde : l'avertissement du §6 doit se
+           lire d'un coup d'œil, il quitte donc le gris des indices pour la couleur d'alerte. */
+        #pausePartyHint { color: var(--warning); max-width: 300px; }
+        #pauseSoloHint.hidden, #pausePartyHint.hidden { display: none; }
 
         /* ===== TABS ===== */
         .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
@@ -662,6 +683,34 @@
         @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
 
+        /* ===== SALON (partie privée) ===== */
+        .lobby-code-display {
+            font-family: var(--font-head); font-size: 34px; letter-spacing: 0.16em;
+            color: var(--accent); text-shadow: 0 0 10px var(--accent);
+            transform: skewX(8deg); margin: 10px 0; text-align: center;
+        }
+        .lobby-code-input {
+            display: block; margin: 10px auto; width: 160px;
+            padding: 10px 12px; min-height: 44px; text-align: center;
+            background: color-mix(in srgb, var(--accent) 6%, transparent);
+            border: 2px solid var(--accent); border-radius: 10px;
+            color: var(--accent); font-family: var(--font-head);
+            font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase;
+        }
+        .lobby-code-input::placeholder { color: #6c7676; letter-spacing: 0.1em; }
+        .lobby-status { font-size: 13px; color: #999; text-align: center; margin: 8px 0; min-height: 16px; }
+        .lobby-players { width: 100%; max-width: 340px; margin: 10px 0; }
+        .lobby-player {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 8px 14px; min-height: 44px;
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            border-radius: 8px; margin-bottom: 6px; font-size: 14px;
+        }
+        .lobby-player .host-badge { font-size: 10px; color: var(--accent); opacity: 0.7; letter-spacing: 0.08em; }
+        #lobbyChoice .hint, #lobbyRoom .hint { max-width: 320px; }
+        #lobbyChoice.hidden, #lobbyRoom.hidden, #lobbyJoinForm.hidden,
+        #lobbyCodeDisplay.hidden, #lobbyStartBtn.hidden, #privateGameHint.hidden { display: none; }
+
         /* ===== MOBILE ===== */
         @media (max-width: 480px) {
             h1 { font-size: 22px; }
@@ -694,7 +743,8 @@
     <canvas id="minimap" width="100" height="70"></canvas>
     <div id="spectateBanner" class="hidden">
         <span><span data-i18n="eatenBy">💀 Mangé par</span> <span id="spectateName" class="accent"></span></span>
-        <button id="spectateSkipBtn" data-i18n="seeResults">Voir mes résultats ▶</button>
+        <button id="spectateSkipBtn" data-i18n="continueLife">Continuer ▶</button>
+        <button id="spectateQuitBtn" data-role="danger" data-i18n="quitLife">Quitter</button>
     </div>
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
@@ -841,6 +891,8 @@
             </div>
         </div>
         <button id="playBtn" class="btn-primary cta-hachured"><span data-i18n="play">▶ JOUER</span><span class="hachure" style="width:26px"></span></button>
+        <button id="privateGameBtn" class="cta-hachured"><span data-i18n="privateGame">🌐 PARTIE PRIVÉE</span><span class="cta-code">A06</span><span class="hachure" style="width:20px"></span></button>
+        <div class="hint hidden" id="privateGameHint" data-i18n="privateGameOffline"></div>
         <button id="installBtn" class="cta-hachured"><span data-i18n="install">📱 Installer l'appli</span><span class="hachure" style="width:20px"></span></button>
         <div class="hint" id="offlineHint"></div>
     </div>
@@ -874,7 +926,8 @@
                 <h1 style="margin-bottom:0" data-i18n="pause">⏸ PAUSE</h1>
                 <span class="pause-subtitle">SYS//HALT</span>
             </div>
-            <p class="hint" data-i18n="pauseHint">La partie reprend où tu l’as laissée.</p>
+            <p class="hint" id="pauseSoloHint" data-i18n="pauseHint">La partie reprend où tu l’as laissée.</p>
+            <p class="hint hidden" id="pausePartyHint" data-i18n="pausePartyHint">Toi seul es en pause — tu peux te faire manger pendant ce temps.</p>
             <div class="btn-row">
                 <button id="resumeBtn" class="btn-primary cta-hachured"><span data-i18n="resume">▶ REPRENDRE</span><span class="hachure" style="width:26px"></span></button>
             </div>
@@ -900,21 +953,51 @@
                 <div class="swatch-row" data-group="uiColor"></div>
             </div>
 
-            <div class="abandon-row">
-                <span class="abandon-warn">⚠</span>
-                <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Abandonner la partie">
-                    <span data-i18n="abandon">ABANDONNER</span><span class="abandon-code">A00</span><span class="hachure danger" style="width:20px"></span>
+            <div class="abandon-row" id="abandonRow">
+                <span class="abandon-warn" data-warn>⚠</span>
+                <button id="abandonBtn" type="button" data-role="danger" class="abandon-btn" aria-label="Quitter la partie">
+                    <span id="abandonLabel" data-i18n="abandon">QUITTER LA PARTIE</span><span class="abandon-code">A00</span><span id="abandonHachure" class="hachure danger" style="width:20px"></span>
                 </button>
-                <span class="abandon-warn">⚠</span>
+                <span class="abandon-warn" data-warn>⚠</span>
             </div>
         </div>
         <div id="pauseConfirm" class="hidden">
-            <h1 data-i18n="abandonTitle">Abandonner ?</h1>
-            <p class="hint" data-i18n="abandonHint">La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.</p>
+            <h1 id="abandonConfirmTitle" data-i18n="abandonTitle">Quitter la partie ?</h1>
+            <p class="hint" id="abandonConfirmHint" data-i18n="abandonHint">La vie en cours s’arrête ici. Tu gardes ton XP, tes stats et ton entrée à l’historique.</p>
             <div class="btn-row">
                 <button id="abandonNoBtn" class="btn-primary" data-i18n="no">NON</button>
                 <button id="abandonYesBtn" class="btn-secondary" data-role="danger" data-i18n="yes">OUI</button>
             </div>
+        </div>
+    </div>
+
+    <!-- SALON (partie privée) -->
+    <div id="lobbyScreen" class="overlay hidden">
+        <h1 data-i18n="lobbyTitle">🌐 SALON</h1>
+
+        <div id="lobbyChoice">
+            <p class="hint" data-i18n="lobbyChoiceHint">Jouez à plusieurs, dans la même arène, avec un code.</p>
+            <div class="btn-row">
+                <button id="lobbyCreateBtn" class="btn-primary" data-i18n="lobbyCreate">CRÉER UN SALON</button>
+                <button id="lobbyShowJoinBtn" class="btn-primary" data-i18n="lobbyJoin">REJOINDRE</button>
+            </div>
+            <div id="lobbyJoinForm" class="hidden">
+                <input type="text" id="lobbyCodeInput" class="lobby-code-input" maxlength="5" data-i18n-ph="lobbyCodePlaceholder" placeholder="CODE">
+                <div class="btn-row">
+                    <button id="lobbyJoinConfirmBtn" class="btn-primary" data-i18n="lobbyJoinConfirm">REJOINDRE</button>
+                </div>
+            </div>
+            <button id="lobbyBackBtn" type="button" class="tab-btn" data-i18n="back">❮ Retour</button>
+        </div>
+
+        <div id="lobbyRoom" class="hidden">
+            <div id="lobbyCodeDisplay" class="lobby-code-display hidden"></div>
+            <div id="lobbyStatus" class="lobby-status"></div>
+            <div id="lobbyPlayers" class="lobby-players"></div>
+            <div class="btn-row">
+                <button id="lobbyStartBtn" class="btn-primary cta-hachured hidden"><span data-i18n="lobbyStart">▶ LANCER</span><span class="hachure" style="width:22px"></span></button>
+            </div>
+            <button id="lobbyLeaveBtn" type="button" class="tab-btn" data-i18n="lobbyLeave">❮ Quitter le salon</button>
         </div>
     </div>
 
@@ -972,6 +1055,7 @@ const CONFIG = {
     // ce qui donne un rayon de 358 a 20 000 de masse : constate en jeu, le serpent remplit tout
     // l'ecran et se noie dans son propre corps. 0,34 conserve un ecart visible sans le blob.
     RADIUS_EXPONENT: 0.34,
+    WIN_XP_MULTIPLIER: 1.5,  // XP d'une partie terminee en tete, en fraction de l'XP d'une mort
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
@@ -1309,11 +1393,26 @@ const TRANSLATIONS = {
         rimNeutral: "Ni l'un ni l'autre ne mange", rimPrey: 'C’est ta proie — fonce',
         welcomeStart: "C'EST PARTI ▶",
         pause: '⏸ PAUSE', pauseHint: 'La partie reprend où tu l’as laissée.',
-        resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'ABANDONNER',
-        abandonTitle: 'Abandonner ?', abandonHint: 'La vie en cours s’arrête. Aucun XP, aucune entrée à l’historique.',
+        pausePartyHint: '⚠ Toi seul es en pause — tu peux te faire manger pendant ce temps.',
+        resume: '▶ REPRENDRE', settings: 'Réglages', abandon: 'QUITTER LA PARTIE',
+        abandonTitle: 'Quitter la partie ?', abandonHint: 'La vie en cours s’arrête ici. Tu gardes ton XP, tes stats et ton entrée à l’historique.',
+        finish: 'TERMINER LA PARTIE', finishTitle: 'Terminer en tête ?',
+        finishHint: "Tu es n°1 : la partie s’arrête ici et tout est gardé — XP, bonus de victoire, entrée à l’historique.",
         yes: 'OUI', no: 'NON',
         leaderboard: 'CLASSEMENT', you: 'TOI', size: 'Taille', time: 'Temps', kills: 'Kills',
-        eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
+        eatenBy: '💀 Mangé par', continueLife: 'Continuer', quitLife: 'Quitter',
+        offlineReady: 'Jouable hors-ligne ✓',
+        privateGame: '🌐 PARTIE PRIVÉE', privateGameOffline: 'Hors ligne : la partie privée a besoin du réseau',
+        lobbyTitle: '🌐 SALON', lobbyChoiceHint: 'Jouez à plusieurs, dans la même arène, avec un code.',
+        lobbyCreate: 'CRÉER UN SALON', lobbyJoin: 'REJOINDRE', lobbyJoinConfirm: 'REJOINDRE',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ LANCER', lobbyLeave: '❮ Quitter le salon',
+        lobbyHostBadge: 'HÔTE', lobbyWaitingPlayers: 'En attente de joueurs…',
+        lobbyWaiting: 'En attente de l’hôte…', lobbyConnecting: 'Connexion…',
+        lobbyErrorOffline: 'Impossible de se connecter — vérifie ta connexion réseau.',
+        lobbyErrorCodeTaken: 'Code déjà utilisé, nouvelle tentative…',
+        lobbyErrorCodeNotFound: 'Aucun salon avec ce code.',
+        lobbyErrorHostLeft: 'L’hôte a quitté la partie.',
+        lobbyErrorGeneric: 'Connexion impossible.',
     },
     en: {
         tabSkins: '🛒 Shop', tabStats: '📊 Stats', tabHistory: '📜 History',
@@ -1338,11 +1437,26 @@ const TRANSLATIONS = {
         rimNeutral: 'Neither one can eat the other', rimPrey: 'It is your prey — charge',
         welcomeStart: "LET'S GO ▶",
         pause: '⏸ PAUSE', pauseHint: 'The game resumes right where you left it.',
-        resume: '▶ RESUME', settings: 'Settings', abandon: 'GIVE UP',
-        abandonTitle: 'Give up?', abandonHint: 'The current life ends. No XP, no history entry.',
+        pausePartyHint: '⚠ Only you are paused — you can still get eaten meanwhile.',
+        resume: '▶ RESUME', settings: 'Settings', abandon: 'LEAVE THE GAME',
+        abandonTitle: 'Leave the game?', abandonHint: 'The current life ends here. You keep your XP, your stats and your history entry.',
+        finish: 'FINISH ON TOP', finishTitle: 'Finish in first place?',
+        finishHint: "You are #1: the game ends here and everything is kept — XP, victory bonus, history entry.",
         yes: 'YES', no: 'NO',
         leaderboard: 'LEADERBOARD', you: 'YOU', size: 'Size', time: 'Time', kills: 'Kills',
-        eatenBy: '💀 Eaten by', seeResults: 'See my results ▶', offlineReady: 'Playable offline ✓',
+        eatenBy: '💀 Eaten by', continueLife: 'Continue', quitLife: 'Leave',
+        offlineReady: 'Playable offline ✓',
+        privateGame: '🌐 PRIVATE GAME', privateGameOffline: 'Offline: a private game needs the network',
+        lobbyTitle: '🌐 LOBBY', lobbyChoiceHint: 'Play together, in the same arena, with a code.',
+        lobbyCreate: 'CREATE A LOBBY', lobbyJoin: 'JOIN', lobbyJoinConfirm: 'JOIN',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ START', lobbyLeave: '❮ Leave the lobby',
+        lobbyHostBadge: 'HOST', lobbyWaitingPlayers: 'Waiting for players…',
+        lobbyWaiting: 'Waiting for the host…', lobbyConnecting: 'Connecting…',
+        lobbyErrorOffline: 'Cannot connect — check your network connection.',
+        lobbyErrorCodeTaken: 'Code already in use, trying again…',
+        lobbyErrorCodeNotFound: 'No lobby with that code.',
+        lobbyErrorHostLeft: 'The host has left the game.',
+        lobbyErrorGeneric: 'Connection failed.',
     },
     es: {
         tabSkins: '🛒 Tienda', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
@@ -1367,11 +1481,26 @@ const TRANSLATIONS = {
         rimNeutral: 'Ninguna puede comerse a la otra', rimPrey: 'Es tu presa — a por ella',
         welcomeStart: '¡VAMOS! ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partida sigue donde la dejaste.',
-        resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'ABANDONAR',
-        abandonTitle: '¿Abandonar?', abandonHint: 'La vida actual termina. Sin XP, sin entrada en el historial.',
+        pausePartyHint: '⚠ Solo tú estás en pausa — pueden devorarte mientras tanto.',
+        resume: '▶ REANUDAR', settings: 'Ajustes', abandon: 'SALIR DE LA PARTIDA',
+        abandonTitle: '¿Salir de la partida?', abandonHint: 'La vida actual termina aquí. Conservas tu XP, tus estadísticas y tu entrada en el historial.',
+        finish: 'TERMINAR EN CABEZA', finishTitle: '¿Terminar en primer puesto?',
+        finishHint: "Eres el n.º 1: la partida termina aquí y se conserva todo: XP, bonus de victoria y entrada en el historial.",
         yes: 'SÍ', no: 'NO',
         leaderboard: 'CLASIFICACIÓN', you: 'TÚ', size: 'Tamaño', time: 'Tiempo', kills: 'Kills',
-        eatenBy: '💀 Devorado por', seeResults: 'Ver mis resultados ▶', offlineReady: 'Jugable sin conexión ✓',
+        eatenBy: '💀 Devorado por', continueLife: 'Continuar', quitLife: 'Salir',
+        offlineReady: 'Jugable sin conexión ✓',
+        privateGame: '🌐 PARTIDA PRIVADA', privateGameOffline: 'Sin conexión: la partida privada necesita red',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Jugad juntos, en la misma arena, con un código.',
+        lobbyCreate: 'CREAR UNA SALA', lobbyJoin: 'UNIRSE', lobbyJoinConfirm: 'UNIRSE',
+        lobbyCodePlaceholder: 'CÓDIGO', lobbyStart: '▶ EMPEZAR', lobbyLeave: '❮ Salir de la sala',
+        lobbyHostBadge: 'ANFITRIÓN', lobbyWaitingPlayers: 'Esperando jugadores…',
+        lobbyWaiting: 'Esperando al anfitrión…', lobbyConnecting: 'Conectando…',
+        lobbyErrorOffline: 'No se puede conectar — comprueba tu conexión de red.',
+        lobbyErrorCodeTaken: 'Código ya en uso, reintentando…',
+        lobbyErrorCodeNotFound: 'No hay ninguna sala con ese código.',
+        lobbyErrorHostLeft: 'El anfitrión ha salido de la partida.',
+        lobbyErrorGeneric: 'No se pudo conectar.',
     },
     de: {
         tabSkins: '🛒 Shop', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
@@ -1396,11 +1525,26 @@ const TRANSLATIONS = {
         rimNeutral: 'Keine kann die andere fressen', rimPrey: 'Sie ist deine Beute — los',
         welcomeStart: "LOS GEHT'S ▶",
         pause: '⏸ PAUSE', pauseHint: 'Das Spiel geht dort weiter, wo du aufgehört hast.',
-        resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'AUFGEBEN',
-        abandonTitle: 'Aufgeben?', abandonHint: 'Das laufende Leben endet. Kein XP, kein Verlaufseintrag.',
+        pausePartyHint: '⚠ Nur du bist pausiert — du kannst währenddessen gefressen werden.',
+        resume: '▶ FORTSETZEN', settings: 'Einstellungen', abandon: 'SPIEL VERLASSEN',
+        abandonTitle: 'Spiel verlassen?', abandonHint: 'Das laufende Leben endet hier. Du behältst dein XP, deine Statistiken und deinen Verlaufseintrag.',
+        finish: 'ALS ERSTER BEENDEN', finishTitle: 'Als Erster beenden?',
+        finishHint: "Du bist Nr. 1: Das Spiel endet hier und alles bleibt erhalten — XP, Siegbonus, Verlaufseintrag.",
         yes: 'JA', no: 'NEIN',
         leaderboard: 'RANGLISTE', you: 'DU', size: 'Größe', time: 'Zeit', kills: 'Kills',
-        eatenBy: '💀 Gefressen von', seeResults: 'Meine Ergebnisse ▶', offlineReady: 'Offline spielbar ✓',
+        eatenBy: '💀 Gefressen von', continueLife: 'Weiter', quitLife: 'Verlassen',
+        offlineReady: 'Offline spielbar ✓',
+        privateGame: '🌐 PRIVATE PARTIE', privateGameOffline: 'Offline: Die private Partie braucht das Netzwerk',
+        lobbyTitle: '🌐 LOBBY', lobbyChoiceHint: 'Spielt gemeinsam, in derselben Arena, mit einem Code.',
+        lobbyCreate: 'LOBBY ERSTELLEN', lobbyJoin: 'BEITRETEN', lobbyJoinConfirm: 'BEITRETEN',
+        lobbyCodePlaceholder: 'CODE', lobbyStart: '▶ STARTEN', lobbyLeave: '❮ Lobby verlassen',
+        lobbyHostBadge: 'GASTGEBER', lobbyWaitingPlayers: 'Warte auf Spieler…',
+        lobbyWaiting: 'Warte auf den Gastgeber…', lobbyConnecting: 'Verbinde…',
+        lobbyErrorOffline: 'Verbindung nicht möglich — prüfe deine Netzwerkverbindung.',
+        lobbyErrorCodeTaken: 'Code bereits vergeben, neuer Versuch…',
+        lobbyErrorCodeNotFound: 'Keine Lobby mit diesem Code.',
+        lobbyErrorHostLeft: 'Der Gastgeber hat die Partie verlassen.',
+        lobbyErrorGeneric: 'Verbindung fehlgeschlagen.',
     },
     it: {
         tabSkins: '🛒 Negozio', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
@@ -1425,11 +1569,26 @@ const TRANSLATIONS = {
         rimNeutral: 'Nessuno dei due può mangiare', rimPrey: 'È la tua preda — attacca',
         welcomeStart: 'SI PARTE ▶',
         pause: '⏸ PAUSA', pauseHint: 'La partita riprende da dove l’hai lasciata.',
-        resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ABBANDONA',
-        abandonTitle: 'Abbandonare?', abandonHint: 'La vita in corso termina. Nessun XP, nessuna voce in cronologia.',
+        pausePartyHint: '⚠ Solo tu sei in pausa — nel frattempo puoi essere mangiato.',
+        resume: '▶ RIPRENDI', settings: 'Impostazioni', abandon: 'ESCI DALLA PARTITA',
+        abandonTitle: 'Uscire dalla partita?', abandonHint: 'La vita in corso termina qui. Mantieni i tuoi XP, le tue statistiche e la tua voce in cronologia.',
+        finish: 'CHIUDI DA PRIMO', finishTitle: 'Chiudere da primo?',
+        finishHint: "Sei il n. 1: la partita finisce qui e viene conservato tutto: XP, bonus vittoria, voce in cronologia.",
         yes: 'SÌ', no: 'NO',
         leaderboard: 'CLASSIFICA', you: 'TU', size: 'Taglia', time: 'Tempo', kills: 'Kills',
-        eatenBy: '💀 Mangiato da', seeResults: 'Vedi i miei risultati ▶', offlineReady: 'Giocabile offline ✓',
+        eatenBy: '💀 Mangiato da', continueLife: 'Continua', quitLife: 'Esci',
+        offlineReady: 'Giocabile offline ✓',
+        privateGame: '🌐 PARTITA PRIVATA', privateGameOffline: 'Offline: la partita privata richiede la rete',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Giocate insieme, nella stessa arena, con un codice.',
+        lobbyCreate: 'CREA UNA SALA', lobbyJoin: 'ENTRA', lobbyJoinConfirm: 'ENTRA',
+        lobbyCodePlaceholder: 'CODICE', lobbyStart: '▶ AVVIA', lobbyLeave: '❮ Esci dalla sala',
+        lobbyHostBadge: 'HOST', lobbyWaitingPlayers: 'In attesa di giocatori…',
+        lobbyWaiting: 'In attesa dell’host…', lobbyConnecting: 'Connessione…',
+        lobbyErrorOffline: 'Impossibile connettersi — controlla la tua connessione di rete.',
+        lobbyErrorCodeTaken: 'Codice già in uso, nuovo tentativo…',
+        lobbyErrorCodeNotFound: 'Nessuna sala con questo codice.',
+        lobbyErrorHostLeft: 'L’host ha lasciato la partita.',
+        lobbyErrorGeneric: 'Connessione non riuscita.',
     },
     pt: {
         tabSkins: '🛒 Loja', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
@@ -1454,11 +1613,26 @@ const TRANSLATIONS = {
         rimNeutral: 'Nenhuma pode comer a outra', rimPrey: 'É a tua presa — avança',
         welcomeStart: 'VAMOS ▶',
         pause: '⏸ PAUSA', pauseHint: 'O jogo continua onde o deixaste.',
-        resume: '▶ RETOMAR', settings: 'Definições', abandon: 'DESISTIR',
-        abandonTitle: 'Desistir?', abandonHint: 'A vida atual termina. Sem XP, sem entrada no histórico.',
+        pausePartyHint: '⚠ Só tu estás em pausa — podes ser comido entretanto.',
+        resume: '▶ RETOMAR', settings: 'Definições', abandon: 'SAIR DO JOGO',
+        abandonTitle: 'Sair do jogo?', abandonHint: 'A vida atual termina aqui. Mantens o teu XP, as tuas estatísticas e a tua entrada no histórico.',
+        finish: 'TERMINAR EM PRIMEIRO', finishTitle: 'Terminar em primeiro?',
+        finishHint: "És o n.º 1: a partida termina aqui e fica tudo guardado — XP, bónus de vitória, entrada no histórico.",
         yes: 'SIM', no: 'NÃO',
         leaderboard: 'CLASSIFICAÇÃO', you: 'TU', size: 'Tamanho', time: 'Tempo', kills: 'Kills',
-        eatenBy: '💀 Comido por', seeResults: 'Ver os meus resultados ▶', offlineReady: 'Jogável offline ✓',
+        eatenBy: '💀 Comido por', continueLife: 'Continuar', quitLife: 'Sair',
+        offlineReady: 'Jogável offline ✓',
+        privateGame: '🌐 JOGO PRIVADO', privateGameOffline: 'Offline: o jogo privado precisa de rede',
+        lobbyTitle: '🌐 SALA', lobbyChoiceHint: 'Joguem juntos, na mesma arena, com um código.',
+        lobbyCreate: 'CRIAR UMA SALA', lobbyJoin: 'ENTRAR', lobbyJoinConfirm: 'ENTRAR',
+        lobbyCodePlaceholder: 'CÓDIGO', lobbyStart: '▶ COMEÇAR', lobbyLeave: '❮ Sair da sala',
+        lobbyHostBadge: 'ANFITRIÃO', lobbyWaitingPlayers: 'À espera de jogadores…',
+        lobbyWaiting: 'À espera do anfitrião…', lobbyConnecting: 'A ligar…',
+        lobbyErrorOffline: 'Não foi possível ligar — verifica a tua ligação de rede.',
+        lobbyErrorCodeTaken: 'Código já em uso, a tentar de novo…',
+        lobbyErrorCodeNotFound: 'Nenhuma sala com esse código.',
+        lobbyErrorHostLeft: 'O anfitrião saiu do jogo.',
+        lobbyErrorGeneric: 'Não foi possível ligar.',
     },
 };
 
@@ -1527,6 +1701,18 @@ class AudioManager {
                 gain.gain.setValueAtTime(0.15, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
                 osc.start(now); osc.stop(now + 0.2);
+                break;
+            // Decouper n'est PAS tuer : le serpent survit, raccourci. Le son doit donc se
+            // distinguer de 'kill' — un cisaillement bref et descendant, deux fois plus court et
+            // plus discret, la ou 'kill' est une montee triomphale. Sans ca, le joueur entend une
+            // elimination a chaque touche et croit que son compteur est casse.
+            case 'cut':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.09);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
                 break;
             case 'death':
                 osc.frequency.setValueAtTime(400, now);
@@ -1806,6 +1992,22 @@ class ParticleSystem {
             }));
         }
     }
+    // Decoupe : une GERBE dirigee de part et d'autre du point de rupture, pas l'explosion
+    // omnidirectionnelle d'une mort (emitDeath, 20 particules sur un cercle complet). Moitie
+    // moins de particules, plus rapides, plus breves — la lecture doit etre « quelque chose a
+    // ete tranche ici », jamais « quelqu'un vient de mourir ».
+    emitCut(x, y, color, angle) {
+        for (let i = 0; i < 10; i++) {
+            const cote = i % 2 ? 1 : -1;
+            const a = angle + cote * (Math.PI/2) + (Math.random()-0.5) * 0.7;
+            const s = Math.random()*4 + 3;
+            this.push(new Particle(x, y, {
+                vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                life: 1, decay: 0.05, size: Math.random()*2+1.5,
+                color, type: 'circle', friction: 0.93
+            }));
+        }
+    }
     emitFoodEat(x, y) {
         for (let i = 0; i < 5; i++) {
             const a = Math.random()*TAU, s = Math.random()*3+1;
@@ -1931,8 +2133,12 @@ class FoodGrid {
 // ============================================================
 //  NOURRITURE
 // ============================================================
+// Identifiant STABLE d'une pastille : pickRandomFoods() permute le tableau `foods`, donc un
+// indice ne designe pas toujours la meme pastille — un delta reseau indexe se desynchroniserait.
+let foodUid = 0;
+
 class Food {
-    constructor() { this.respawn(); }
+    constructor() { this.id = ++foodUid; this.respawn(); }
     respawn() {
         const c = foodClusters.length ? foodClusters[Math.floor(Math.random() * foodClusters.length)] : null;
         if (c) {
@@ -1949,6 +2155,7 @@ class Food {
         this.color = '#ff00ff';
         this.pulseOffset = Math.random() * TAU;
         this.pulseSpeed = 0.05 + Math.random() * 0.05;
+        markFoodDirty(this);
     }
     draw(ctx) {
         // Phase dérivée de l'horloge de simulation (fixe à 60 Hz), pas du nombre d'appels à
@@ -1969,8 +2176,11 @@ class Food {
 // ============================================================
 //  POWER-UP
 // ============================================================
+let powerupUid = 0;
+
 class PowerUp {
     constructor(x, y, type) {
+        this.id = ++powerupUid;
         this.x = x; this.y = y; this.type = type;
         this.radius = 12;
         this.config = CONFIG.POWERUPS[type];
@@ -2012,6 +2222,7 @@ class PowerUp {
 // ============================================================
 //  SERPENT
 // ============================================================
+
 class Snake {
     constructor(x, y, isPlayer, name, color, skinStyle) {
         this.x = x; this.y = y;
@@ -2107,12 +2318,21 @@ class Snake {
         // d'affichage) : une pulsation/degrade tourne a la meme vitesse en 60 Hz et en 120 Hz.
         if (this.skinStyle) this.skinPhase += STEP_MS / 1000;
 
-        if (this.isPlayer) {
+        if (this.pauseAI) {
+            // Joueur en pause pendant une partie privee : son serpent passe sous l'IA des bots
+            // au lieu de figer le monde des autres — c'est la regle tranchee au §6 du cahier des
+            // charges. Prioritaire sur tout le reste : le pointeur local comme le cap reseau se
+            // taisent tant que la pause dure.
+            this.botAI(allSnakes, grid);
+        } else if (this.isPlayer) {
             if (target && target.x !== undefined && target.y !== undefined) {
                 const dx = target.x - this.x;
                 const dy = target.y - this.y;
                 if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this.targetAngle = Math.atan2(dy, dx);
             }
+        } else if (this.netControlled) {
+            // Humain distant (partie privee, cote hote) : son cap arrive par le reseau, il n'est
+            // pilote ni par le pointeur local ni par l'IA.
         } else {
             this.botAI(allSnakes, grid);
         }
@@ -2744,7 +2964,21 @@ const screenShake = new ScreenShake();
 const killStreak = new KillStreak();
 
 function $(id) { return document.getElementById(id); }
-function aliveSnakes() { return [player, ...bots].filter(s => s && s.alive); }
+// En partie privee : cote hote, les humains distants s'ajoutent au joueur local et aux bots ;
+// cote client, la liste vient entierement des instantanes recus (aucune simulation locale).
+function aliveSnakes() {
+    if (party.inGame && !party.isHost) return Array.from(netSnakes.values()).filter(s => s && s.alive);
+    if (party.inGame) return [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
+    return [player, ...bots].filter(s => s && s.alive);
+}
+
+// La simulation doit-elle encore avancer ? En solo, la pause fige tout — c'est ce qu'on veut.
+// En partie privee elle ne fige RIEN : mettre pause ne doit jamais arreter la partie des autres
+// (cahier des charges UI §6), donc collisions, bots et instantanes continuent pendant PAUSED.
+function simActive() {
+    return gameState === 'PLAYING' || gameState === 'SPECTATING'
+        || (party.inGame && gameState === 'PAUSED');
+}
 
 // ============================================================
 //  CAMERA
@@ -2845,6 +3079,7 @@ function showScreen(screen) {
     $('menuScreen').classList.toggle('hidden', screen !== 'menu');
     $('welcomeScreen').classList.toggle('hidden', screen !== 'welcome');
     $('pauseScreen').classList.toggle('hidden', screen !== 'pause');
+    $('lobbyScreen').classList.toggle('hidden', screen !== 'lobby');
 
     const inGame = (screen === 'game');
     const spectating = (screen === 'spectate');
@@ -2917,7 +3152,7 @@ function renderMenu() {
     } else {
         save.history.forEach((h, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + (i+1) + '</td><td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
+            tr.innerHTML = '<td>' + (h.won ? '🥇 ' : '') + (i+1) + '</td><td>' + h.size + '</td><td>' + h.kills + '</td><td>' + h.duration + 's</td>';
             tbody.appendChild(tr);
         });
     }
@@ -2937,7 +3172,10 @@ function renderMenu() {
 
 function updateHUD() {
     if (!player) return;
-    $('scoreDisplay').textContent = t('size') + ': ' + player.length;
+    // Arrondi a l'affichage seulement : une pastille issue d'une decoupe vaut une fraction
+    // (scatterCorpseFood), la longueur reelle n'est donc pas entiere — mais "Taille: 285,25"
+    // ne veut rien dire pour le joueur. Meme arrondi au classement et a l'historique.
+    $('scoreDisplay').textContent = t('size') + ': ' + Math.round(player.length);
     $('timerDisplay').textContent = t('time') + ': ' + formatTime(Math.floor(gameClock / 1000));
     $('killsDisplay').textContent = t('kills') + ': ' + sessionKills;
 
@@ -2964,17 +3202,40 @@ function updateHUD() {
     }
 }
 
+const LB_MEDALS = ['🥇','🥈','🥉'];
+
 function updateLeaderboard() {
-    const all = aliveSnakes().sort((a, b) => b.length - a.length);
-    const medals = ['🥇','🥈','🥉'];
+    // Client d'une partie privée : il ne voit qu'une fraction des serpents (filtrage par
+    // intérêt), il ne peut donc PAS calculer le classement. L'hôte, qui voit tout, le lui donne.
+    if (party.inGame && !party.isHost) {
+        if (!netLeaderboard) { $('lbContent').innerHTML = '<div class="lb-entry">—</div>'; return; }
+        // Le classement ne transporte qu'un index et une longueur : le nom vient du roster,
+        // que tout le monde a déjà reçu au lancement.
+        let html = '';
+        netLeaderboard.top.forEach((e, i) => {
+            const id = netOrder[e.i];
+            const info = netRoster.get(id);
+            const mine = id === party.selfId;
+            html += '<div class="lb-entry ' + (mine ? 'lb-player' : '') + '">' +
+                    LB_MEDALS[i] + ' ' + escapeHtml(info ? info.name : '?') + ' (' + Math.round(e.m) + ')</div>';
+        });
+        const rank = netLeaderboard.rank;
+        if (player && player.alive && rank > 3) {
+            html += '<div class="lb-entry lb-player">📊 ' + escapeHtml(playerName()) + ': #' + rank + ' (' + Math.round(player.length) + ')</div>';
+        }
+        $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
+        return;
+    }
+
+    const all = aliveSnakes().sort((a, b) => b.mass - a.mass);
     let html = '';
     all.slice(0, 3).forEach((s, i) => {
         html += '<div class="lb-entry ' + (s.isPlayer ? 'lb-player' : '') + '">' +
-                medals[i] + ' ' + s.name + ' (' + s.length + ')</div>';
+                LB_MEDALS[i] + ' ' + s.name + ' (' + Math.round(s.mass) + ')</div>';
     });
     if (player && player.alive) {
         const rank = all.indexOf(player);
-        if (rank > 2) html += '<div class="lb-entry lb-player">📊 ' + playerName() + ': #' + (rank+1) + ' (' + player.length + ')</div>';
+        if (rank > 2) html += '<div class="lb-entry lb-player">📊 ' + playerName() + ': #' + (rank+1) + ' (' + Math.round(player.length) + ')</div>';
     }
     $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
 }
@@ -3002,6 +3263,30 @@ function drawMinimap() {
     minimapCtx.strokeRect(mx(cam.x) - vw/2, my(cam.y) - vh/2, vw, vh);
 
     // Pas la nourriture : 600 points sur 100x75 px ne seraient qu'un aplat.
+    // Client d'une partie privée : la minimap doit montrer TOUT le monde, alors que le filtrage
+    // par intérêt ne lui envoie que ses voisins. D'où une carte compacte à part, à 3 Hz —
+    // positions arrondies au 1/255e du monde, ce qui dépasse déjà la précision de 100 px d'écran.
+    //
+    // INCOMPLET, cf. §8 du cahier des charges : ce chemin dessine encore des points de taille
+    // fixe et sans liseré de menace, parce que le paquet minimap ne transporte aujourd'hui que
+    // des positions. Un client voit donc OÙ sont les autres, mais pas lesquels le menacent —
+    // et ce sont justement les serpents hors de son champ de vision, ceux dont la minimap est
+    // la seule source. L'hôte devra y joindre menace et amplitude, qu'il est seul à pouvoir
+    // calculer.
+    if (party.inGame && !party.isHost) {
+        const K = NET_MM_PRECISION;
+        for (const p of netMinimap) {
+            const id = netOrder[p.i];
+            const mine = id === party.selfId;
+            const info = netRoster.get(id);
+            minimapCtx.beginPath();
+            minimapCtx.arc(mx(p.x / K * CONFIG.WORLD_WIDTH), my(p.y / K * CONFIG.WORLD_HEIGHT), mine ? 3 : 1.8, 0, TAU);
+            minimapCtx.fillStyle = mine ? '#00ffcc' : (info ? info.color : '#888');
+            minimapCtx.fill();
+        }
+        return;
+    }
+
     // Le point grossit avec la MASSE : a taille fixe, un colosse et un nouveau-ne etaient deux
     // points identiques, et une menace occupant une region entiere de la carte passait inapercue.
     // Echelle logarithmique, sinon un serpent tres lourd noierait la carte comme il noyait
@@ -3148,12 +3433,66 @@ function startGame() {
     updateLeaderboard();
 }
 
+let pauseVictory = false;   // la sortie proposee par l'ecran Pause en cours est-elle une victoire ?
+
+// Le joueur est-il en tete ? Meme critere que le classement affiche : la longueur, parmi les
+// serpents vivants.
+function playerIsFirst() {
+    if (!player || !player.alive) return false;
+    return aliveSnakes().sort((a, b) => b.mass - a.mass)[0] === player;
+}
+
+// Prepare la sortie proposee par l'ecran Pause. En tete du classement, "Abandonner" devient
+// "Terminer la partie" : meme place, meme code A00, mais l'action n'a plus rien de destructeur —
+// donc la couleur d'interface au lieu du rouge fixe, des 🏆 au lieu des ⚠, et l'eclat de clic
+// reprend la couleur choisie (data-role="danger" retire).
+function applyPauseExitMode() {
+    pauseVictory = playerIsFirst();
+    const cle = (gagne, oui, non) => gagne ? oui : non;
+    const g = pauseVictory;
+
+    $('abandonRow').classList.toggle('victory', g);
+    document.querySelectorAll('#abandonRow [data-warn]').forEach(w => { w.textContent = g ? '🏆' : '⚠'; });
+    $('abandonHachure').classList.toggle('danger', !g);
+
+    const paires = [
+        [$('abandonLabel'), cle(g, 'finish', 'abandon')],
+        [$('abandonConfirmTitle'), cle(g, 'finishTitle', 'abandonTitle')],
+        [$('abandonConfirmHint'), cle(g, 'finishHint', 'abandonHint')],
+    ];
+    for (const [el, key] of paires) { el.setAttribute('data-i18n', key); el.textContent = t(key); }
+
+    $('abandonBtn').setAttribute('aria-label', t(cle(g, 'finishTitle', 'abandonTitle')));
+    for (const el of [$('abandonBtn'), $('abandonYesBtn')]) {
+        if (g) el.removeAttribute('data-role'); else el.setAttribute('data-role', 'danger');
+    }
+}
+
 function pauseGame() {
     if (gameState !== 'PLAYING') return;
     gameState = 'PAUSED';
     $('pauseConfirm').classList.add('hidden');
     $('pauseNormal').classList.remove('hidden');
+    // Deux promesses opposées selon le mode : en solo la partie attend, en partie privée non.
+    $('pauseSoloHint').classList.toggle('hidden', party.inGame);
+    $('pausePartyHint').classList.toggle('hidden', !party.inGame);
+    partySetPaused(true);
+    applyPauseExitMode();
     showScreen('pause');
+}
+
+// Sortie confirmee depuis Pause. Quitter n'est PLUS une punition : la vie en cours est comptee
+// dans tous les cas, exactement comme une mort. En tete du classement elle est meme majoree
+// (WIN_XP_MULTIPLIER). Motif : devoir s'arreter en cours de partie — un rendez-vous qui arrive —
+// ne doit jamais effacer ce qu'on vient de jouer. Seule reste l'irreversibilite : on ne revient
+// pas dans la meme arene, d'ou le rouge conserve sur le bouton.
+function confirmPauseExit() {
+    if (player && player.alive) {
+        gameState = 'PLAYING';        // endGame() n'accepte que cet etat (cf. finishSpectate)
+        endGame({ won: pauseVictory });
+    }
+    pauseVictory = false;
+    goToMenu();
 }
 
 function showAbandonConfirm() {
@@ -3171,11 +3510,15 @@ function resumeGame() {
     gameState = 'PLAYING';
     accumulator = 0;
     lastFrameTs = 0;
+    partySetPaused(false);
     audio.resume();
     showScreen('game');
 }
 
 function goToMenu() {
+    // Quitter une partie privée, c'est aussi quitter le salon : sans ça, party.inGame resterait
+    // vrai et la partie solo suivante irait chercher ses serpents dans l'état réseau.
+    if (party.active) resetParty();
     gameState = 'MENU';
     pendingRespawns = [];
     particles.clear();
@@ -3188,13 +3531,17 @@ function goToMenu() {
 // Enregistre la fin d'une vie (XP, historique, succès) et l'annonce par toast — pas d'écran
 // bloquant : le jeu ne s'arrête jamais, la partie n'est ni gagnée ni perdue (cf. finishSpectate,
 // qui enchaîne sur respawnPlayer()).
-function endGame() {
+function endGame(opts) {
     if (gameState !== 'PLAYING') return;
     pendingRespawns = [];
 
-    const size = player ? player.length : 0;
+    // Partie terminee en tete du classement (depuis Pause) : meme comptabilite qu'une mort,
+    // majoree du bonus de victoire. Un abandon hors du top 1 ne passe jamais par ici.
+    const won = !!(opts && opts.won);
+    const size = Math.round(player ? player.length : 0);
     const duration = Math.floor(gameClock / 1000);
-    const xpGain = Math.floor(size * 0.5) + sessionKills * 15;
+    const xpBase = Math.floor(size * 0.5) + sessionKills * 15;
+    const xpGain = won ? Math.floor(xpBase * CONFIG.WIN_XP_MULTIPLIER) : xpBase;
     const leveledUp = addXP(xpGain);
 
     save.games++;
@@ -3202,7 +3549,7 @@ function endGame() {
     save.kills += sessionKills;
     if (size > save.bestSize) save.bestSize = size;
 
-    save.history.unshift({ size, kills: sessionKills, duration, date: new Date().toLocaleDateString('fr-FR') });
+    save.history.unshift({ size, kills: sessionKills, duration, won, date: new Date().toLocaleDateString('fr-FR') });
     while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
     writeSave();
 
@@ -3211,15 +3558,16 @@ function endGame() {
     checkAchievement('ten_kills', sessionKills >= 10);
     checkAchievement('big_snake', size >= 200);
 
-    audio.play('death');
-    showToast('💀 Taille ' + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
+    audio.play(won ? 'victory' : 'death');
+    showToast((won ? '🏆 Victoire • Taille ' : '💀 Taille ') + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
     if (sessionNewAch.length) showToast('🏅 ' + sessionNewAch.map(a => a.name).join(' • '));
 }
 
 function respawnBot(idx, name, color) {
-    if ((gameState !== 'PLAYING' && gameState !== 'SPECTATING') || idx < 0 || idx >= bots.length) return;
+    if (!simActive() || idx < 0 || idx >= bots.length) return;
     const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
     bot.grow(Math.floor(Math.random() * 10));
+    bot.netId = 'b' + idx;   // meme identite reseau qu'avant sa mort : le roster reste valable
     bots[idx] = bot;
 }
 
@@ -3282,6 +3630,7 @@ function scatterCorpseFood(snake, fromIndex, totalValue) {
         dropped[k].value = valuePerPellet;
         dropped[k].radius = radius;
         dropped[k].pulseOffset = Math.random() * TAU;
+        markFoodDirty(dropped[k]);
     }
 }
 
@@ -3310,6 +3659,9 @@ function killSnake(winner, loser, cutFromIndex) {
         startSpectate(winner);
         return;
     }
+    // Humain distant mange : c'est SON client qui decide de la suite (spectateur, XP, reapparition
+    // — exactement comme en solo). L'hote se contente de le prevenir et d'attendre son RESPAWN.
+    if (loser.netControlled) { hostNotifyDeath(loser, winner); return; }
     const idx = bots.indexOf(loser);
     if (idx !== -1) pendingRespawns.push({ idx, name: loser.name, color: loser.color, at: gnow() + CONFIG.RESPAWN_DELAY });
 }
@@ -3321,14 +3673,19 @@ function devour(winner, loser) { killSnake(winner, loser, 0); }
 // dessus). La partie amputee devient des ressources (scatterCorpseFood) dont la valeur/taille est
 // proportionnelle a ce qui a ete coupe. Pas de croissance instantanee pour l'attaquant : il doit
 // aller manger les ressources comme une pastille normale, exactement comme sur slither.io.
+// Le retour sensoriel d'une decoupe est DISTINCT de celui d'une elimination, et c'est voulu :
+// un kill, c'est manger la TETE et annihiler l'adversaire, rien d'autre. Une decoupe laisse sa
+// victime en vie. Tant qu'elle jouait le son de kill et les particules de mort, le joueur croyait
+// tuer et voyait son compteur ne pas bouger — le compteur avait raison, c'est le retour qui
+// mentait, et il aurait suffi de couper dix fois le meme serpent pour « le tuer » dix fois.
 function cutSnake(attacker, target, atIndex) {
     const removed = target.length - atIndex;
     if (removed <= 0) return;
     const cutPoint = target.segments[atIndex] || { x: target.x, y: target.y };
     scatterCorpseFood(target, atIndex, removed);
     target.cut(atIndex);
-    particles.emitDeath(cutPoint.x, cutPoint.y, target.color);
-    if (attacker.isPlayer) { audio.play('kill'); screenShake.trigger(5); }
+    particles.emitCut(cutPoint.x, cutPoint.y, target.color, target.angle);
+    if (attacker.isPlayer) { audio.play('cut'); screenShake.trigger(3); }
     if (target.isPlayer) screenShake.trigger(6);
 }
 
@@ -3351,6 +3708,16 @@ function finishSpectate() {
     respawnPlayer();
 }
 
+// L'autre issue de la bannière spectateur : on s'arrête là. La vie est comptée exactement comme
+// si on avait continué — même XP, mêmes stats, même entrée d'historique. Devoir partir (un
+// rendez-vous qui arrive) ne doit jamais coûter la partie qu'on vient de jouer.
+function quitFromSpectate() {
+    if (gameState !== 'SPECTATING') return;
+    gameState = 'PLAYING';
+    endGame();
+    goToMenu();
+}
+
 // Réapparition dans la MÊME arène (monde, bots, nourriture inchangés) : seul le serpent du
 // joueur est recréé. C'est ce qui rend la partie infinie — startGame() reste le seul point
 // qui régénère un monde entier, depuis le menu.
@@ -3366,6 +3733,7 @@ function respawnPlayer() {
     killStreak.reset();
     sessionNewAch = [];
     gameState = 'PLAYING';
+    if (party.inGame) partyRegisterOwnSnake();
     showScreen('game');
     updateHUD();
     updateLeaderboard();
@@ -3375,7 +3743,9 @@ function updateSpectateBanner() {
     if (gameState !== 'SPECTATING') return;
     $('spectateName').textContent = (spectateTarget && spectateTarget.name) || '?';
     const left = Math.max(0, Math.ceil((spectateEndsAt - gnow()) / 1000));
-    $('spectateSkipBtn').textContent = 'Voir mes résultats (' + left + 's) ▶';
+    // Passe par t() : ce libelle etait ecrit en francais en dur et restait donc francais dans
+    // les six langues, contrairement a tout le reste de l'interface.
+    $('spectateSkipBtn').textContent = t('continueLife') + ' (' + left + 's) ▶';
 }
 
 function checkCollisions() {
@@ -3440,7 +3810,7 @@ function checkCollisions() {
 
             if (a.beats(b)) devour(a, b);
             else if (b.beats(a)) devour(b, a);
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+            if (!simActive()) return;
             if (!a.alive) break;
         }
     }
@@ -3499,7 +3869,7 @@ function checkCollisions() {
                 attacker.x += (dx / d) * push;
                 attacker.y += (dy / d) * push;
             }
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+            if (!simActive()) return;
         }
     }
 }
@@ -3510,7 +3880,12 @@ function spawnPowerups() {
         if (powerups.length < CONFIG.POWERUP_MAX_ON_MAP && Math.random() < CONFIG.POWERUP_SPAWN_CHANCE) {
             const types = Object.keys(CONFIG.POWERUPS);
             const type = types[Math.floor(Math.random() * types.length)];
-            const v = viewBounds();
+            // En solo, le bonus apparait dans la vue du joueur — sinon il ne le verrait jamais.
+            // En partie privee, la vue de l'HOTE n'a aucune raison d'etre privilegiee : le bonus
+            // apparait n'importe ou dans le monde, egal pour tous.
+            const v = party.inGame
+                ? { x0: 0, y0: 0, x1: CONFIG.WORLD_WIDTH, y1: CONFIG.WORLD_HEIGHT }
+                : viewBounds();
             powerups.push(new PowerUp(
                 Math.min(CONFIG.WORLD_WIDTH-30, Math.max(30, v.x0 + Math.random() * (v.x1-v.x0))),
                 Math.min(CONFIG.WORLD_HEIGHT-30, Math.max(30, v.y0 + Math.random() * (v.y1-v.y0))),
@@ -3665,6 +4040,10 @@ let accumulator = 0;
 let lastFrameTs = 0;
 
 function simulate() {
+    // Client d'une partie privee : il ne simule RIEN (ni IA, ni collisions, ni nourriture) —
+    // l'hote fait autorite. Il interpole seulement ce qu'il a recu. Voir netClientStep().
+    if (party.inGame && !party.isHost) { netClientStep(); return; }
+
     if (gameState === 'SPECTATING') {
         // Le timeout ou la mort du serpent suivi mettent fin au spectateur DES le pas de
         // simulation suivant (~16 ms), pas au prochain tick d'affichage UI (~100 ms).
@@ -3676,6 +4055,9 @@ function simulate() {
 
     if (player && player.alive) player.update(screenToWorld(pointer.x, pointer.y), snakes, foodGrid);
     for (const b of bots) if (b && b.alive) b.update(null, snakes, foodGrid);
+    // Humains distants : meme integration que tout le monde, mais leur cap vient du reseau
+    // (Snake.update() branche sur netControlled).
+    remotes.forEach(r => { if (r.alive) r.update(null, snakes, foodGrid); });
 
     updateCamera();
     processRespawns();
@@ -3684,7 +4066,7 @@ function simulate() {
     // construite en haut de fonction leur est d'un pas périmée.
     foodGrid.build(foods);
     checkCollisions();
-    if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') return;
+    if (!simActive()) return;
 
     particles.update();
     screenShake.update();
@@ -3721,7 +4103,9 @@ function render() {
     if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'SPECTATING' || gameState === 'END') {
         for (const p of powerups) if (inView(p.x, p.y, 40, v)) p.draw(ctx);
         for (const f of foods) if (inView(f.x, f.y, 20, v)) f.draw(ctx);
-        for (const b of bots) if (b && b.alive && snakeVisible(b, v)) { b.draw(ctx); drawAuras(b); }
+        // Tous les adversaires d'abord (bots ET humains distants en partie privee), le joueur
+        // en dernier pour qu'il reste au-dessus du tas.
+        for (const s of aliveSnakes()) if (s !== player && snakeVisible(s, v)) { s.draw(ctx); drawAuras(s); }
         if (player && player.alive) { player.draw(ctx); drawAuras(player); }
         particles.draw(ctx);
     }
@@ -3765,7 +4149,12 @@ function updateNetDisplay() {
 
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
+    lastRafAt = rnow();
 
+    // La télémétrie reste ICI, et non dans advanceGame : elle compte les IMAGES. advanceGame est
+    // aussi appelée par l'horloge de secours de l'hôte quand le navigateur suspend
+    // requestAnimationFrame — y placer ce compteur ferait afficher des « images par seconde »
+    // alors que plus rien n'est dessiné.
     fpsFrames++;
     if (!fpsSince) fpsSince = ts;
     else if (ts - fpsSince >= 1000) {
@@ -3777,12 +4166,19 @@ function gameLoop(ts) {
         updateNetDisplay();
     }
 
+    advanceGame(ts);
+    render();
+}
+
+// Séparé de gameLoop parce que l'hôte d'une partie privée doit pouvoir avancer la simulation
+// SANS dessiner, quand le navigateur a suspendu requestAnimationFrame — voir hostBackgroundTick.
+function advanceGame(ts) {
     if (!lastFrameTs) lastFrameTs = ts;
     let dt = ts - lastFrameTs;
     lastFrameTs = ts;
     if (dt > 250) dt = 250;   // onglet réveillé : on ne rattrape pas 10 minutes de simulation
 
-    if (gameState === 'PLAYING' || gameState === 'SPECTATING') {
+    if (simActive()) {
         accumulator += dt;
         let steps = 0;
         while (accumulator >= STEP_MS && steps < MAX_STEPS_PER_FRAME) {
@@ -3790,7 +4186,7 @@ function gameLoop(ts) {
             gameClock += STEP_MS;
             simulate();
             steps++;
-            if (gameState !== 'PLAYING' && gameState !== 'SPECTATING') { accumulator = 0; break; }
+            if (!simActive()) { accumulator = 0; break; }
         }
         if (steps >= MAX_STEPS_PER_FRAME) accumulator = 0;
 
@@ -3801,11 +4197,11 @@ function gameLoop(ts) {
             updateLeaderboard();
             updateSpectateBanner();
         }
+
+        if (party.inGame) netPump(dt);
     } else {
         accumulator = 0;
     }
-
-    render();
 }
 
 // ============================================================
@@ -3958,7 +4354,7 @@ function bindNeonClicks(root) {
         neonFlashBtn(btn);
     });
 }
-['menuScreen', 'welcomeScreen', 'pauseScreen'].forEach(id => bindNeonClicks($(id)));
+['menuScreen', 'welcomeScreen', 'pauseScreen', 'lobbyScreen'].forEach(id => bindNeonClicks($(id)));
 
 // ============================================================
 //  ÉVÉNEMENTS
@@ -4075,8 +4471,9 @@ bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
 bindBtn('abandonBtn', showAbandonConfirm);
 bindBtn('abandonNoBtn', hideAbandonConfirm);
-bindBtn('abandonYesBtn', goToMenu);
+bindBtn('abandonYesBtn', confirmPauseExit);
 bindBtn('spectateSkipBtn', finishSpectate);
+bindBtn('spectateQuitBtn', quitFromSpectate);
 
 document.querySelectorAll('[data-vol]').forEach(slider => {
     slider.addEventListener('input', () => {
@@ -4211,11 +4608,971 @@ if (isIOS && !isStandalone()) {
 }
 
 // ============================================================
+//  PARTIE PRIVÉE (réseau) — hôte autoritaire, PeerJS pour la connexion
+// ============================================================
+// PeerJS n'est chargé qu'à l'ouverture du salon : un joueur solo hors-ligne ne doit jamais
+// dépendre du réseau au chargement de la page (cf. cahier des charges UI §3 "Salon").
+const PEERJS_CDN = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+let peerJsLoadPromise = null;
+function loadPeerJS() {
+    if (window.Peer) return Promise.resolve();
+    if (peerJsLoadPromise) return peerJsLoadPromise;
+    peerJsLoadPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = PEERJS_CDN;
+        s.onload = () => resolve();
+        s.onerror = () => { peerJsLoadPromise = null; reject(new Error('peerjs_load_failed')); };
+        document.head.appendChild(s);
+    });
+    return peerJsLoadPromise;
+}
+
+// Sans 0/O, 1/I/L : un code qu'on se dicte à voix haute entre amis ne doit pas prêter à confusion.
+const PARTY_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generatePartyCode() {
+    let code = '';
+    for (let i = 0; i < 5; i++) code += PARTY_CODE_ALPHABET[Math.floor(Math.random() * PARTY_CODE_ALPHABET.length)];
+    return code;
+}
+// Le code EST l'identifiant de pair PeerJS de l'hôte : pas de registre séparé à tenir à jour,
+// la vie du salon se confond avec celle de la connexion de l'hôte au broker.
+function peerIdForCode(code) { return 'snakeon-party-' + code; }
+
+// party.players : id de connexion PeerJS -> { name, isHost }. 'host' désigne l'hôte lui-même.
+const party = {
+    active: false, isHost: false, inGame: false, code: '', peer: null,
+    conns: new Map(),    // hôte uniquement : peerId -> DataConnection
+    hostConn: null,      // client uniquement : DataConnection vers l'hôte
+    players: new Map(),
+    selfId: 'host',
+};
+
+function resetParty() {
+    hostStopBackgroundClock();
+    // Les drapeaux tombent AVANT la destruction du pair, jamais après : destroy() referme les
+    // connexions, et le gestionnaire de fermeture aurait pris ce départ volontaire pour une
+    // perte de l'hôte — toast trompeur, et resetParty rappelée depuis sa propre exécution.
+    const peer = party.peer;
+    party.active = false; party.isHost = false; party.inGame = false; party.code = '';
+    party.peer = null; party.conns.clear(); party.hostConn = null;
+    if (peer) { try { peer.destroy(); } catch(e) {} }
+    party.players.clear(); party.selfId = 'host';
+    remotes.clear(); netSnakes.clear(); netTargets.clear();
+    netRoster.clear(); netPowerups.clear(); foodDirty.clear(); netScreens.clear();
+    netFoodById.clear();
+    netResetIdentity();
+    netMinimap = []; netLeaderboard = null; netKillsFrozen = false;
+    netSnapshotAccum = 0; netInputAccum = 0; netMinimapAccum = 0;
+    netLastSentAngle = null; netLastSentScreen = '';
+}
+
+function lobbySend(conn, msg) { try { conn.send(msg); } catch(e) {} }
+function hostBroadcast(msg, exceptId) {
+    party.conns.forEach((conn, id) => { if (id !== exceptId) lobbySend(conn, msg); });
+}
+function lobbySetStatus(key) { $('lobbyStatus').textContent = t(key); }
+
+function renderLobbyPlayers() {
+    const rows = [];
+    party.players.forEach((p) => {
+        rows.push('<div class="lobby-player"><span>' + (p.isHost ? '👑 ' : '') + escapeHtml(p.name) + '</span>' +
+            (p.isHost ? '<span class="host-badge">' + t('lobbyHostBadge') + '</span>' : '') + '</div>');
+    });
+    $('lobbyPlayers').innerHTML = rows.join('');
+    $('lobbyStartBtn').classList.toggle('hidden', !party.isHost);
+}
+
+function openLobbyChoice() {
+    resetParty();
+    $('lobbyChoice').classList.remove('hidden');
+    $('lobbyRoom').classList.add('hidden');
+    $('lobbyJoinForm').classList.add('hidden');
+    $('lobbyCodeInput').value = '';
+    showScreen('lobby');
+}
+
+function showLobbyJoinForm() {
+    $('lobbyJoinForm').classList.remove('hidden');
+    $('lobbyCodeInput').focus();
+}
+
+function enterLobbyRoom() {
+    $('lobbyChoice').classList.add('hidden');
+    $('lobbyRoom').classList.remove('hidden');
+    $('lobbyCodeDisplay').classList.toggle('hidden', !party.isHost);
+    if (party.isHost) $('lobbyCodeDisplay').textContent = party.code;
+    renderLobbyPlayers();
+}
+
+async function createParty() {
+    lobbySetStatus('lobbyConnecting');
+    enterLobbyRoom();
+    try { await loadPeerJS(); } catch(e) { lobbySetStatus('lobbyErrorOffline'); return; }
+
+    const code = generatePartyCode();
+    const peer = new Peer(peerIdForCode(code));
+    party.peer = peer; party.isHost = true; party.selfId = 'host';
+
+    peer.on('open', () => {
+        party.active = true; party.code = code;
+        party.players.set('host', { name: playerName(), color: currentSkin().color, isHost: true });
+        enterLobbyRoom();
+        lobbySetStatus('lobbyWaitingPlayers');
+    });
+
+    peer.on('connection', (conn) => {
+        conn.on('open', () => { party.conns.set(conn.peer, conn); });
+        conn.on('data', (msg) => handleHostMessage(conn, msg));
+        conn.on('close', () => {
+            party.conns.delete(conn.peer);
+            remotes.delete(conn.peer);   // son serpent disparaît de l'arène pour tout le monde
+            if (party.players.delete(conn.peer)) {
+                hostBroadcast({ type: 'PLAYER_LEFT', id: conn.peer });
+                renderLobbyPlayers();
+            }
+        });
+    });
+
+    peer.on('error', (err) => {
+        if (party.active) return;   // erreur tardive (ex: perte réseau) : pas une erreur de création
+        if (err && err.type === 'unavailable-id') { lobbySetStatus('lobbyErrorCodeTaken'); createParty(); return; }
+        lobbySetStatus('lobbyErrorGeneric');
+    });
+}
+
+function handleHostMessage(conn, msg) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'HELLO') {
+        const name = String(msg.name || '').slice(0, 14) || t('you');
+        const color = String(msg.color || CONFIG.SKINS[0].color).slice(0, 9);
+        // Sa taille d'écran : sans elle, l'hôte ne peut pas savoir ce qu'il voit, et donc pas
+        // tailler ses instantanés (hostViewFor). Le test > 0 n'est PAS une politesse : une page
+        // qui n'est pas composée par son navigateur rapporte innerWidth = 0, et un champ de
+        // vision nul ne laisserait plus rien passer — ce joueur ne recevrait plus aucun serpent.
+        // À défaut, hostViewFor retombe sur NET_SCREEN_DEFAULT.
+        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
+        party.players.set(conn.peer, { name, color, isHost: false });
+        lobbySend(conn, {
+            type: 'WELCOME', selfId: conn.peer,
+            players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, color: p.color, isHost: p.isHost })),
+        });
+        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name, color }, conn.peer);
+        renderLobbyPlayers();
+        // Arrivée en cours de partie : il apparaît tout de suite, pas en spectateur (§2 de la
+        // note de conception). Il reçoit le monde déjà en cours, pas un nouveau.
+        if (party.inGame) {
+            hostSpawnRemote(conn.peer);
+            lobbySend(conn, {
+                type: 'GAME_START',
+                width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
+                foodClusters, foods: serializeFoods(), roster: hostBuildRoster(),
+            });
+        }
+        return;
+    }
+    if (!party.inGame) return;
+    if (msg.type === 'I') {
+        const s = remotes.get(conn.peer);
+        if (s && s.alive && typeof msg.a === 'number') s.targetAngle = msg.a;
+    } else if (msg.type === 'RESPAWN') {
+        hostSpawnRemote(conn.peer);
+    } else if (msg.type === 'PAUSE' || msg.type === 'RESUME') {
+        setPausedAutopilot(remotes.get(conn.peer), msg.type === 'PAUSE');
+    } else if (msg.type === 'VIEW') {
+        if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });   // cf. HELLO
+    }
+}
+
+async function joinParty() {
+    const code = $('lobbyCodeInput').value.trim().toUpperCase();
+    if (code.length !== 5) return;
+    lobbySetStatus('lobbyConnecting');
+    try { await loadPeerJS(); } catch(e) { lobbySetStatus('lobbyErrorOffline'); return; }
+
+    const peer = new Peer();
+    party.peer = peer; party.isHost = false;
+
+    peer.on('open', () => {
+        const conn = peer.connect(peerIdForCode(code));
+        party.hostConn = conn;
+        conn.on('open', () => {
+            netLastSentScreen = WIDTH + 'x' + HEIGHT;
+            lobbySend(conn, { type: 'HELLO', name: playerName(), color: currentSkin().color, w: WIDTH, h: HEIGHT });
+        });
+        conn.on('data', (msg) => handleClientMessage(msg, code));
+        conn.on('close', () => {
+            // En pleine partie, la perte de l'hôte arrête la partie (décision actée). Le joueur
+            // ne perd rien pour autant : sa vie est comptée comme une mort, XP compris.
+            if (party.inGame) { hostLostDuringGame(); return; }
+            lobbySetStatus(party.active ? 'lobbyErrorHostLeft' : 'lobbyErrorCodeNotFound');
+        });
+        conn.on('error', () => { lobbySetStatus('lobbyErrorCodeNotFound'); });
+    });
+    peer.on('error', () => { if (!party.active) lobbySetStatus('lobbyErrorCodeNotFound'); });
+}
+
+function handleClientMessage(msg, code) {
+    if (!msg) return;
+    // Les instantanés arrivent en binaire (voir encodeSnapshot) ; tout le reste en objets JSON.
+    if (msg instanceof ArrayBuffer) {
+        if (msg.byteLength && new DataView(msg).getUint8(0) === MSG_SNAPSHOT) applySnapshot(msg);
+        return;
+    }
+    if (typeof msg !== 'object') return;
+    if (msg.type === 'WELCOME') {
+        party.active = true; party.code = code; party.selfId = msg.selfId;
+        party.players.clear();
+        msg.players.forEach(p => party.players.set(p.id, { name: p.name, color: p.color, isHost: p.isHost }));
+        party.players.set(party.selfId, { name: playerName(), color: currentSkin().color, isHost: false });
+        enterLobbyRoom();
+        lobbySetStatus('lobbyWaiting');
+    } else if (msg.type === 'PLAYER_JOINED') {
+        party.players.set(msg.id, { name: msg.name, color: msg.color, isHost: false });
+        netRoster.set(msg.id, { name: msg.name, color: msg.color });
+        // En jeu seulement : l'index compact s'ajoute à la fin, comme chez l'hôte, donc tout le
+        // monde numérote pareil. Avant le lancement il n'y a pas d'ordre — le GAME_START l'apporte.
+        if (party.inGame) netRegisterId(msg.id);
+        renderLobbyPlayers();
+    } else if (msg.type === 'PLAYER_LEFT') {
+        party.players.delete(msg.id);
+        netSnakes.delete(msg.id);
+        netTargets.delete(msg.id);
+        renderLobbyPlayers();
+    } else if (msg.type === 'GAME_START') {
+        applyGameStart(msg);
+    } else if (msg.type === 'DEAD') {
+        // Mort décidée par l'hôte. La suite est locale et identique au solo : spectateur, puis
+        // endGame() (XP, stats, historique dans MON localStorage), puis réapparition.
+        // PAUSED compte aussi : en partie privée on peut se faire manger pendant sa pause — c'est
+        // précisément ce que l'avertissement du §6 annonce.
+        if ((gameState === 'PLAYING' || gameState === 'PAUSED') && player) {
+            player.alive = false;
+            screenShake.trigger(10);
+            startSpectate(netSnakes.get(msg.killer) || player);
+        }
+    }
+}
+
+// ---------- Boucle de jeu partagée : l'hôte simule, les clients interpolent ----------
+//
+// Identité réseau (netId) : 'host' pour l'hôte, 'b<i>' pour le bot d'indice i, l'id de pair
+// PeerJS pour chaque humain distant. Elle survit à la mort : un bot qui réapparaît ou un humain
+// qui reprend une vie garde son netId, donc le roster envoyé au lancement reste valable.
+
+const NET_SNAPSHOT_MS = 66;      // l'hôte diffuse ~15 instantanés par seconde
+const NET_INPUT_MS = 33;         // le client envoie son cap ~30 fois par seconde
+const NET_LERP = 0.28;           // rattrapage des adversaires vers la position de l'hôte
+const NET_SELF_CORRECTION = 0.12; // rappel de MON serpent prédit vers celle de l'hôte
+
+const NET_MINIMAP_MS = 330;      // vue d'ensemble : 3 fois par seconde suffit
+const NET_MM_PRECISION = 255;    // la minimap fait ~100 px de large : 255 pas suffisent largement
+
+// ---------- Format binaire des instantanés ----------
+//
+// Seuls les instantanés sont binaires : ce sont eux qui partent 15 fois par seconde vers chaque
+// client. Tout le reste (salon, GAME_START, mort, entrées du joueur) reste en objets JSON, envoyé
+// rarement, et lisible dans un débogueur. Mesuré : PeerJS transmet un ArrayBuffer tel quel, sans
+// le re-sérialiser.
+//
+//   u8   MSG_SNAPSHOT              u8   nombre d'entrées de classement
+//   u32  horloge de jeu (ms)         u16 index · u16 longueur          (4 o)
+//   u16  MES kills                 u8   nombre de bonus
+//   u16  MON rang                    u16 id · u16 x · u16 y · u8 type  (7 o)
+//   u16  nombre de serpents        u16  nombre de pastilles modifiées
+//     u16 index · u16 x · u16 y      u16 id · u16 x · u16 y · u8 rayon (7 o)
+//     u8 cap · u16 longueur (9 o)  u16  nombre de points de minimap
+//                                    u16 index · u8 x · u8 y           (4 o)
+//
+// Trois champs du format JSON ont disparu, non par compression mais parce que personne ne s'en
+// servait : le drapeau « vivant » (un instantané ne contient QUE des vivants), les kills de
+// chaque serpent (seuls les miens s'affichent), et la valeur nutritive d'une pastille (c'est
+// l'hôte qui la mange, jamais le client). Les noms du classement viennent du roster, par index.
+const MSG_SNAPSHOT = 1;
+const NET_ANGLE_STEPS = 255;     // 1,4° de précision : invisible sur l'orientation d'une tête
+const NET_RADIUS_SCALE = 16;     // rayon d'une pastille au 1/16e de pixel
+const NET_MAX_U16 = 65535;
+const POWERUP_TYPES = Object.keys(CONFIG.POWERUPS);
+
+const u16 = v => Math.max(0, Math.min(NET_MAX_U16, Math.round(v)));
+
+function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, minimap) {
+    const size = 11 + 2 + snakes.length * 13 + 1 + lb.length * 6 + 1 + pups.length * 7
+               + 2 + foodsDelta.length * 7 + 2 + minimap.length * 4;
+    const buf = new ArrayBuffer(size);
+    const dv = new DataView(buf);
+    let o = 0;
+    dv.setUint8(o, MSG_SNAPSHOT); o += 1;
+    dv.setUint32(o, clock >>> 0); o += 4;
+    dv.setUint16(o, u16(myKills)); o += 2;
+    dv.setUint16(o, u16(myRank)); o += 2;
+
+    dv.setUint16(o, snakes.length); o += 2;
+    for (const s of snakes) {
+        dv.setUint16(o, s.i); o += 2;
+        dv.setUint16(o, u16(s.x)); o += 2;
+        dv.setUint16(o, u16(s.y)); o += 2;
+        let a = s.a % TAU; if (a < 0) a += TAU;
+        dv.setUint8(o, Math.round(a / TAU * NET_ANGLE_STEPS)); o += 1;
+        dv.setUint16(o, u16(s.l)); o += 2;
+        // La MASSE decide de la predation et du classement, et le rayon en derive (syncRadius).
+        // Sur 4 octets et non 2 : mesure reelle d'un bot a 31 574 en quinze minutes, soit
+        // ~126 000 projetes a une heure — un Uint16 boucherait en silence (cf. §8 du cahier).
+        dv.setUint32(o, Math.max(0, Math.round(s.m))); o += 4;
+    }
+
+    dv.setUint8(o, lb.length); o += 1;
+    for (const e of lb) { dv.setUint16(o, e.i); o += 2; dv.setUint32(o, Math.max(0, Math.round(e.m))); o += 4; }
+
+    dv.setUint8(o, pups.length); o += 1;
+    for (const p of pups) {
+        dv.setUint16(o, u16(p.id)); o += 2;
+        dv.setUint16(o, u16(p.x)); o += 2;
+        dv.setUint16(o, u16(p.y)); o += 2;
+        dv.setUint8(o, p.t); o += 1;
+    }
+
+    dv.setUint16(o, foodsDelta.length); o += 2;
+    for (const f of foodsDelta) {
+        dv.setUint16(o, u16(f.id)); o += 2;
+        dv.setUint16(o, u16(f.x)); o += 2;
+        dv.setUint16(o, u16(f.y)); o += 2;
+        dv.setUint8(o, Math.min(255, Math.round(f.r * NET_RADIUS_SCALE))); o += 1;
+    }
+
+    dv.setUint16(o, minimap.length); o += 2;
+    for (const m of minimap) {
+        dv.setUint16(o, m.i); o += 2;
+        dv.setUint8(o, m.x); o += 1;
+        dv.setUint8(o, m.y); o += 1;
+    }
+    return buf;
+}
+
+function decodeSnapshot(buf) {
+    const dv = new DataView(buf);
+    let o = 1;   // l'octet de type est déjà lu par l'appelant
+    const out = { c: dv.getUint32(o), kills: 0, rank: 0, s: [], lb: [], p: [], f: [], mm: null };
+    o += 4;
+    out.kills = dv.getUint16(o); o += 2;
+    out.rank = dv.getUint16(o); o += 2;
+
+    let n = dv.getUint16(o); o += 2;
+    for (let k = 0; k < n; k++) {
+        const i = dv.getUint16(o); o += 2;
+        const x = dv.getUint16(o); o += 2;
+        const y = dv.getUint16(o); o += 2;
+        const a = dv.getUint8(o) / NET_ANGLE_STEPS * TAU; o += 1;
+        const l = dv.getUint16(o); o += 2;
+        const m = dv.getUint32(o); o += 4;
+        out.s.push({ i, x, y, a, l, m });
+    }
+
+    n = dv.getUint8(o); o += 1;
+    for (let k = 0; k < n; k++) { const i = dv.getUint16(o); o += 2; const m = dv.getUint32(o); o += 4; out.lb.push({ i, m }); }
+
+    n = dv.getUint8(o); o += 1;
+    for (let k = 0; k < n; k++) {
+        const id = dv.getUint16(o); o += 2;
+        const x = dv.getUint16(o); o += 2;
+        const y = dv.getUint16(o); o += 2;
+        const t = dv.getUint8(o); o += 1;
+        out.p.push({ id, x, y, t });
+    }
+
+    n = dv.getUint16(o); o += 2;
+    for (let k = 0; k < n; k++) {
+        const id = dv.getUint16(o); o += 2;
+        const x = dv.getUint16(o); o += 2;
+        const y = dv.getUint16(o); o += 2;
+        const r = dv.getUint8(o) / NET_RADIUS_SCALE; o += 1;
+        out.f.push({ id, x, y, r });
+    }
+
+    n = dv.getUint16(o); o += 2;
+    if (n) {
+        out.mm = [];
+        for (let k = 0; k < n; k++) {
+            const i = dv.getUint16(o); o += 2;
+            const x = dv.getUint8(o); o += 1;
+            const y = dv.getUint8(o); o += 1;
+            out.mm.push({ i, x, y });
+        }
+    }
+    return out;
+}
+
+const remotes = new Map();       // hôte : peerId -> Snake de cet humain
+const netSnakes = new Map();     // client : netId -> Snake reconstruit
+const netTargets = new Map();    // client : netId -> dernier état reçu de l'hôte
+const netRoster = new Map();     // client : netId -> { name, color }
+const netPowerups = new Map();   // client : id -> PowerUp
+let foodDirty = new Set();       // hôte : pastilles modifiées depuis le dernier instantané
+let netSnapshotAccum = 0, netInputAccum = 0, netMinimapAccum = 0;
+let netLastSentAngle = null;
+let netLastSentScreen = '';
+
+// Identité compacte. Un netId d'humain est un UUID PeerJS de 36 caractères : mesuré, il coûte
+// 34 des 63 octets d'une entrée d'instantané. Les instantanés ne transportent donc qu'un INDEX,
+// position du netId dans l'ordre du roster — le même chez tout le monde, puisque l'hôte le fixe
+// au lancement et n'ajoute qu'à la fin. Un joueur qui part ne libère pas son index : le décalage
+// désynchroniserait tous les autres.
+let netOrder = [];               // index -> netId
+const netIndexOf = new Map();    // netId -> index
+
+function netRegisterId(netId) {
+    if (netIndexOf.has(netId)) return netIndexOf.get(netId);
+    netIndexOf.set(netId, netOrder.length);
+    netOrder.push(netId);
+    return netOrder.length - 1;
+}
+
+function netResetIdentity() { netOrder = []; netIndexOf.clear(); }
+
+// Ce que l'hôte sait de l'écran de chaque client, pour calculer ce qu'il voit réellement.
+const netScreens = new Map();    // hôte : peerId -> { w, h }
+const NET_SCREEN_DEFAULT = { w: 1280, h: 720 };
+
+// Vue d'un joueur, en coordonnées monde. Le zoom est recalculé d'après son rayon avec la même
+// formule que updateCamera() : l'hôte n'a pas besoin que le client la lui dise.
+function hostViewFor(s, screen) {
+    const zoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, Math.pow(CONFIG.BASE_RADIUS / s.radius, 0.35)));
+    return { x: s.x, y: s.y, hw: (screen.w / zoom) / 2, hh: (screen.h / zoom) / 2 };
+}
+
+const NET_BOUNDS_STRIDE = 32;    // 1 segment sur 32 suffit à cerner un corps
+const NET_REBUILD_MARGIN = 400;  // ~130 segments d'avance : le temps de reconstruire la traînée
+
+// Boîte englobante du corps, échantillonnée. Première version de hostRelevant() : une marge
+// proportionnelle à la LONGUEUR (segments × vitesse). Mesuré, ça ne filtrait plus rien en fin de
+// partie — un serpent de 4448 segments donnait 26 688 px de marge, soit plus que le monde entier,
+// donc tout le monde restait pertinent pour tout le monde (gain tombé de 65 % à 13 %). La vraie
+// question n'est pas « quelle longueur fait ce serpent » mais « où est-il réellement » : un long
+// serpent enroulé tient dans un mouchoir de poche.
+function snakeBounds(s) {
+    const segs = s.segments;
+    let x0 = s.x, x1 = s.x, y0 = s.y, y1 = s.y;
+    for (let i = 0; i < segs.length; i += NET_BOUNDS_STRIDE) {
+        const p = segs[i];
+        if (p.x < x0) x0 = p.x; else if (p.x > x1) x1 = p.x;
+        if (p.y < y0) y0 = p.y; else if (p.y > y1) y1 = p.y;
+    }
+    // Ce que l'échantillonnage a pu sauter, majoré : 32 pas de simulation d'écart au plus.
+    const slack = NET_BOUNDS_STRIDE * CONFIG.BASE_SPEED;
+    return { x0: x0 - slack, x1: x1 + slack, y0: y0 - slack, y1: y1 + slack };
+}
+
+// Faut-il envoyer ce serpent à ce joueur ? Oui si une partie quelconque de son corps peut entrer
+// dans sa vue, élargie d'une marge fixe — celle qui laisse au client le temps de reconstruire la
+// traînée à 60 Hz avant que le serpent n'arrive à l'écran.
+function hostRelevant(s, view) {
+    const b = s.netBounds || (s.netBounds = snakeBounds(s));
+    const m = NET_REBUILD_MARGIN;
+    return b.x1 > view.x - view.hw - m && b.x0 < view.x + view.hw + m
+        && b.y1 > view.y - view.hh - m && b.y0 < view.y + view.hh + m;
+}
+
+// Appelée à chaque changement d'une pastille (respawn, découpe). Ne coûte rien hors partie privée.
+function markFoodDirty(f) {
+    if (party.isHost && party.inGame && f.id !== undefined) foodDirty.add(f);
+}
+
+function partySendToHost(msg) { if (party.hostConn) lobbySend(party.hostConn, msg); }
+
+// ---------- Horloge de secours de l'hôte ----------
+//
+// Mesuré dans un vrai Chrome : quand la fenêtre de l'hôte est minimisée ou son onglet caché, le
+// navigateur SUSPEND requestAnimationFrame. gameLoop s'arrête, et avec elle la simulation — les
+// autres joueurs ne reçoivent plus rien du tout (0 instantané en 4 secondes). Autrement dit,
+// l'hôte qui regarde ailleurs une seconde fige la partie de tout le monde, sans le savoir : très
+// exactement ce que le §6 du cahier des charges interdit, mais subi au lieu d'être choisi.
+//
+// Un Web Worker, lui, continue de tourner quand la page est cachée. Il ne sert ici que d'horloge :
+// la simulation reste sur le fil principal, seul le battement change de source. Créé à partir
+// d'un Blob, donc sans fichier séparé — le jeu reste un seul index.html.
+//
+// Le client, lui, n'en a pas besoin : quand il perd sa fenêtre du regard, son serpent passe en
+// pilotage automatique chez l'hôte et la partie continue pour les autres. C'est le comportement
+// voulu, pas une panne.
+const HOST_CLOCK_WORKER = 'let t=null;onmessage=function(e){if(e.data){if(!t)t=setInterval(function(){postMessage(0)},16);}else{clearInterval(t);t=null;}}';
+const HOST_CLOCK_GAP_MS = 120;   // au-delà, on considère requestAnimationFrame suspendue
+
+let hostClockWorker = null;
+let lastRafAt = 0;
+
+function hostStartBackgroundClock() {
+    if (hostClockWorker || !party.isHost) return;
+    try {
+        const url = URL.createObjectURL(new Blob([HOST_CLOCK_WORKER], { type: 'application/javascript' }));
+        hostClockWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+        hostClockWorker.onmessage = hostBackgroundTick;
+        hostClockWorker.postMessage(1);
+    } catch (e) {
+        hostClockWorker = null;   // pas de Worker disponible : on retombe sur le comportement d'avant
+    }
+}
+
+function hostStopBackgroundClock() {
+    if (!hostClockWorker) return;
+    try { hostClockWorker.postMessage(0); hostClockWorker.terminate(); } catch (e) {}
+    hostClockWorker = null;
+}
+
+function hostBackgroundTick() {
+    if (!party.inGame || !party.isHost) return;
+    // requestAnimationFrame tourne encore : elle fait le travail, on ne double pas les pas.
+    if (rnow() - lastRafAt < HOST_CLOCK_GAP_MS) return;
+    advanceGame(rnow());   // on avance la simulation, sans dessiner : personne ne regarde
+}
+
+// Bascule un serpent entre pilotage humain et pilotage automatique pendant sa pause. Réutilise
+// botAI() tel quel, quelle que soit l'IA en place : le serpent se défend seul au lieu de figer
+// le monde des autres (cahier des charges UI §6).
+function setPausedAutopilot(s, on) {
+    if (!s) return;
+    s.pauseAI = on;
+}
+
+// Pause pendant une partie privée. L'hôte bascule son serpent sur-le-champ ; le client le
+// demande à l'hôte, seul juge de la simulation — son propre serpent cesse alors d'être prédit
+// localement (voir netClientStep) puisqu'il n'est plus piloté par lui.
+function partySetPaused(on) {
+    if (!party.inGame) return;
+    if (party.isHost) setPausedAutopilot(player, on);
+    else partySendToHost({ type: on ? 'PAUSE' : 'RESUME' });
+}
+
+// Le monde n'est calculé QUE par l'hôte, sur SON écran (premier problème posé par le cahier des
+// charges) : deux joueurs sur deux écrans différents doivent voir le même monde, pas chacun le
+// sien. Réutilise exactement le calcul solo (computeWorld + génération des pastilles).
+function hostGenerateWorld() {
+    computeWorld();
+    // Les identifiants voyagent en Uint16 : on repart de zéro à chaque partie, sinon une longue
+    // session de jeu solo (670 pastilles par partie) finirait par dépasser 65535.
+    foodUid = 0; powerupUid = 0;
+    foods = [];
+    for (let i = 0; i < CONFIG.FOOD_COUNT; i++) foods.push(new Food());
+    foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
+    foodGrid.build(foods);
+}
+
+function serializeFoods() {
+    return foods.map(f => [f.id, Math.round(f.x), Math.round(f.y), f.value, f.radius]);
+}
+
+function hostSnakeByNetId(id) {
+    if (id === 'host') return player;
+    if (remotes.has(id)) return remotes.get(id);
+    if (/^b\d+$/.test(id)) return bots[+id.slice(1)];
+    return null;
+}
+
+// Noms et couleurs ne bougent jamais : envoyés UNE fois au lancement, jamais dans les instantanés.
+// L'ORDRE de ce tableau est ce qui fixe les index compacts — il ne doit jamais être réordonné.
+function hostBuildRoster() {
+    return netOrder.map(id => {
+        const s = hostSnakeByNetId(id);
+        return [id, s ? s.name : '?', s ? s.color : CONFIG.SKINS[0].color];
+    });
+}
+
+function hostSpawnRemote(peerId) {
+    const info = party.players.get(peerId) || {};
+    const s = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        false, info.name || '?', info.color || CONFIG.SKINS[0].color
+    );
+    s.netId = peerId;
+    s.netControlled = true;          // ni pointeur local, ni IA : son cap arrive par le réseau
+    s.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+    remotes.set(peerId, s);
+    netRegisterId(peerId);           // idempotent : une réapparition garde le même index
+    return s;
+}
+
+function launchPrivateGame() {
+    if (!party.active || !party.isHost || party.inGame) return;
+    party.inGame = true;
+
+    // Même mise en place qu'une partie solo (startGame), monde en plus : il est généré ici et
+    // diffusé, au lieu d'être recalculé par chacun.
+    audio.init(); audio.resume();
+    hostGenerateWorld();
+    gameState = 'PLAYING';
+    gameClock = 0; accumulator = 0; lastFrameTs = 0;
+    sessionKills = 0; comboCount = 0; comboMultiplier = 1; lastComboTime = -Infinity;
+    sessionNewAch = []; pendingRespawns = []; powerups = [];
+    particles.clear(); killStreak.reset(); screenShake.reset();
+    spectateTarget = null;
+
+    player = new Snake(
+        CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
+        CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
+        true, playerName(), currentSkin().color
+    );
+    player.netId = 'host';
+    player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
+    cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
+    clampCamera();
+
+    // L'ordre des index compacts se fige ici : l'hôte, puis les bots, puis les humains.
+    netResetIdentity();
+    netRegisterId('host');
+
+    bots = [];
+    for (let i = 0; i < CONFIG.BOT_COUNT; i++) {
+        const bot = new Snake(
+            Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT,
+            false, CONFIG.BOT_NAMES[i % CONFIG.BOT_NAMES.length],
+            CONFIG.BOT_COLORS[i % CONFIG.BOT_COLORS.length]
+        );
+        if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
+        bot.kills = Math.floor(Math.random() * 15);
+        bot.netId = 'b' + i;
+        netRegisterId(bot.netId);
+        bots.push(bot);
+    }
+
+    remotes.clear();
+    party.players.forEach((p, id) => { if (id !== 'host') hostSpawnRemote(id); });
+
+    hostBroadcast({
+        type: 'GAME_START',
+        width: CONFIG.WORLD_WIDTH, height: CONFIG.WORLD_HEIGHT,
+        foodClusters, foods: serializeFoods(), roster: hostBuildRoster(),
+    });
+    foodDirty.clear();
+
+    pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
+    lastPowerupSpawn = gnow();
+    hostStartBackgroundClock();   // la partie ne doit pas dépendre de la fenêtre de l'hôte
+    showScreen('game');
+    updateHUD();
+    updateLeaderboard();
+}
+
+// Instantané : uniquement de la cinématique. Les corps ne voyagent JAMAIS — chaque client
+// rejoue la traînée de la tête à 60 Hz, exactement comme le fait Snake.update(). Le coût dépend
+// donc du nombre de serpents, pas de leur longueur.
+//
+// Chaque client reçoit SON instantané, taillé à ce qu'il peut voir (hostRelevant) : mesuré,
+// 6 à 10 serpents sur 45 en début de partie, 15 à 21 en fin quand les corps s'allongent.
+// Ce que le filtrage retire à la vue, deux envois séparés le rendent : le classement, calculé
+// par l'hôte, et une carte compacte à 3 Hz pour la minimap.
+function hostSendSnapshot(dt) {
+    const all = [player, ...bots, ...remotes.values()].filter(s => s && s.alive);
+    const sorted = all.slice().sort((a, b) => b.mass - a.mass);
+    const top3 = sorted.slice(0, 3);
+
+    // Une seule fois par instantané, pas une fois par client : la boîte est la même pour tous.
+    for (const s of all) s.netBounds = snakeBounds(s);
+
+    // Pastilles et bonus : identiques pour tous, construits une seule fois.
+    const food = Array.from(foodDirty, f => ({ id: f.id, x: f.x, y: f.y, r: f.radius }));
+    const pups = powerups.map(p => ({ id: p.id, x: p.x, y: p.y, t: POWERUP_TYPES.indexOf(p.type) }));
+    const lb = top3.map(s => ({ i: netIndexOf.get(s.netId), m: s.mass }));
+
+    netMinimapAccum += dt;
+    let minimap = [];
+    if (netMinimapAccum >= NET_MINIMAP_MS) {
+        netMinimapAccum = 0;
+        const K = NET_MM_PRECISION;
+        minimap = all.map(s => ({ i: netIndexOf.get(s.netId),
+            x: Math.round(s.x / CONFIG.WORLD_WIDTH * K), y: Math.round(s.y / CONFIG.WORLD_HEIGHT * K) }));
+    }
+
+    party.conns.forEach((conn, peerId) => {
+        const me = remotes.get(peerId);
+        if (!me) return;
+        const view = hostViewFor(me, netScreens.get(peerId) || NET_SCREEN_DEFAULT);
+
+        const snakes = [];
+        for (const s of all) {
+            if (s !== me && !hostRelevant(s, view)) continue;
+            snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length, m: s.mass });
+        }
+
+        lobbySend(conn, encodeSnapshot(gameClock, me.kills, sorted.indexOf(me) + 1,
+                                       snakes, lb, pups, food, minimap));
+    });
+
+    foodDirty.clear();   // vidé APRÈS l'envoi à tous, jamais pendant : sinon les derniers
+                         // clients de la boucle perdraient les pastilles déjà consommées.
+}
+
+function hostNotifyDeath(loserSnake, winner) {
+    const conn = party.conns.get(loserSnake.netId);
+    if (conn) lobbySend(conn, { type: 'DEAD', killer: winner ? winner.netId : null });
+}
+
+// ---------- Côté client ----------
+
+function applyGameStart(msg) {
+    party.inGame = true;
+    audio.init(); audio.resume();
+
+    CONFIG.WORLD_WIDTH = msg.width;
+    CONFIG.WORLD_HEIGHT = msg.height;
+    foodClusters = msg.foodClusters;
+    netFoodById.clear();
+    foods = msg.foods.map(([id, x, y, value, radius]) => {
+        const f = new Food();
+        f.id = id; f.x = x; f.y = y; f.value = value; f.radius = radius;
+        netFoodById.set(id, f);   // un delta se pose alors en O(1), sans balayer les 670 pastilles
+        return f;
+    });
+    foodGrid = new FoodGrid(CONFIG.FOOD_CELL);
+    foodGrid.build(foods);
+    netKillsFrozen = false;
+
+    netRoster.clear(); netSnakes.clear(); netTargets.clear(); netPowerups.clear();
+    netResetIdentity();
+    netMinimap = [];
+    netLeaderboard = null;
+    msg.roster.forEach(([id, name, color]) => { netRoster.set(id, { name, color }); netRegisterId(id); });
+
+    gameState = 'PLAYING';
+    gameClock = 0; accumulator = 0; lastFrameTs = 0;
+    sessionKills = 0; comboCount = 0; comboMultiplier = 1; lastComboTime = -Infinity;
+    sessionNewAch = []; pendingRespawns = []; powerups = [];
+    particles.clear(); killStreak.reset(); screenShake.reset();
+    spectateTarget = null;
+
+    // `player` DOIT pointer sur mon propre serpent chez le client : tout le jeu s'y réfère —
+    // caméra, HUD, et le rapport de force affiché sur les autres serpents se calcule par
+    // rapport à lui.
+    player = netEnsureSnake(party.selfId);
+    player.isPlayer = true;
+    cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
+    clampCamera();
+
+    pointer = { x: WIDTH/2, y: HEIGHT/2 - 60 };
+    showScreen('game');
+    updateHUD();
+    updateLeaderboard();
+}
+
+function netEnsureSnake(netId) {
+    let s = netSnakes.get(netId);
+    if (s) return s;
+    const info = netRoster.get(netId) || { name: '?', color: CONFIG.SKINS[0].color };
+    s = new Snake(CONFIG.WORLD_WIDTH/2, CONFIG.WORLD_HEIGHT/2, false, info.name, info.color);
+    s.netId = netId;
+    netSnakes.set(netId, s);
+    return s;
+}
+
+function applySnapshot(buf) {
+    const msg = decodeSnapshot(buf);
+    gameClock = msg.c;   // une seule horloge fait foi : celle de l'hôte
+
+    netLeaderboard = { top: msg.lb, rank: msg.rank };
+    if (msg.mm) netMinimap = msg.mm;
+    // Seuls MES kills voyagent : ceux des autres ne s'affichent nulle part.
+    if (!netKillsFrozen) sessionKills = msg.kills;
+
+    const seenSnakes = new Set();
+    for (const e of msg.s) {
+        const id = netOrder[e.i];
+        if (id === undefined) continue;   // index inconnu : roster pas encore à jour
+        seenSnakes.add(id);
+        const s = netEnsureSnake(id);
+        if (s === player && netKillsFrozen && !netTargets.has(id)) netKillsFrozen = false;
+        // Première vue, ou serpent qui vient de réapparaître ailleurs : calage SEC. Sans ça il
+        // partirait de son ancienne position et traverserait la carte en traînant tout son corps
+        // derrière lui avant de rejoindre sa vraie place. Un serpent qui revient dans le champ
+        // après en être sorti passe par le même chemin, pour la même raison.
+        if (!netTargets.has(id) || !s.alive) netTeleport(s, e.x, e.y, e.a, e.l, e.m);
+        netTargets.set(id, { x: e.x, y: e.y, angle: e.a, length: e.l, mass: e.m });
+        // Ma propre mort m'arrive par DEAD, jamais par l'instantané : entre ma réapparition
+        // locale et l'accusé de l'hôte, un instantané périmé me re-tuerait.
+        if (s !== player) s.alive = true;
+    }
+
+    // Absent de l'instantané = hors de mon champ d'intérêt (ou mort). Sans cet oubli, le client
+    // continuerait d'interpoler ces serpents vers une position périmée : ils resteraient figés
+    // au bord de l'écran. Leur cible est effacée pour qu'ils soient recalés à sec au retour.
+    netSnakes.forEach((s, id) => {
+        if (s === player || seenSnakes.has(id)) return;
+        s.alive = false;
+        netTargets.delete(id);
+    });
+
+    if (msg.f.length) {
+        for (const d of msg.f) {
+            const f = netFoodById.get(d.id);
+            if (f) { f.x = d.x; f.y = d.y; f.radius = d.r; }
+        }
+        foodGrid.build(foods);
+    }
+
+    const seen = new Set();
+    for (const p of msg.p) {
+        seen.add(p.id);
+        let pu = netPowerups.get(p.id);
+        if (!pu) { pu = new PowerUp(p.x, p.y, POWERUP_TYPES[p.t]); pu.id = p.id; netPowerups.set(p.id, pu); }
+        pu.x = p.x; pu.y = p.y;
+    }
+    netPowerups.forEach((pu, id) => { if (!seen.has(id)) netPowerups.delete(id); });
+    powerups = Array.from(netPowerups.values());
+}
+
+// Un pas de simulation côté client : aucune règle de jeu, seulement du rattrapage visuel.
+function netClientStep() {
+    if (gameState === 'SPECTATING' && (gnow() >= spectateEndsAt || !spectateTarget || !spectateTarget.alive)) {
+        finishSpectate();
+        return;
+    }
+
+    // MON serpent est prédit localement — sinon chaque virage attendrait l'aller-retour réseau,
+    // ce qui se sent immédiatement au doigt. L'hôte reste juge : sa position rappelle la mienne
+    // en douceur, au lieu de la remplacer d'un coup (ce qui se verrait comme un saut).
+    // Exception : en pause, ce n'est plus moi qui pilote mais l'IA chez l'hôte — je n'ai donc
+    // plus rien à prédire, et mon serpent se suit comme n'importe quel autre.
+    const predictSelf = player && player.alive && gameState !== 'PAUSED';
+    if (predictSelf) {
+        player.update(screenToWorld(pointer.x, pointer.y), NET_NO_SNAKES, foodGrid);
+        const tgt = netTargets.get(party.selfId);
+        if (tgt) {
+            player.x += (tgt.x - player.x) * NET_SELF_CORRECTION;
+            player.y += (tgt.y - player.y) * NET_SELF_CORRECTION;
+            netApplyState(player, tgt.length, tgt.mass);
+        }
+    }
+
+    netSnakes.forEach((s, id) => {
+        if (!s.alive || (s === player && predictSelf)) return;
+        const tgt = netTargets.get(id);
+        if (!tgt) return;
+        s.x += (tgt.x - s.x) * NET_LERP;
+        s.y += (tgt.y - s.y) * NET_LERP;
+        s.angle = tgt.angle;
+        netApplyState(s, tgt.length, tgt.mass);
+        s.segments.unshift({ x: s.x, y: s.y });
+        while (s.segments.length > s.length) s.segments.pop();
+    });
+
+    for (const pu of powerups) pu.update();
+    updateCamera();
+    particles.update();
+    screenShake.update();
+    for (const s of aliveSnakes()) emitSnakeEffects(s);
+}
+
+const NET_NO_SNAKES = [];   // le client ne fait aucune détection : rien à lui passer
+let netLeaderboard = null;  // client : classement calculé par l'hôte, qui seul voit tout le monde
+let netMinimap = [];        // client : positions compactées, pour la vue d'ensemble
+const netFoodById = new Map();   // client : id -> Food, pour appliquer un delta sans balayer 670 pastilles
+// Après ma réapparition, l'hôte peut encore m'envoyer un ou deux instantanés portant les kills de
+// mon serpent PRÉCÉDENT : le compteur remonterait puis retomberait à zéro sous les yeux du joueur.
+// On l'ignore jusqu'à ce que mon nouveau serpent soit calé (netTeleport le lève).
+let netKillsFrozen = false;
+
+// Le client ne fait pas grandir ses serpents pas à pas comme grow() : il reçoit une longueur
+// et doit en déduire le rayon. Même courbe que grow()/cut() appliquée d'un coup, mêmes bornes.
+// À REVOIR après la fusion avec la branche skins : c'est la MASSE qui décidera du rayon
+// (syncRadius), et c'est donc elle qu'il faudra transporter ici.
+function netApplyState(s, length, mass) {
+    s.length = length;
+    s.massValue = mass;
+    s.syncRadius();   // le rayon derive entierement de la masse : jamais recalcule ici
+}
+
+// Repose le serpent d'un bloc, corps compris : aucune traînée entre l'ancienne position et la
+// nouvelle. Utilisé à la première vue d'un serpent et à chaque réapparition.
+function netTeleport(s, x, y, angle, length, mass) {
+    s.x = x; s.y = y; s.angle = angle; s.targetAngle = angle;
+    netApplyState(s, length, mass);
+    s.segments.length = 0;
+    for (let i = 0; i < Math.max(1, Math.round(length)); i++) s.segments.push({ x, y });
+}
+
+// Le client vient de réapparaître (ou l'hôte de le faire) : son serpent local reprend l'identité
+// réseau, et l'hôte est prévenu qu'il lui faut un nouveau serpent.
+function partyRegisterOwnSnake() {
+    player.netId = party.isHost ? 'host' : party.selfId;
+    if (party.isHost) return;
+    player.netControlled = false;
+    netSnakes.set(party.selfId, player);
+    netTargets.delete(party.selfId);
+    netKillsFrozen = true;   // levé quand l'hôte aura calé mon nouveau serpent
+    partySendToHost({ type: 'RESPAWN' });
+}
+
+// Émission périodique : le client n'envoie que son cap, l'hôte diffuse l'état du monde.
+function netPump(dt) {
+    if (party.isHost) {
+        netSnapshotAccum += dt;
+        if (netSnapshotAccum >= NET_SNAPSHOT_MS) {
+            const elapsed = netSnapshotAccum;
+            netSnapshotAccum = 0;
+            hostSendSnapshot(elapsed);
+        }
+        return;
+    }
+    netInputAccum += dt;
+    if (netInputAccum < NET_INPUT_MS) return;
+    netInputAccum = 0;
+
+    // Sa taille d'écran, quand elle change (rotation, redimensionnement) : c'est elle qui dit à
+    // l'hôte ce que ce joueur voit, donc ce qu'il faut lui envoyer.
+    const screen = WIDTH + 'x' + HEIGHT;
+    if (screen !== netLastSentScreen) {
+        netLastSentScreen = screen;
+        partySendToHost({ type: 'VIEW', w: WIDTH, h: HEIGHT });
+    }
+
+    if (!player || !player.alive) return;
+    const a = +player.targetAngle.toFixed(3);
+    if (a === netLastSentAngle) return;   // cap inchangé : rien à dire
+    netLastSentAngle = a;
+    partySendToHost({ type: 'I', a });
+}
+
+// L'hôte a disparu en pleine partie : on encaisse la vie en cours comme une mort (même
+// comptabilité qu'en solo, dans MON localStorage), puis retour au menu.
+function hostLostDuringGame() {
+    if (gameState === 'SPECTATING') gameState = 'PLAYING';
+    if (gameState === 'PLAYING') endGame();
+    goToMenu();
+    showToast('🔌 ' + t('lobbyErrorHostLeft'));
+}
+
+function leaveLobby() { resetParty(); showScreen('menu'); }
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+bindBtn('privateGameBtn', openLobbyChoice);
+bindBtn('lobbyShowJoinBtn', showLobbyJoinForm);
+bindBtn('lobbyCreateBtn', createParty);
+bindBtn('lobbyJoinConfirmBtn', joinParty);
+bindBtn('lobbyBackBtn', () => { resetParty(); showScreen('menu'); });
+bindBtn('lobbyLeaveBtn', leaveLobby);
+$('lobbyCodeInput').addEventListener('input', () => {
+    $('lobbyCodeInput').value = $('lobbyCodeInput').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+});
+bindBtn('lobbyStartBtn', launchPrivateGame);
+
+// Hors-ligne : le bouton reste visible (pas masqué, cf. cahier des charges UI point 10) mais
+// désactivé, avec le motif affiché — cohérent avec l'indicateur hors-ligne déjà présent ici.
+function updatePrivateGameAvailability() {
+    const online = navigator.onLine;
+    $('privateGameBtn').disabled = !online;
+    $('privateGameHint').classList.toggle('hidden', online);
+}
+window.addEventListener('online', updatePrivateGameAvailability);
+window.addEventListener('offline', updatePrivateGameAvailability);
+
+// ============================================================
 //  INIT
 // ============================================================
 resizeCanvas();
 renderMenu();
 showScreen('menu');
+updatePrivateGameAvailability();
 requestAnimationFrame(gameLoop);
 </script>
 </body>
