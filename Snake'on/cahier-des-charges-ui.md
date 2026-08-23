@@ -1,11 +1,12 @@
 # Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
-et leurs actions — pas d'implémentation, pas de code. Version 0.6 : ajoute la **partie privée**
-(écran de Salon, bouton `A06`, pause qui ne fige plus le monde des autres) et **renverse la
-punition de l'abandon** — quitter une partie compte désormais la vie en cours, où qu'on parte
-(§5.23). Les V0.3 à V0.5 (éclat néon, skins, auras) restent décrites telles quelles ; le §7
-consigne les arbitrages de la V0.3 et le §8 ce qui reste ouvert.
+et leurs actions — pas d'implémentation, pas de code. Version 0.7 : l'entrée `A01` devient la
+**Boutique** et l'apparence se décompose en **trois axes indépendants** — couleur, forme, effet.
+La V0.6 avait ajouté la **partie privée** (écran de Salon, bouton `A06`, pause qui ne fige plus le
+monde des autres) et **renversé la punition de l'abandon** — quitter une partie compte désormais
+la vie en cours, où qu'on parte (§5.23). Les V0.3 à V0.5 (éclat néon, skins, auras) restent
+décrites telles quelles ; le §7 consigne les arbitrages de la V0.3 et le §8 ce qui reste ouvert.
 
 ---
 
@@ -60,7 +61,9 @@ garde exactement son rôle de v0.2 (seule action destructrice) mais devient la s
 ### Skins du serpent *(nouveau, v0.4)*
 
 Un skin change l'apparence physique du serpent en jeu — trait du corps et forme de la tête —
-jamais sa couleur d'interface (indépendante, voir ci-dessus), jamais sa hitbox. Le trait "cœur"
+jamais sa couleur d'interface (indépendante, voir ci-dessus), jamais sa hitbox. **Depuis la v0.7
+il ne porte plus non plus la teinte du serpent** : celle-ci est un axe à part, choisi dans la
+catégorie Couleurs de la Boutique (§3.A). Le trait "cœur"
 du corps (opacité et largeur pleines) reste identique sur tous les skins : c'est le repère de
 lisibilité qui permet de juger en un coup d'œil qui est plus gros. Un skin animé a toujours une
 version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin.
@@ -124,7 +127,7 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 | Entrée | Code | Rôle | Contenu |
 |---|---|---|---|
-| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 13 skins (trait + tête + aura), verrouillés selon le niveau |
+| 🛒 Boutique | A01 | Personnalisation de l'apparence | Trois catégories — **Couleurs**, **Skins**, **Effets** — verrouillées selon le niveau (voir ci-dessous) |
 | 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
 | 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
 | 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |
@@ -132,6 +135,29 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 Une **variante paysage mobile** (844×390) existe pour l'Accueil, Réglages et Pause — layouts
 adaptés en largeur plutôt qu'en hauteur, même contenu.
+
+#### 🛒 Boutique — *nouveau, v0.7*
+
+- **Rôle :** tout ce qui touche à l'apparence du serpent, en un seul endroit.
+- **Contenu :** trois catégories, présentées dans cet ordre, **Effets ouverte par défaut**.
+
+| Catégorie | Ce qu'elle change | Ce qu'elle ne change pas |
+|---|---|---|
+| **Couleurs** | la teinte du corps, et elle seule | ni le motif, ni la tête, ni l'aura |
+| **Skins** | le motif du corps et la forme de la tête | ni la teinte, ni l'aura |
+| **Effets** | l'aura qui entoure le serpent | ni la teinte, ni le motif, ni la tête |
+
+**Les trois axes sont indépendants et se cumulent.** Un joueur choisit une couleur, une forme et
+un effet séparément : l'apparence finale est leur superposition. C'est ce qui distingue la
+boutique d'une simple grille de skins — un même motif existe dans toutes les teintes, avec ou
+sans aura.
+
+- **Actions :** changer de catégorie, sélectionner un élément dans chacune. Effet immédiat, pas
+  de bouton « valider ».
+- **Verrouillage :** par niveau, catégorie par catégorie. Un élément verrouillé affiche son
+  niveau de déblocage et n'est pas sélectionnable.
+- **Aucune monnaie à ce stade.** Rien ne s'achète : tout se débloque en montant de niveau. Une
+  monnaie gagnée en partie reste une décision non prise.
 
 #### ⚙️ Réglages — *contenu révisé en v0.3*
 - **Rôle :** régler le confort de jeu et retrouver les commandes, **à tout moment** — accessible
@@ -303,6 +329,19 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     secondes sur quatre accords, trois voix, sans percussion. Elle accompagne une partie qui dure,
     elle ne doit ni réclamer l'attention ni fatiguer. À zéro, le curseur ARRÊTE réellement les
     oscillateurs au lieu de jouer un silence ; un onglet caché suspend le contexte audio.
+
+### V0.7 — addendum « Boutique »
+
+31. **L'entrée `A01` devient la Boutique.** Elle remplace la grille de skins et regroupe tout ce
+    qui touche à l'apparence. Révise la décision 15 : un skin n'est plus un tout indivisible.
+32. **Trois axes indépendants : couleur, forme, effet.** Chacun se choisit séparément et
+    l'apparence finale est leur superposition. **La couleur est découplée des formes** — une
+    forme ne porte plus de teinte imposée, elle ne décrit que son motif et sa tête. Sans ce
+    découplage, une catégorie « Couleurs » n'aurait eu aucun sens : choisir une teinte aurait
+    contredit celle de la forme.
+33. **Effets ouverte par défaut.** C'est la catégorie présentée en premier à l'ouverture.
+34. **Aucune monnaie.** Tout se débloque par le niveau, rien ne s'achète. Une monnaie gagnée en
+    partie reste à trancher et ne doit pas être introduite en passant.
 
 ---
 
