@@ -1,6 +1,6 @@
 /* Service worker — Snake'on
    Bump CACHE_VERSION à chaque déploiement pour forcer la mise à jour côté joueurs. */
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE = 'snakeon-' + CACHE_VERSION;
 
 const ASSETS = [

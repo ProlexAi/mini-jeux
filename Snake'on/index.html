@@ -1948,8 +1948,15 @@ const rnow = () => performance.now();
 // ============================================================
 //  AUDIO (Web Audio API — sons générés, zéro fichier)
 // ============================================================
+// Frequence minimale (s) entre deux jeux d'un MEME son. Sans elle, manger une grappe de
+// pastilles ou une gerbe de cadavre (jusqu'a 40 depuis le lot precedent) declenche autant
+// d'oscillateurs 'eat' identiques dans la meme frame : ils se superposent sans etre alignes en
+// phase, et le battement qui en resulte sonne comme un larsen plutot que comme des bips distincts
+// — technique standard (throttling des SFX repetitifs) dans tout jeu qui joue un son par pastille.
+const SFX_THROTTLE_S = { eat: 0.05, cut: 0.08 };
+
 class AudioManager {
-    constructor() { this.ctx = null; this.initialized = false; this.enabled = true; }
+    constructor() { this.ctx = null; this.initialized = false; this.enabled = true; this.lastPlay = {}; }
     init() {
         if (this.initialized) return;
         try {
@@ -1964,8 +1971,14 @@ class AudioManager {
     }
     play(type) {
         if (!this.enabled || !this.initialized || !this.ctx || save.settings.sfxVolume <= 0) return;
-        this.resume();
         const now = this.ctx.currentTime;
+        // Throttle par type : un second 'eat' ou 'cut' trop rapproche est simplement tu, plutot
+        // que superpose au precedent. gnow() ne convient pas ici (fige en pause) ; currentTime
+        // avance en continu et sert deja d'horloge a chaque son ci-dessous.
+        const minGap = SFX_THROTTLE_S[type];
+        if (minGap && this.lastPlay[type] !== undefined && now - this.lastPlay[type] < minGap) return;
+        this.lastPlay[type] = now;
+        this.resume();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         const vol = this.ctx.createGain();
@@ -1974,13 +1987,18 @@ class AudioManager {
         gain.connect(vol);
         vol.connect(this.ctx.destination);
         switch(type) {
-            case 'eat':
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(900, now + 0.05);
+            case 'eat': {
+                // Leger tremble de hauteur (+-4 %) : deux 'eat' qui passent quand meme le
+                // throttle (grappe large, ou magnet qui aspire vite) ne sonnent plus comme UN
+                // seul bip double par un echo metallique, mais comme deux pastilles distinctes.
+                const wobble = 0.96 + Math.random() * 0.08;
+                osc.frequency.setValueAtTime(600 * wobble, now);
+                osc.frequency.exponentialRampToValueAtTime(900 * wobble, now + 0.05);
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
                 break;
+            }
             case 'kill':
                 osc.frequency.setValueAtTime(200, now);
                 osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
@@ -1993,10 +2011,15 @@ class AudioManager {
             // plus discret, la ou 'kill' est une montee triomphale. Sans ca, le joueur entend une
             // elimination a chaque touche et croit que son compteur est casse.
             case 'cut':
-                osc.type = 'sawtooth';
+                // 'sawtooth' porte tous les harmoniques (pairs et impairs) au meme niveau : sur
+                // une rampe descendante et repetee a chaque coupe, ca sonnait comme un larsen
+                // strident plutot qu'un cisaillement. 'triangle' ne garde que les harmoniques
+                // impairs, en decroissance rapide — un ton plus rond, toujours distinct du sinus
+                // pur de 'kill', mais qui ne racle plus l'oreille en rafale.
+                osc.type = 'triangle';
                 osc.frequency.setValueAtTime(900, now);
                 osc.frequency.exponentialRampToValueAtTime(300, now + 0.09);
-                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.setValueAtTime(0.07, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
                 break;
@@ -3976,6 +3999,32 @@ function updateLeaderboard() {
     $('lbContent').innerHTML = html || '<div class="lb-entry">—</div>';
 }
 
+// Ampleur d'un serpent sur la mini-carte : echelle logarithmique de sa masse (jamais du rayon,
+// plafonne a l'ecran par MAX_RADIUS — deux serpents tres differents y seraient identiques).
+// Point d'entree UNIQUE, partage par le trace local (hote/solo) ET le decodage reseau, pour que
+// les deux ne puissent plus diverger — voir MINIMAP_RAD_CAP ci-dessous pour l'incident que ce
+// partage corrige.
+function minimapAmpleur(mass) { return Math.log2(Math.max(1, mass / CONFIG.BASE_MASS)); }
+
+// Rayon (px) d'un point ennemi. Ancien plafond : 6 px, atteint des une masse d'environ 2 560
+// (ampleur 8) — insuffisant maintenant que les bots n'ont plus de plafond de masse (cf. lot
+// precedent) : un bot a 1 500 et un bot a 80 000 y faisaient le MEME point. Releve a 9 px, avec
+// un coefficient recalcule pour n'y saturer que vers ~50 000 de masse, soit un colosse reellement
+// exceptionnel plutot qu'un bot ordinaire en fin de partie.
+//
+// Cote reseau, le CLIENT d'une partie privee ne connait que l'ampleur quantifiee sur 4 bits que
+// l'hote lui envoie (voir hostSendSnapshot) : elle etait ENCODEE en log2(masse)*2 mais RELUE ici
+// avec un coefficient pense pour log2(masse) tout court — deux fois trop grande, donc plafonnee a
+// 6 px pour une masse ~16x plus petite que sur l'ecran de l'hote. Un client voyait donc des points
+// ennemis presque deux fois plus gros, et satures bien plus tot, que ce que l'hote affichait au
+// meme instant. minimapRadFromAmpleur() est desormais l'unique formule de conversion ampleur->px,
+// utilisee IDENTIQUEMENT par le trace local et par le decodage reseau (qui n'encode/relit plus
+// que l'ampleur elle-meme, sans facteur 2).
+const MINIMAP_RAD_MIN = 1.6, MINIMAP_RAD_CAP = 9, MINIMAP_RAD_GAIN = 0.6;
+function minimapRadFromAmpleur(ampleur) {
+    return Math.min(MINIMAP_RAD_CAP, MINIMAP_RAD_MIN + ampleur * MINIMAP_RAD_GAIN);
+}
+
 function drawMinimap() {
     minimapCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
     minimapCtx.clearRect(0, 0, MM_W, MM_H);
@@ -4011,7 +4060,7 @@ function drawMinimap() {
             const info = netRoster.get(netOrder[p.i]);
             const mine = p.t === NET_MM_SOI;
             const px = mx(p.x / K * CONFIG.WORLD_WIDTH), py = my(p.y / K * CONFIG.WORLD_HEIGHT);
-            const rad = mine ? 3 : Math.min(6, 1.6 + p.a * 0.55);
+            const rad = mine ? 3 : minimapRadFromAmpleur(p.a);
             minimapCtx.beginPath();
             minimapCtx.arc(px, py, rad, 0, TAU);
             minimapCtx.fillStyle = mine ? '#00ffcc' : (info ? info.color : '#888');
@@ -4032,8 +4081,7 @@ function drawMinimap() {
     // l'ecran. Le lisere reprend le code de menace du jeu, pour que la carte reponde a la meme
     // question : ou sont les predateurs, ou sont les proies.
     for (const s of aliveSnakes()) {
-        const ampleur = Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS));
-        const rad = s.isPlayer ? 3 : Math.min(6, 1.6 + ampleur * 0.55);
+        const rad = s.isPlayer ? 3 : minimapRadFromAmpleur(minimapAmpleur(s.mass));
         minimapCtx.beginPath();
         minimapCtx.arc(mx(s.x), my(s.y), rad, 0, TAU);
         minimapCtx.fillStyle = s.isPlayer ? '#00ffcc' : s.color;
@@ -5733,12 +5781,15 @@ const MSG_SNAPSHOT = 1;
 const NET_ANGLE_STEPS = 255;     // 1,4° de précision : invisible sur l'orientation d'une tête
 const NET_RADIUS_SCALE = 16;     // rayon d'une pastille au 1/16e de pixel
 const NET_MAX_U16 = 65535;
+// Pas de quantification du bonus 'speed' restant, en ms. 255 paliers de 40 ms = 10,2 s de portée,
+// au-dela des 5 s de POWERUPS.speed.duration — large marge si deux bonus s'enchainent.
+const NET_SPEED_STEP_MS = 40;
 const POWERUP_TYPES = Object.keys(CONFIG.POWERUPS);
 
 const u16 = v => Math.max(0, Math.min(NET_MAX_U16, Math.round(v)));
 
 function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, minimap) {
-    const size = 11 + 2 + snakes.length * 13 + 1 + lb.length * 6 + 1 + pups.length * 7
+    const size = 11 + 2 + snakes.length * 14 + 1 + lb.length * 6 + 1 + pups.length * 7
                + 2 + foodsDelta.length * 7 + 2 + minimap.length * 5;
     const buf = new ArrayBuffer(size);
     const dv = new DataView(buf);
@@ -5760,6 +5811,7 @@ function encodeSnapshot(clock, myKills, myRank, snakes, lb, pups, foodsDelta, mi
         // Sur 4 octets et non 2 : mesure reelle d'un bot a 31 574 en quinze minutes, soit
         // ~126 000 projetes a une heure — un Uint16 boucherait en silence (cf. §8 du cahier).
         dv.setUint32(o, Math.max(0, Math.round(s.m))); o += 4;
+        dv.setUint8(o, Math.min(255, Math.round(s.spd / NET_SPEED_STEP_MS))); o += 1;
     }
 
     dv.setUint8(o, lb.length); o += 1;
@@ -5807,7 +5859,8 @@ function decodeSnapshot(buf) {
         const a = dv.getUint8(o) / NET_ANGLE_STEPS * TAU; o += 1;
         const l = dv.getUint16(o); o += 2;
         const m = dv.getUint32(o); o += 4;
-        out.s.push({ i, x, y, a, l, m });
+        const spd = dv.getUint8(o) * NET_SPEED_STEP_MS; o += 1;
+        out.s.push({ i, x, y, a, l, m, spd });
     }
 
     n = dv.getUint8(o); o += 1;
@@ -6129,9 +6182,15 @@ function hostSendSnapshot(dt) {
             i: netIndexOf.get(s.netId),
             x: Math.round(s.x / CONFIG.WORLD_WIDTH * K),
             y: Math.round(s.y / CONFIG.WORLD_HEIGHT * K),
-            // Ampleur logarithmique quantifiée au demi-palier : le rayon du point sature vers
-            // 8 paliers, 4 bits suffisent donc sans perte visible.
-            a: Math.max(0, Math.min(15, Math.round(Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS)) * 2))),
+            // Ampleur (minimapAmpleur) quantifiee a l'entier le plus proche, sur 4 bits : au-dela
+            // de 15, minimapRadFromAmpleur() plafonne de toute facon a MINIMAP_RAD_CAP, la perte
+            // de precision est invisible. AVANT : la valeur transmise etait doublee (`*2`) pour
+            // gagner un demi-palier de precision, mais le client la relisait avec le MEME
+            // coefficient que l'hote applique a l'ampleur NON doublee — ses points ennemis
+            // faisaient donc grossierement le double de ceux de l'hote, et saturaient a une masse
+            // ~16x plus petite (mesure : ampleur reelle 3 -> rayon hote 3,25 px, rayon client
+            // 4,90 px). Le champ transporte maintenant l'ampleur telle quelle, sans facteur cache.
+            a: Math.max(0, Math.min(15, Math.round(Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS))))),
         }));
     }
 
@@ -6143,7 +6202,14 @@ function hostSendSnapshot(dt) {
         const snakes = [];
         for (const s of all) {
             if (s !== me && !hostRelevant(s, view)) continue;
-            snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length, m: s.mass });
+            // spd : temps restant (ms) du bonus 'speed', qu'il vienne d'une pastille OU du
+            // sursaut applique par cutSnake(). Sans lui, seule la POSITION du serpent voyage —
+            // un client distant coupe se voit rattrape en douceur par sa propre position hote
+            // (NET_SELF_CORRECTION), mais sa prediction locale, elle, continue de tourner a
+            // vitesse normale : le boost existe chez l'hote sans jamais accelerer le doigt du
+            // joueur qui vient de se faire raboter.
+            const spd = Math.max(0, s.powerupEnds.speed - gnow());
+            snakes.push({ i: netIndexOf.get(s.netId), x: s.x, y: s.y, a: s.angle, l: s.length, m: s.mass, spd });
         }
 
         // Même code de menace qu'en jeu (THREAT_RIM), mais calculé ICI : le client ne connaît
@@ -6247,8 +6313,8 @@ function applySnapshot(buf) {
         // partirait de son ancienne position et traverserait la carte en traînant tout son corps
         // derrière lui avant de rejoindre sa vraie place. Un serpent qui revient dans le champ
         // après en être sorti passe par le même chemin, pour la même raison.
-        if (!netTargets.has(id) || !s.alive) netTeleport(s, e.x, e.y, e.a, e.l, e.m);
-        netTargets.set(id, { x: e.x, y: e.y, angle: e.a, length: e.l, mass: e.m });
+        if (!netTargets.has(id) || !s.alive) netTeleport(s, e.x, e.y, e.a, e.l, e.m, e.spd);
+        netTargets.set(id, { x: e.x, y: e.y, angle: e.a, length: e.l, mass: e.m, speedMs: e.spd });
         // Ma propre mort m'arrive par DEAD, jamais par l'instantané : entre ma réapparition
         // locale et l'accusé de l'hôte, un instantané périmé me re-tuerait.
         if (s !== player) s.alive = true;
@@ -6301,7 +6367,7 @@ function netClientStep() {
         if (tgt) {
             player.x += (tgt.x - player.x) * NET_SELF_CORRECTION;
             player.y += (tgt.y - player.y) * NET_SELF_CORRECTION;
-            netApplyState(player, tgt.length, tgt.mass);
+            netApplyState(player, tgt.length, tgt.mass, tgt.speedMs);
         }
     }
 
@@ -6312,7 +6378,7 @@ function netClientStep() {
         s.x += (tgt.x - s.x) * NET_LERP;
         s.y += (tgt.y - s.y) * NET_LERP;
         s.angle = tgt.angle;
-        netApplyState(s, tgt.length, tgt.mass);
+        netApplyState(s, tgt.length, tgt.mass, tgt.speedMs);
         s.segments.unshift({ x: s.x, y: s.y });
         while (s.segments.length > s.length) s.segments.pop();
     });
@@ -6337,17 +6403,22 @@ let netKillsFrozen = false;
 // et doit en déduire le rayon. Même courbe que grow()/cut() appliquée d'un coup, mêmes bornes.
 // À REVOIR après la fusion avec la branche skins : c'est la MASSE qui décidera du rayon
 // (syncRadius), et c'est donc elle qu'il faudra transporter ici.
-function netApplyState(s, length, mass) {
+function netApplyState(s, length, mass, speedMs) {
     s.length = length;
     s.massValue = mass;
     s.syncRadius();   // le rayon derive entierement de la masse : jamais recalcule ici
+    // Bonus 'speed' : reconstruit en expiration LOCALE a partir du temps restant transmis, sur
+    // la propre horloge du client (gnow(), calee sur celle de l'hote a la ligne qui lit msg.c).
+    // Sans lui, ce serpent distant tourne toujours a vitesse normale ici, meme si l'hote le sait
+    // boosté — que ce soit MOI (prediction locale) ou un autre joueur (son halo de vitesse).
+    if (speedMs !== undefined) s.powerupEnds.speed = speedMs > 0 ? gnow() + speedMs : 0;
 }
 
 // Repose le serpent d'un bloc, corps compris : aucune traînée entre l'ancienne position et la
 // nouvelle. Utilisé à la première vue d'un serpent et à chaque réapparition.
-function netTeleport(s, x, y, angle, length, mass) {
+function netTeleport(s, x, y, angle, length, mass, speedMs) {
     s.x = x; s.y = y; s.angle = angle; s.targetAngle = angle;
-    netApplyState(s, length, mass);
+    netApplyState(s, length, mass, speedMs);
     s.segments.length = 0;
     for (let i = 0; i < Math.max(1, Math.round(length)); i++) s.segments.push({ x, y });
 }
