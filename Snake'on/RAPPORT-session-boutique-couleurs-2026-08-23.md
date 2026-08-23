@@ -197,3 +197,62 @@ la couleur doit différer » — a fixé ce que la catégorie Couleurs montre. L
 piste que j'allais recommander : livrer les formes en niveaux de gris pour les teinter. Matt a
 tranché l'inverse — ses spéciaux gardent leurs couleurs d'auteur — ce qui a produit `fixedColor`
 plutôt qu'un pipeline de recoloration inutile.
+
+---
+
+## 8. Annotation — suite de la même session (23/08/2026, après-midi)
+
+*Ce rapport n'est pas réécrit : ce qui précède décrit l'état livré le matin, il reste exact à
+cette date. La suite acte ce qui a changé ensuite.*
+
+**Matt a tranché sur le contenu des catégories.** Ce qui occupait « Skins » n'était pas des
+formes de serpent mais des effets de rendu — un pointillé, une pulsation, une traînée, un halo.
+Les neuf entrées sont donc versées dans « Effets », qui en compte treize avec les auras, et la
+catégorie « Skins » est **volontairement vide** en attendant son lot dédié de serpents spéciaux.
+
+Conséquences traitées :
+
+- L'allure de référence sort de la liste des formes et devient `CONFIG.BASE_STYLE`. Y laisser une
+  entrée « Classique » aurait rendu la liste non vide et obligé le joueur à *choisir* son propre
+  défaut.
+- `currentSkin()` peut désormais renvoyer `null`, et `selectedSkin` vaut `-1` quand aucune forme
+  n'est portée. Quatre replis réseau qui lisaient `CONFIG.SKINS[0].color` — indéfini sur une liste
+  vide — lisent maintenant `CONFIG.COLORS[0].hex`.
+- L'onglet vide affiche un état explicite traduit en six langues. Une grille blanche sans un mot
+  se serait lue comme un défaut d'affichage, exactement celui qui a ouvert cette session.
+- L'effet « Écailles » est renommé « Anneaux » : le serpent de base étant devenu écailleux, un
+  effet du même nom aurait désigné autre chose que ce qu'il montre.
+- Recliquer une forme portée la retire. Sans cela, un joueur ne pourrait plus revenir au serpent
+  de référence une fois une forme choisie.
+
+**Un bug sérieux trouvé au test, et corrigé.** Sélectionner une forme la retirait au rendu
+suivant : la table de migration relisait `selectedSkin: 0` comme un ancien index à *chaque*
+ouverture du menu. Une migration doit être bornée aux sauvegardes anciennes, pas seulement
+idempotente. Un champ `shopVersion` marque désormais la forme de boutique qu'une sauvegarde
+connaît ; la conversion ne se joue qu'une fois. Vérifié : la forme survit à deux re-rendus, une
+sauvegarde d'avant est bien convertie une seule fois, et rien ne rebouge ensuite.
+
+**Ce que Matt avait signalé sur le visage.** L'aléatoire dont parlait le §3 de ce rapport est le
+**cap de départ du serpent**, tiré au hasard à l'apparition — un comportement voulu, pas un
+défaut. Le modelé de tête, lui, suit le cap : écart maximal **8°** sur cinq orientations, contre
+**173°** une fois la rotation sabotée. Il a fallu trois instruments faux avant d'obtenir cette
+mesure : le premier suivait les yeux et non le museau, le deuxième cherchait du rouge là où
+`isLightColor('#00ffcc')` vaut `true` et fait donc *assombrir* le museau, le troisième employait
+un seuil calculé sur cette hypothèse fausse. Le bon critère est l'écart de luminance au corps pur.
+
+**Mesures de cette seconde passe :**
+
+| Contrôle | Résultat |
+|---|---|
+| Traductions | `OK — 6 langues, 97 clés` |
+| Combinaisons couleur × effet dessinées | **130 / 130** |
+| Liseré et silhouette, trois niveaux de menace | **identiques** (64 / 60 / 56 px), gain de 8 teintes |
+| Migration d'une sauvegarde d'avant | correcte sur 7 anciens index, jouée une seule fois |
+| Forme spéciale simulée | teinte imposée, dégradé d'auteur non redérivé, retrait au reclic |
+| Orientation du modelé de tête | 8° normal, 173° saboté |
+| Erreurs console | aucune |
+
+**Ce que la fusion coûte, et qui n'a pas été arbitré :** effets et formes étant désormais dans une
+seule liste à choix unique, on ne peut plus porter un motif *et* une aura en même temps. Les
+quarante combinaisons de la session précédente tombent à treize choix. Personne ne l'a demandé
+dans un sens ou dans l'autre ; c'est réversible en rendant les deux axes simultanés.

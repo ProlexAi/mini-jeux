@@ -89,3 +89,42 @@ Un sabotage a prouvé que la mesure de teinte sait échouer : écart **35** sur 
 - **Un contrôle rejouable manque** : rien ne vérifie automatiquement qu'une texture ne déborde pas
   sur le liseré. Une coupe transversale comparée suffirait ; il faudrait un harnais canvas hors
   navigateur, que le dépôt n'a pas.
+
+---
+
+## Annotation — suite de la même session (23/08/2026, après-midi)
+
+*Le digest n'est pas réécrit : ce qui précède reste exact pour le matin.*
+
+**Matt a tranché : ce qui était dans « Skins » n'était pas des formes mais des effets.** Les neuf
+entrées passent dans « Effets », qui en compte treize. **« Skins » est volontairement vide**, avec
+un état d'attente traduit en six langues, jusqu'au lot dédié de serpents spéciaux.
+
+| Décision | Ce qu'elle change |
+|---|---|
+| Les neuf « formes » deviennent des effets | un pointillé ou une pulsation n'est pas une forme de serpent |
+| « Skins » vide, avec état d'attente | une grille blanche se lirait comme un défaut d'affichage |
+| L'allure de référence quitte la liste | elle devient `CONFIG.BASE_STYLE`, plus une entrée à choisir |
+| « Écailles » renommé « Anneaux » | le serpent de base étant écailleux, le nom désignait autre chose |
+| Recliquer une forme la retire | sinon on ne revient jamais au serpent de référence |
+
+**Bug sérieux trouvé et corrigé :** sélectionner une forme la retirait au rendu suivant — la table
+de migration relisait `selectedSkin: 0` comme un ancien index à chaque ouverture du menu. Une
+migration doit être **bornée aux sauvegardes anciennes**, pas seulement idempotente. Un champ
+`shopVersion` la borne désormais.
+
+**Le « visage aléatoire » signalé par Matt n'en était pas un** : l'aléatoire est le cap de départ
+du serpent, qui est voulu. Le modelé de tête suit le cap — écart de **8°**, contre **173°** une
+fois la rotation sabotée. Trois instruments faux ont précédé cette mesure, dont un qui suivait les
+yeux au lieu du museau.
+
+| Contrôle | Résultat |
+|---|---|
+| Traductions | **OK**, 6 langues, 97 clés |
+| Combinaisons couleur × effet | **130 / 130** |
+| Liseré et silhouette | **identiques** avec et sans écailles |
+| Migration, 7 anciens index | correcte, jouée une seule fois |
+| Erreurs console | aucune |
+
+**Non arbitré :** la fusion met effets et motifs dans une liste à choix unique. On ne peut plus
+porter un motif *et* une aura : quarante combinaisons deviennent treize choix. Réversible.
