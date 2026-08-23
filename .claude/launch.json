@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8420", "--directory", "Snake'on"],
       "port": 8420
+    },
+    {
+      "name": "snakeon-wt",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8422", "--directory", "Snake'on"],
+      "port": 8422
     }
   ]
 }
