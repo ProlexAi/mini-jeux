@@ -164,6 +164,43 @@
             font-size: 10px; opacity: 0.42; margin-top: 3px;
             text-shadow: none; font-variant-numeric: tabular-nums;
         }
+        /* ===== BOUTIQUE ===== */
+        /* Catégories de la boutique. Cibles tactiles à 44 px de haut, conformément au §2 du
+           cahier des charges — ce sont des boutons qu'on presse au doigt sur mobile. */
+        .shop-cats { display: flex; gap: 8px; margin-bottom: 12px; }
+        .shop-cat {
+            flex: 1; min-height: 44px; cursor: pointer;
+            background: rgba(0,0,0,0.35); color: #cfd8e3;
+            border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+            border-radius: 8px; font-family: var(--font-head);
+            font-size: 13px; letter-spacing: 0.06em;
+        }
+        .shop-cat.active {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 14%, rgba(0,0,0,0.35));
+        }
+        .shop-pane { display: none; }
+        .shop-pane.active { display: block; }
+        .effects-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .effect-card {
+            position: relative; min-height: 76px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 6px; padding: 10px 8px;
+            background: rgba(0,0,0,0.35); color: #e8f4ff;
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 10px;
+            font-family: var(--font-body); font-size: 13px;
+        }
+        .effect-card .swatch {
+            width: 46px; height: 10px; border-radius: 5px;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .effect-card.selected { border-color: #fff; transform: scale(1.03); }
+        .effect-card.locked { opacity: 0.4; cursor: not-allowed; }
+        .effect-card .unlock-level {
+            font-size: 10px; color: var(--warning); font-family: var(--font-head);
+        }
+
         /* Légende du liseré, écran de bienvenue. Les trois pastilles reprennent les teintes ET
            les épaisseurs réelles du jeu : la légende reste donc exacte pour qui ne distingue
            pas les couleurs. Cible tactile non requise, rien n'y est cliquable. */
@@ -675,7 +712,8 @@
         <div class="nav-bars" id="mainTabs">
             <div class="nav-entry">
                 <button class="tab-btn nav-bar active" data-tab="skins">
-                    <span class="nav-label" data-i18n="tabSkins">🎨 Skins</span>
+                    <span class="nav-label" data-i18n="tabSkins">🛒 Boutique</span>
+        shopEffects: 'Effets', shopSkins: 'Skins', effectsHint: 'Un effet se pose par-dessus ta forme.',
                     <span class="nav-chevron">❯</span><span class="nav-code">A01</span>
                     <span class="hachure" style="width:22px"></span>
                 </button>
@@ -715,8 +753,23 @@
             </div>
         </div>
         <div id="tab-skins" class="tab-content active">
-            <div class="skins-row" id="skinsRow"></div>
-            <div class="hint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
+            <!-- Boutique : deux catégories. « Effets » est la première et celle ouverte par
+                 défaut (demande de Matt) ; « Skins » garde la grille des dix formes. Un effet
+                 se pose PAR-DESSUS une forme, les deux choix sont indépendants. -->
+            <div class="shop-cats" role="tablist">
+                <button type="button" class="shop-cat active" data-cat="effects" role="tab" aria-selected="true"
+                        data-i18n="shopEffects">Effets</button>
+                <button type="button" class="shop-cat" data-cat="skins" role="tab" aria-selected="false"
+                        data-i18n="shopSkins">Skins</button>
+            </div>
+            <div id="shop-effects" class="shop-pane active">
+                <div class="effects-grid" id="effectsGrid"></div>
+                <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
+            </div>
+            <div id="shop-skins" class="shop-pane">
+                <div class="skins-row" id="skinsRow"></div>
+                <div class="hint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
+            </div>
         </div>
         <div id="tab-stats" class="tab-content">
             <div class="stats-grid">
@@ -963,11 +1016,18 @@ const CONFIG = {
         { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
             hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
             head:'predator', glowBoost:true } },
-        // Auras elementaires : silhouettes vivantes qui epousent le contour et debordent du
-        // corps. Elles passent SOUS le coeur (cf. ordre de dessin dans Snake.draw).
-        { name:'Flamme Ardente', color:'#ff4500', unlockLevel:25, style:{ aura:'flame', head:'predator' } },
-        { name:'Orage', color:'#00c8ff', unlockLevel:30, style:{ aura:'bolt' } },
-        { name:'Volutes', color:'#c8d4e0', unlockLevel:35, style:{ aura:'smoke' } },
+    ],
+
+    // EFFETS — categorie "Effets" de la boutique. Un effet se pose PAR-DESSUS une forme, il ne
+    // la remplace pas : le joueur choisit une forme parmi SKINS et, separement, un effet ici.
+    // Les trois auras etaient auparavant des skins a part entiere, donc exclusives des dix
+    // formes — un joueur devait renoncer a sa forme pour porter du feu. Le decouplage rend les
+    // 10 x 4 combinaisons possibles.
+    EFFECTS: [
+        { id:'none',  name:'Aucun',           unlockLevel:1,  style:{} },
+        { id:'flame', name:'Flamme Ardente',  unlockLevel:25, style:{ aura:'flame' }, tint:'#ff4500' },
+        { id:'bolt',  name:'Orage',           unlockLevel:30, style:{ aura:'bolt'  }, tint:'#00c8ff' },
+        { id:'smoke', name:'Volutes',         unlockLevel:35, style:{ aura:'smoke' }, tint:'#c8d4e0' },
     ],
     KILL_EFFECTS: [
         { kills:5, effects:['smoke'], label:'💨 Fumée' },
@@ -1228,7 +1288,7 @@ const LANGUAGES = [
 // "Kills" est conservé tel quel dans toutes les langues (cahier des charges UI §5.4).
 const TRANSLATIONS = {
     fr: {
-        tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 Historique',
+        tabSkins: '🛒 Boutique', tabStats: '📊 Stats', tabHistory: '📜 Historique',
         tabAchievements: '🏅 Succès', tabSettings: '⚙️ Réglages',
         level: 'Niveau', pseudoPlaceholder: 'Ton pseudo', skinsHint: 'Monte de niveau pour débloquer des skins !',
         statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
@@ -1256,7 +1316,8 @@ const TRANSLATIONS = {
         eatenBy: '💀 Mangé par', seeResults: 'Voir mes résultats ▶', offlineReady: 'Jouable hors-ligne ✓',
     },
     en: {
-        tabSkins: '🎨 Skins', tabStats: '📊 Stats', tabHistory: '📜 History',
+        tabSkins: '🛒 Shop', tabStats: '📊 Stats', tabHistory: '📜 History',
+        shopEffects: 'Effects', shopSkins: 'Skins', effectsHint: 'An effect layers over your shape.',
         tabAchievements: '🏅 Achievements', tabSettings: '⚙️ Settings',
         level: 'Level', pseudoPlaceholder: 'Your nickname', skinsHint: 'Level up to unlock skins!',
         statBest: 'Best', statKills: 'Kills', statGames: 'Games', statTime: 'Time',
@@ -1284,7 +1345,8 @@ const TRANSLATIONS = {
         eatenBy: '💀 Eaten by', seeResults: 'See my results ▶', offlineReady: 'Playable offline ✓',
     },
     es: {
-        tabSkins: '🎨 Aspectos', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
+        tabSkins: '🛒 Tienda', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
+        shopEffects: 'Efectos', shopSkins: 'Skins', effectsHint: 'Un efecto se superpone a tu forma.',
         tabAchievements: '🏅 Logros', tabSettings: '⚙️ Ajustes',
         level: 'Nivel', pseudoPlaceholder: 'Tu apodo', skinsHint: '¡Sube de nivel para desbloquear aspectos!',
         statBest: 'Récord', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tiempo',
@@ -1312,7 +1374,8 @@ const TRANSLATIONS = {
         eatenBy: '💀 Devorado por', seeResults: 'Ver mis resultados ▶', offlineReady: 'Jugable sin conexión ✓',
     },
     de: {
-        tabSkins: '🎨 Skins', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
+        tabSkins: '🛒 Shop', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
+        shopEffects: 'Effekte', shopSkins: 'Skins', effectsHint: 'Ein Effekt legt sich über deine Form.',
         tabAchievements: '🏅 Erfolge', tabSettings: '⚙️ Einstellungen',
         level: 'Level', pseudoPlaceholder: 'Dein Spitzname', skinsHint: 'Steige auf, um Skins freizuschalten!',
         statBest: 'Rekord', statKills: 'Kills', statGames: 'Runden', statTime: 'Zeit',
@@ -1340,7 +1403,8 @@ const TRANSLATIONS = {
         eatenBy: '💀 Gefressen von', seeResults: 'Meine Ergebnisse ▶', offlineReady: 'Offline spielbar ✓',
     },
     it: {
-        tabSkins: '🎨 Skin', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
+        tabSkins: '🛒 Negozio', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
+        shopEffects: 'Effetti', shopSkins: 'Skin', effectsHint: 'Un effetto si sovrappone alla tua forma.',
         tabAchievements: '🏅 Obiettivi', tabSettings: '⚙️ Impostazioni',
         level: 'Livello', pseudoPlaceholder: 'Il tuo soprannome', skinsHint: 'Sali di livello per sbloccare le skin!',
         statBest: 'Record', statKills: 'Kills', statGames: 'Partite', statTime: 'Tempo',
@@ -1368,7 +1432,8 @@ const TRANSLATIONS = {
         eatenBy: '💀 Mangiato da', seeResults: 'Vedi i miei risultati ▶', offlineReady: 'Giocabile offline ✓',
     },
     pt: {
-        tabSkins: '🎨 Skins', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
+        tabSkins: '🛒 Loja', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
+        shopEffects: 'Efeitos', shopSkins: 'Skins', effectsHint: 'Um efeito sobrepõe-se à tua forma.',
         tabAchievements: '🏅 Conquistas', tabSettings: '⚙️ Definições',
         level: 'Nível', pseudoPlaceholder: 'A tua alcunha', skinsHint: 'Sobe de nível para desbloquear skins!',
         statBest: 'Recorde', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tempo',
@@ -1513,7 +1578,7 @@ const audio = new AudioManager();
 // ============================================================
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
-    kills: 0, games: 0, totalTime: 0, selectedSkin: 0,
+    kills: 0, games: 0, totalTime: 0, selectedSkin: 0, selectedEffect: 'none',
     seenWelcome: false, pseudo: '',
     settings: {
         musicVolume: 70, sfxVolume: 100, quality: 'MEDIUM',
@@ -1568,10 +1633,36 @@ function addXP(amount) {
     return up;
 }
 
+// MIGRATION des sauvegardes d'avant le decouplage forme/effet. Les trois auras occupaient
+// alors les index 10 a 12 de SKINS ; un joueur qui revient avec l'une d'elles doit retrouver
+// son aura, pas se voir remis de force en Cyan sans explication. On la convertit en
+// "forme 0 + effet correspondant", ce qui preserve exactement ce qu'il voyait.
+const SKINS_LEGACY_AURAS = { 10: 'flame', 11: 'bolt', 12: 'smoke' };
+function migrateSkinSave() {
+    const legacy = SKINS_LEGACY_AURAS[save.selectedSkin];
+    if (legacy) { save.selectedEffect = legacy; save.selectedSkin = 0; }
+    if (typeof save.selectedEffect !== 'string') save.selectedEffect = 'none';
+}
+
 function currentSkin() {
     const skin = CONFIG.SKINS[save.selectedSkin];
     if (!skin || save.level < skin.unlockLevel) { save.selectedSkin = 0; return CONFIG.SKINS[0]; }
     return skin;
+}
+
+// L'effet est independant de la forme. Verrouille par niveau comme elle, et on retombe
+// silencieusement sur "aucun" si le joueur n'y a plus droit — jamais sur une erreur.
+function currentEffect() {
+    const eff = CONFIG.EFFECTS.find(e => e.id === save.selectedEffect);
+    if (!eff || save.level < eff.unlockLevel) { save.selectedEffect = 'none'; return CONFIG.EFFECTS[0]; }
+    return eff;
+}
+
+// Style effectivement porte par le serpent : la forme, PLUS l'effet par-dessus. L'effet gagne
+// sur les cles qu'il definit, la forme garde les siennes — un motif de contour et une aura
+// cohabitent donc sans se marcher dessus.
+function currentStyle() {
+    return Object.assign({}, currentSkin().style || {}, currentEffect().style || {});
 }
 
 // ============================================================
@@ -2699,6 +2790,54 @@ function inView(x, y, margin, v) {
     return x > v.x0-margin && x < v.x1+margin && y > v.y0-margin && y < v.y1+margin;
 }
 
+// Grille de la categorie "Effets" de la boutique. Un effet est independant de la forme : le
+// selectionner ne touche pas a `selectedSkin`. La pastille reprend la teinte de l'effet, ce qui
+// donne un apercu sans avoir a lancer une partie.
+function renderEffectsGrid() {
+    const grid = $('effectsGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    CONFIG.EFFECTS.forEach(eff => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'effect-card';
+        const debloque = save.level >= eff.unlockLevel;
+        const choisi = save.selectedEffect === eff.id;
+
+        if (eff.tint) {
+            const sw = document.createElement('span');
+            sw.className = 'swatch';
+            sw.style.background = eff.tint;
+            sw.style.color = eff.tint;      // currentColor alimente l'ombre portee
+            card.appendChild(sw);
+        }
+        const nom = document.createElement('span');
+        nom.textContent = eff.name;
+        card.appendChild(nom);
+
+        if (debloque) {
+            if (choisi) card.classList.add('selected');
+            card.setAttribute('aria-pressed', String(choisi));
+            card.setAttribute('aria-label', 'Effet ' + eff.name + (choisi ? ' (sélectionné)' : ''));
+            card.addEventListener('click', () => {
+                audio.init(); audio.play('click');
+                save.selectedEffect = eff.id;
+                writeSave();
+                renderMenu();
+            });
+        } else {
+            card.classList.add('locked');
+            card.disabled = true;
+            card.setAttribute('aria-label', 'Effet ' + eff.name + ', débloqué au niveau ' + eff.unlockLevel);
+            const badge = document.createElement('span');
+            badge.className = 'unlock-level';
+            badge.textContent = 'Niv ' + eff.unlockLevel;
+            card.appendChild(badge);
+        }
+        grid.appendChild(card);
+    });
+}
+
 // ============================================================
 //  UI
 // ============================================================
@@ -2735,7 +2874,10 @@ function renderMenu() {
     $('statGames').textContent = save.games;
     $('statTime').textContent = formatTime(save.totalTime);
 
+    migrateSkinSave();
     currentSkin();
+    currentEffect();
+    renderEffectsGrid();
     const row = $('skinsRow');
     row.innerHTML = '';
     CONFIG.SKINS.forEach((skin, i) => {
@@ -2974,7 +3116,7 @@ function startGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color, currentSkin().style
+        true, playerName(), currentSkin().color, currentStyle()
     );
 
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
@@ -3216,7 +3358,7 @@ function respawnPlayer() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color, currentSkin().style
+        true, playerName(), currentSkin().color, currentStyle()
     );
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     sessionKills = 0;
@@ -3833,6 +3975,24 @@ document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
         const content = $('tab-' + tab);
         if (content) content.classList.add('active');
         this.classList.add('active');
+    });
+});
+
+// Catégories de la boutique. Sélecteur scopé à .shop-cats, pour la même raison que les onglets
+// du menu : la classe .active vit à plusieurs endroits et un sélecteur large en viderait d'autres.
+document.querySelectorAll('.shop-cats .shop-cat').forEach(btn => {
+    btn.addEventListener('click', function() {
+        audio.init(); audio.play('click');
+        const cat = this.getAttribute('data-cat');
+        document.querySelectorAll('.shop-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.shop-cats .shop-cat').forEach(el => {
+            el.classList.remove('active');
+            el.setAttribute('aria-selected', 'false');
+        });
+        const pane = $('shop-' + cat);
+        if (pane) pane.classList.add('active');
+        this.classList.add('active');
+        this.setAttribute('aria-selected', 'true');
     });
 });
 
