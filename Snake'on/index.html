@@ -846,7 +846,6 @@
             <div class="nav-entry">
                 <button class="tab-btn nav-bar active" data-tab="skins">
                     <span class="nav-label" data-i18n="tabSkins">🛒 Boutique</span>
-        shopEffects: 'Effets', shopSkins: 'Skins', effectsHint: 'Un effet se pose par-dessus ta forme.',
                     <span class="nav-chevron">❯</span><span class="nav-code">A01</span>
                     <span class="hachure" style="width:22px"></span>
                 </button>
@@ -1184,6 +1183,27 @@ const CONFIG = {
         { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
             hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
             head:'predator', glowBoost:true } },
+        // SPECIAUX — formes a motif interne, au-dela des dix formes de base. Le nom ne dit pas
+        // "orage" : l'effet `bolt` de la boutique s'appelle deja ainsi, et deux entrees homonymes
+        // se liraient comme un doublon alors qu'elles ne font pas la meme chose (celle-ci porte
+        // le motif DANS le corps, l'effet fait jaillir des arcs DEHORS).
+        // `color` est le CYAN et non le noir du corps : cette teinte sert aussi au pseudo, au
+        // classement, a la minimap et a la pastille de boutique — un skin declare noir y
+        // disparaitrait. Le noir passe donc par le degrade du coeur.
+        // Corps UNI et non degrade : `gradient` cale sa rampe sur la normale a la TETE, sur une
+        // bande de 2 r ; tout le corps au-dela prend une extremite ou l'autre, ce qui donne un
+        // gris-bleu delave au lieu du noir voulu — mesure sur ce skin.
+        { name:'Noir Fulgurant', color:'#22e0ff', unlockLevel:25, style:{
+            bodyColor:'#0a0f17', sheen:0, bodyBolts:true, glowBody:true, glowBoost:true,
+            headShape:'wedge' } },
+        // Corps clair et couleur identitaire vive : l'inverse du precedent, et c'est ce qui rend
+        // `bodyColor` indispensable dans les deux sens. Le vert ne vit pas sur le corps mais sur
+        // les ailes et les yeux — le corps, lui, reste blanc.
+        // Ce skin ne calcule plus aucune de ses formes : ailes, tete et marques viennent des
+        // traces dessines dans Claude Design et rejoues en Path2D (cf. DRAGON_WINGS).
+        { name:'Blanc Démoniaque', color:'#5cf07a', unlockLevel:28, style:{
+            dragon:true, bodyColor:'#eef3f7', sheen:0, wingColor:'#1e2a35',
+            splotchColor:'#0c0e13', glowBody:0.16 } },
     ],
 
     // EFFETS — categorie "Effets" de la boutique. Un effet se pose PAR-DESSUS une forme, il ne
@@ -1307,6 +1327,183 @@ const PUFF_VISIBLE = 1.0;
 // tiennent dans AURA_MAX_EXTENT : les arcs echappaient au plafond de l'aura et portaient a eux
 // seuls le debordement de l'Orage a 2,75 r.
 const BOLT_LEN = 1.25;
+
+// MOTIF INTERNE des skins electriques (`bodyBolts`). L'aura `bolt` fait JAILLIR des arcs hors du
+// corps ; ce motif-ci court DEDANS. Les deux bornes ci-dessous sont ce qui autorise une passe
+// opaque devant le coeur : ce que l'invariant du coeur protege est la lecture du BORD et de la
+// LARGEUR (c'est elle qui decide de la predation), or le motif s'arrete bien avant le bord et le
+// corps reste un tube plein de largeur r*2 trace a alpha 1. Un motif qui mordrait sur le bord,
+// lui, serait refuse — c'est exactement ce que le liseré de menace defend.
+const BODY_BOLT_OFFSET = 0.50;   // ecart lateral max de la VEINE, en multiples de r.
+// Resserre apres coup : l'ecart d'origine, additionne a la demi-epaisseur du halo epaissi
+// (0,31 r), portait la veine a 0,91 r et elle mordait le bord de 2 a 3 pixels dans les
+// virages, ou la distance a l'axe grandit du cote exterieur.
+const BODY_BOLT_REACH  = 0.66;   // point le plus excentre qu'une CRAQUELURE peut atteindre
+// Ancrages par demi-lobe du zigzag. Les ancrages etant espaces de r*AURA_STEP, un lobe fait
+// environ 1,9 r de long pour 0,46 r d'amplitude : assez raide pour lire "decharge". A pas plus
+// large (serpent long, cf. le plafond de sampleBody) le nombre de lobes reste constant et le
+// motif garde son allure.
+const BODY_BOLT_PERIOD = 2.2;
+
+// AILES MEMBRANEES (`wings`). Elles debordent franchement, donc elles suivent la meme regle que
+// les auras : bornees sous AURA_MAX_EXTENT et dessinees SOUS le corps. Ce qui protege la lecture
+// de la taille n'est pas leur discretion mais l'ordre de dessin.
+// Les ailes ont leur PROPRE plafond de debordement, plus large que celui des auras. Une aura
+// est un nuage : elle noie le bord du corps, d'ou AURA_MAX_EXTENT serre. Une aile est une
+// forme nette, detachee, qui naît derriere le corps et ne masque jamais son bord — la brider
+// au plafond des nuages donnait des moignons de la largeur du corps, sans rapport avec le
+// sprite. Elle reste bornee, simplement plus loin.
+const WING_MAX_EXTENT = 3.2;
+const WING_SPAN = 2.75;        // envergure max, en multiples de r (plafond : WING_MAX_EXTENT)
+const WING_EVERY = 9;          // une PAIRE d'ailes tous les N ancrages : au-dela le corps disparait sous
+                               // les membranes et sa largeur cesse d'etre lisible
+const WING_FINGERS = 4;        // doigts par aile
+// Secteur balaye par les doigts, en radians. C'est LA valeur qui fait ou defait la membrane :
+// a doigts quasi paralleles (premier essai, ou l'inclinaison seule les ecartait) l'aile sortait
+// en eclats fins, pas en voilure. Il faut un vrai eventail.
+const WING_SWEEP = 2.00;
+// Rotation du secteur vers la QUEUE : une aile centree sur la normale lit "nageoire".
+const WING_LEAN = 0.72;
+
+// TACHES SOMBRES (`splotch`). Confinees comme la veine electrique : centre a SPLOTCH_OFFSET du
+// milieu, demi-taille a SPLOTCH_SIZE, somme bornee sous 1 r — elles ne touchent jamais le bord.
+const SPLOTCH_OFFSET = 0.30;
+const SPLOTCH_SIZE = 1.05;   // demi-LONGUEUR d'une flammeche, le long du corps
+
+// TETE PROFILEE (`headShape:'wedge'`). Demi-profil du museau : (abscisse le long du cap,
+// demi-largeur), en multiples de r. Le disque commun a r*1.05 convient a un serpent generique ;
+// sur un skin dont le sprite montre un museau effile, il fait tache. Le dernier point se raccorde
+// a une demi-largeur proche de r pour disparaitre sous le corps qui suit.
+// PUREMENT GRAPHIQUE : la hitbox et la comparaison de masse continuent de se faire sur `radius`,
+// que rien ici ne touche.
+// La demi-largeur maximale reste au niveau du disque qu'elle remplace (1,06 r) et le profil se
+// prolonge LOIN en arriere en revenant a 0,99 r : la jonction avec le corps se fait alors sous
+// le corps lui-meme. Un profil plus large que le corps, arrete court, laissait un decrochement
+// et un trait net en travers du cou — visible au gros plan.
+const HEAD_WEDGE = [
+    [ 1.66, 0.00], [ 1.56, 0.32], [ 1.36, 0.60], [ 1.04, 0.84],
+    [ 0.62, 0.99], [ 0.18, 1.06], [-0.30, 1.06], [-0.85, 1.02], [-1.70, 0.99],
+];
+
+// ============================================================
+//  SKIN SERPENT-DRAGON — formes vectorielles
+// ============================================================
+// Tracés dessinés dans Claude Design (projet « Skin Serpent-Dragon ») et transposés ici tels
+// quels : ce sont les mêmes `d=` que le SVG, rejoués en Path2D. Rien n'est calculé par formule,
+// et c'est le point : les ailes générées par formule sortaient toutes identiques, et celles
+// découpées du sprite étaient dessinées en PERSPECTIVE trois-quarts — les retourner pour l'autre
+// côté donnait une aile vue de dessous, ce qu'aucun réglage ne rattrape.
+//
+// Chaque aile est dessinée À PLAT dans un carré 100x100, épaule en (50,100), déploiement vers le
+// haut. Le dessin étant à plat, le miroir horizontal donne une VRAIE aile droite.
+// Les Path2D sont construits une seule fois (DRAGON_CACHE) : un Path2D reconstruit à chaque
+// image coûterait le parsing du tracé à chaque serpent et à chaque frame.
+const DRAGON_WINGS = [
+    {   // 4 doigts, festons profonds
+        membrane: 'M 50,100 C 47.5,84 45,76 43.1,69.4 C 39,62 31,52 24,42 C 30,50 35,53 39.2,55.2 C 36,42 32,26 30,10 Q 50.7,40.5 72,20 Q 71,52.4 88,44 Q 78,68.5 92,66 Q 75.2,83.2 80,86 Q 66,96 50,100 Z',
+        nervures: [
+            ['M 50,100 C 47.5,84 45,76 43.1,69.4 C 39,62 31,52 24,42', 2],
+            ['M 50,100 Q 56,58 72,20', 1.05],
+            ['M 50,100 Q 62,66 88,44', 1.05],
+            ['M 50,100 Q 68,80 92,66', 1.05],
+            ['M 50,100 Q 68,92 80,86', 1.05],
+        ],
+        accents: [[46, 72, 1.9], [84, 54, 1.2], [68, 34, 0.95]],
+    },
+    {   // 2 doigts, faucille étroite
+        membrane: 'M 50,100 C 46,90 41,83 38.2,78.1 C 32,72 22,62 16,52 C 22,60 28,64 32.8,66.3 C 27,52 24,34 26,16 Q 43.3,28.6 58,14 Q 63.4,36.2 74,34 Q 56,62 50,100 Z',
+        nervures: [
+            ['M 50,100 C 46,90 41,83 38.2,78.1 C 32,72 22,62 16,52', 2],
+            ['M 50,100 Q 44,54 58,14', 1.05],
+            ['M 50,100 Q 56,66 74,34', 1.05],
+        ],
+        accents: [[42, 80, 1.9], [60, 58, 1.2], [52, 26, 0.95]],
+    },
+    {   // 5 doigts, haute et étroite
+        membrane: 'M 50,100 C 48,86 46,76 44.5,68.1 C 40,60 34,48 30,38 C 34,46 39,50 41.6,53.1 C 39,40 36,22 34,6 Q 47.5,24.6 60,10 Q 63.9,32.8 74,26 Q 72.1,47.5 80,46 Q 73.8,63.9 78,66 Q 68.9,79.5 68,84 Q 60,94 50,100 Z',
+        nervures: [
+            ['M 50,100 C 48,86 46,76 44.5,68.1 C 40,60 34,48 30,38', 2],
+            ['M 50,100 Q 52,54 60,10', 1.05],
+            ['M 50,100 Q 56,60 74,26', 1.05],
+            ['M 50,100 Q 60,72 80,46', 1.05],
+            ['M 50,100 Q 64,84 78,66', 1.05],
+            ['M 50,100 Q 62,92 68,84', 1.05],
+        ],
+        accents: [[47, 70, 1.8], [74, 56, 1.1], [58, 22, 0.95]],
+    },
+    {   // 3 doigts, bord d'attaque en S
+        membrane: 'M 50,100 C 54,86 51,76 49.4,68 C 45,62 37,51 32,42 C 37,49 43,53 47.1,56.4 C 43,44 42,26 46,10 Q 64.4,26.2 86,26 Q 86,47.8 94,58 Q 69.8,84.4 72,90 Q 62,96 50,100 Z',
+        nervures: [
+            ['M 50,100 C 54,86 51,76 49.4,68 C 45,62 37,51 32,42', 2],
+            ['M 50,100 Q 62,60 86,26', 1.05],
+            ['M 50,100 Q 66,74 94,58', 1.05],
+            ['M 50,100 Q 62,94 72,90', 1.05],
+        ],
+        accents: [[52, 70, 1.9], [88, 52, 1.2], [76, 30, 0.95]],
+    },
+];
+
+// Tête vue de DESSUS, museau vers +x, cou sortant en x=0, axe en y=50.
+const DRAGON_HEAD = {
+    peau: 'M 92,47 C 88,45 82,42 74,39 L 62,35 C 56,33 50,32 44,32.5 C 38,33 30,34 24,36 C 20,37 16,38 0,38 L 0,62 C 16,62 20,63 24,64 C 30,66 38,67 44,67.5 C 50,68 56,67 62,65 L 74,61 C 82,58 88,55 92,53 C 96,52 96,48 92,47 Z',
+    cornes: [
+        'M 28,42 C 22,34 14,26 5,18 C 16,32 22,42 21,49 Z',
+        'M 28,58 C 22,66 14,74 5,82 C 16,68 22,58 21,51 Z',
+    ],
+    marques: [
+        'M 32,40 C 36,38 40,39 44,38 L 45,41 L 41,42 C 37,43 34,42 32,40 Z',
+        'M 34,58 C 38,60 42,59 45,60 L 43,62 C 39,63 36,61 34,58 Z',
+    ],
+    // [cx, cy, rx, ry, rotation en degres] — sclere puis pupille fendue.
+    yeux: [[56, 41, 7.6, 3.6, -13], [56, 59, 7.6, 3.6, 13]],
+    pupilles: [[56, 41, 1.0, 2.8, -13], [56, 59, 1.0, 2.8, 13]],
+};
+
+// Marques du corps, dans un cadre 100x40 dont le centre (50,20) sert d'ancrage.
+const DRAGON_MARKS = [
+    'M 6,16 C 16,11 28,14 40,13 C 56,12 74,15 94,21 C 76,20 60,20 46,21 C 32,22 18,25 8,22 C 5,21 4,18 6,16 Z',
+    'M 8,14 L 26,8 L 40,13 L 58,7 L 74,12 L 92,9 L 84,20 L 66,25 L 50,20 L 34,26 L 20,21 L 10,23 Z',
+    'M 10,18 C 18,12 28,16 36,13 L 40,18 L 46,14 C 50,20 42,26 32,28 C 22,30 12,26 9,22 Z',
+    'M 8,14 C 20,8 34,13 48,10 C 62,7 80,12 92,20 C 80,25 70,21 60,26 C 48,32 34,30 22,26 C 12,23 6,19 8,14 Z',
+    'M 6,16 C 18,11 30,15 44,12 C 58,9 74,12 92,18 C 84,22 76,20 68,24 C 58,28 48,22 36,25 C 26,28 14,26 8,22 C 5,20 4,18 6,16 Z',
+    'M 8,14 C 26,9 48,9 66,12 C 48,16 26,17 8,14 Z',
+    'M 6,24 L 18,10 L 26,22 L 40,9 L 48,21 L 62,10 L 72,23 L 88,13 L 92,24 L 78,30 L 64,22 L 50,30 L 38,22 L 24,30 L 14,29 Z',
+    'M 10,15 C 22,9 36,14 50,11 C 62,9 74,13 84,19 C 88,22 86,27 80,27 C 70,27 62,24 52,27 C 40,31 24,30 14,25 C 9,22 7,18 10,15 Z',
+];
+
+// Envergure d'une aile, en multiples de r. Le tracé occupe 90 des 100 unites du cadre.
+// Abscisse du trace ramenee sur la tete du serpent : a 92 (bout du museau) toute la tete
+// partirait en arriere ; a 62 le museau depasse d'environ 2,5 r devant le premier segment.
+const DRAGON_HEAD_ANCHOR = 62;
+// Envergure d'une aile, en multiples de r ; le trace occupe 90 des 100 unites du cadre.
+// Debordement MESURE, halo compris : contenu sous 3,6 r aux petits rayons et sous 3,2 r a
+// partir du rayon 60 (le halo, en unites du cadre, pese proportionnellement moins quand
+// l'aile grandit). C'est au-dela d'AURA_MAX_EXTENT, et c'est assume : une aura est un nuage
+// qui noie le bord du corps, une aile est une forme nette qui naît derriere lui.
+const DRAGON_WING_MAX_EXTENT = 3.6;
+const DRAGON_WING_SPAN = 3.5;
+// Paires d'ailes au maximum, atteintes a CONFIG.MAX_LENGTH. Elles se debloquent en grandissant :
+// une paire de plus tous les MAX_LENGTH/6 de longueur.
+const DRAGON_WING_PAIRS_MAX = 6;
+
+const DRAGON_CACHE = { pret: false };
+function dragonPaths() {
+    if (DRAGON_CACHE.pret) return DRAGON_CACHE;
+    DRAGON_CACHE.ailes = DRAGON_WINGS.map(a => ({
+        membrane: new Path2D(a.membrane),
+        nervures: a.nervures.map(([d, w]) => ({ path: new Path2D(d), w })),
+        accents: a.accents,
+    }));
+    DRAGON_CACHE.tete = {
+        peau: new Path2D(DRAGON_HEAD.peau),
+        cornes: DRAGON_HEAD.cornes.map(d => new Path2D(d)),
+        marques: DRAGON_HEAD.marques.map(d => new Path2D(d)),
+    };
+    DRAGON_CACHE.marques = DRAGON_MARKS.map(d => new Path2D(d));
+    DRAGON_CACHE.pret = true;
+    return DRAGON_CACHE;
+}
+
 
 // Tache douce a degrade radial, generee UNE FOIS puis teintee et mise en cache par couleur.
 // C'est la brique qui remplace le polygone rempli en aplat : ses bords sont flous par
@@ -1457,6 +1654,7 @@ const LANGUAGES = [
 const TRANSLATIONS = {
     fr: {
         tabSkins: '🛒 Boutique', tabStats: '📊 Stats', tabHistory: '📜 Historique',
+        shopEffects: 'Effets', shopSkins: 'Skins', effectsHint: 'Un effet se pose par-dessus ta forme.',
         tabAchievements: '🏅 Succès', tabSettings: '⚙️ Réglages',
         level: 'Niveau', pseudoPlaceholder: 'Ton pseudo', skinsHint: 'Monte de niveau pour débloquer des skins !',
         statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
@@ -1955,6 +2153,11 @@ const music = new MusicEngine(audio);
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
     kills: 0, games: 0, totalTime: 0, selectedSkin: 0, selectedEffect: 'none',
+    // Schema de la selection d'apparence. Volontairement a 1 et non au schema courant : loadSave
+    // etale ce defaut SOUS la sauvegarde lue, donc une sauvegarde d'avant le decouplage (qui ne
+    // porte pas la cle) doit hériter d'une valeur qui la signale comme telle. La mettre a 2 ici
+    // rendrait toute sauvegarde ancienne indiscernable d'une sauvegarde deja migree.
+    skinSchema: 1,
     seenWelcome: false, pseudo: '',
     settings: {
         musicVolume: 70, sfxVolume: 100, quality: 'MEDIUM',
@@ -2013,10 +2216,21 @@ function addXP(amount) {
 // alors les index 10 a 12 de SKINS ; un joueur qui revient avec l'une d'elles doit retrouver
 // son aura, pas se voir remis de force en Cyan sans explication. On la convertit en
 // "forme 0 + effet correspondant", ce qui preserve exactement ce qu'il voyait.
+// Le marqueur de schema est INDISPENSABLE, et il a ete ajoute apres coup : sans lui la table
+// ci-dessous se rejouait a CHAQUE rendu du menu, donc a chaque chargement. Le premier skin
+// ajoute apres le decouplage prenait l'index 10 — relu comme l'ancienne aura Flamme, il etait
+// remplace par "forme 0 + flamme" et sa selection devenait litteralement impossible. Mesure sur
+// le skin Noir Fulgurant : selectionne a l'index 10, il revenait en Cyan Classique + Flamme.
+// Une migration se joue UNE FOIS ; toute table indexee sur d'anciennes valeurs doit donc etre
+// gardee par un schema, sinon elle mange les valeurs neuves qui reprennent les memes index.
+const SKINS_SCHEMA = 2;
 const SKINS_LEGACY_AURAS = { 10: 'flame', 11: 'bolt', 12: 'smoke' };
 function migrateSkinSave() {
-    const legacy = SKINS_LEGACY_AURAS[save.selectedSkin];
-    if (legacy) { save.selectedEffect = legacy; save.selectedSkin = 0; }
+    if ((save.skinSchema || 1) < SKINS_SCHEMA) {
+        const legacy = SKINS_LEGACY_AURAS[save.selectedSkin];
+        if (legacy) { save.selectedEffect = legacy; save.selectedSkin = 0; }
+        save.skinSchema = SKINS_SCHEMA;
+    }
     if (typeof save.selectedEffect !== 'string') save.selectedEffect = 'none';
 }
 
@@ -2629,13 +2843,25 @@ class Snake {
         // le coeur du corps est trace par-dessus a alpha 1 et ressort toujours net, quelle que
         // soit la densite de l'aura. Ne jamais deplacer ce bloc apres le trace du coeur.
         const preset = style && style.aura ? AURA_PRESETS[style.aura] : null;
+        // Ancrages du corps, echantillonnes UNE SEULE FOIS et partages par toutes les couches qui
+        // en ont besoin. Chacune les recalculait sinon, et le parcours du corps est precisement
+        // ce que sampleBody existe pour borner.
+        const bodyPts = (preset || (style && (style.wings || style.bodyBolts || style.splotch || style.dragon)))
+            ? this.sampleBody(r * AURA_STEP) : null;
+        const phaseFig = animated ? this.skinPhase : 0;
+
+        // AILES — dessinees AVANT tout le reste, donc sous le corps : elles debordent franchement
+        // de la silhouette, et c'est le meme ordre de dessin que l'aura qui preserve la lecture
+        // du bord. Une aile posee par-dessus le coeur rendrait la largeur du corps indechiffrable.
+        if (style && style.dragon && bodyPts) this.drawDragonWings(ctx, bodyPts, phaseFig);
+        else if (style && style.wings && bodyPts) this.drawWings(ctx, bodyPts, phaseFig);
+
         let auraPts = null;
         if (preset) {
             // Phase gelee quand l'animation est coupee : l'aura reste, seule sa deformation
             // s'arrete. Une aura qui disparaitrait en reduced-motion rendrait le skin invisible.
-            const phase = animated ? this.skinPhase : 0;
-            auraPts = this.sampleBody(r * AURA_STEP);
-            this.drawAuraCloud(ctx, auraPts, style.aura, phase);
+            auraPts = bodyPts;
+            this.drawAuraCloud(ctx, auraPts, style.aura, phaseFig);
         }
 
         // Corps tracé en UN chemin (au lieu d'un cercle ombré par segment) :
@@ -2659,11 +2885,31 @@ class Snake {
             const osc = animated ? Math.sin(this.skinPhase * 2.2) : 0;
             glowAlpha = 0.42 + osc * 0.16;              // 0,26 à 0,58 (halo standard : 0,22)
             glowWidth = r * 2 + 10 + r * (0.8 + osc * 0.5);
+        } else if (style && style.glowBody) {
+            // Halo neon CONSTANT : ni respiration (pulse) ni particules (trail). Un corps tres
+            // sombre ne se detache du fond que par son halo — le lui faire pulser reviendrait a
+            // faire clignoter la silhouette elle-meme, donc la taille lue.
+            // Reglable : sur un corps CLAIR, la valeur calee pour le noir donne un cerclage plein
+            // au lieu d'un halo, la teinte n'ayant plus rien de sombre a envahir.
+            glowAlpha = (typeof style.glowBody === 'number') ? style.glowBody : 0.44;
+            glowWidth = r * 2 + 10 + r * 0.7;
         } else if (style && style.trail) {
             // Halo de chaleur permanent : la traînée seule ne dit rien sur une image fixe, et
             // elle est coupée en reduced-motion et au palier LOW.
             glowAlpha = 0.36;
             glowWidth = r * 2 + 10 + r * 0.55;
+        }
+        // Halo en NAPPE pour les skins qui le declarent : deux passes larges et faibles sous la
+        // passe principale, au lieu d'un trait unique. Un stroke seul donne un lisere plat a bord
+        // net — lisible, mais sans rapport avec le neon diffus des sprites. Deux strokes de plus
+        // par serpent, et seul le joueur porte un skin.
+        if (style && style.glowBody) {
+            ctx.strokeStyle = this.color;
+            for (const [mult, alpha] of [[2.6, 0.10], [1.6, 0.16]]) {
+                ctx.globalAlpha = alpha;
+                ctx.lineWidth = r * 2 + 10 + r * mult;
+                ctx.stroke();
+            }
         }
         ctx.globalAlpha = glowAlpha;
         ctx.strokeStyle = this.color;
@@ -2696,14 +2942,22 @@ class Snake {
         // skin ne peut varier ici que la teinte (dégradé), jamais l'opacité ni des pointillés.
         ctx.globalAlpha = 1;
         ctx.lineWidth = r * 2;
-        ctx.strokeStyle = (style && style.gradient) ? this.skinGradient(ctx, style, animated) : this.color;
+        ctx.strokeStyle = (style && style.gradient) ? this.skinGradient(ctx, style, animated) : this.bodyTint();
         ctx.stroke();
 
         // Contour : seul endroit où un skin peut ajouter des pointillés (jamais le cœur).
         // Un contour porteur de motif monte à 0.34 d'alpha : à 0.15 le motif existait dans le
         // canvas mais ne se lisait pas à l'œil sur un corps saturé. Sa couleur suit la luminance
         // du corps — en blanc sur un corps clair (Blanc Spectral) le motif serait invisible.
-        ctx.globalAlpha = (style && style.dash) ? 0.34 : 0.15;
+        // Ce voile est BLANC des qu'il n'y a pas de pointille — la teinte sombre n'est choisie
+        // que dans la branche `dash`. Sur un corps vif il se fond ; sur un corps tres sombre il
+        // sort en bande grise franche de r*0.7 de large (mesure sur Noir Fulgurant : le coeur a
+        // (10,15,23) devenait (46,51,58) sur toute la bande). D'ou `sheen`, qui laisse un skin
+        // regler ou couper ce voile sans toucher aux autres.
+        const sheen = (style && typeof style.sheen === 'number')
+            ? style.sheen
+            : ((style && style.dash) ? 0.34 : 0.15);
+        ctx.globalAlpha = sheen;
         ctx.strokeStyle = (style && style.dash && isLightColor(this.color)) ? '#0a0e18' : '#ffffff';
         ctx.lineWidth = r * 0.7;
         if (style && style.dash) {
@@ -2711,9 +2965,16 @@ class Snake {
             ctx.setLineDash(style.dash.map(v => v * r));
             ctx.lineDashOffset = (style.dashAnim && animated) ? -this.skinPhase * r * 2 : 0;
         }
-        ctx.stroke();
+        if (sheen > 0) ctx.stroke();
         ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
+
+        // MOTIF INTERNE — trace APRES le coeur, sinon il serait recouvert par lui. Reutilise les
+        // ancrages de l'aura quand un effet en a deja calcule : un skin a motif combine avec un
+        // effet ne doit pas echantillonner le corps deux fois par image.
+        if (style && style.dragon && bodyPts) this.drawDragonMarks(ctx, bodyPts);
+        else if (style && style.splotch && bodyPts) this.drawSplotches(ctx, bodyPts);
+        if (style && style.bodyBolts && bodyPts) this.drawBodyBolts(ctx, bodyPts, phaseFig);
 
         // LECHAGE : la seule passe autorisee DEVANT le coeur, plafonnee a LICK_MAX_ALPHA.
         // C'est elle qui donne les langues qui passent devant la lame. Au-dela du plafond on
@@ -2788,21 +3049,35 @@ class Snake {
         }
 
         const head = segs[0];
+        // Tete VECTORIELLE du skin serpent-dragon : elle remplace tout le bloc tete (disque,
+        // yeux, cornes), qui n'a plus rien a lui apporter.
+        if (style && style.dragon) { this.drawDragonHead(ctx, head); return; }
         ctx.beginPath();
-        ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
-        ctx.fillStyle = this.color;
+        if (style && style.headShape === 'wedge') this.wedgeHeadPath(ctx, head, r);
+        else ctx.arc(head.x, head.y, r * 1.05, 0, TAU);
+        // La tete prend la teinte du CORPS, pas la couleur identitaire : sur un skin a corps
+        // sombre elle sortait sinon en pastille vive, detachee de son propre corps. Son halo,
+        // lui, reste sur this.color — c'est ce contraste tete sombre / halo vif qui la designe.
+        ctx.fillStyle = this.bodyTint();
         // Halo statique de substitution quand la traînée est coupée (LOW/reduced-motion) : garde
         // le skin distinctif sans mouvement ni particule supplémentaire.
         let glowRadius = (style && style.glowBoost) ? 22 : 14;
         if (style && style.trail && !animated) glowRadius = Math.max(glowRadius, 20);
-        if (save.settings.quality !== 'LOW') { ctx.shadowBlur = glowRadius; ctx.shadowColor = this.color; }
+        // Pas d'ombre portee sur un museau PROFILE : son bord arriere longe le bord du corps,
+        // si bien que l'ombre s'en echappait et posait un trait clair net en travers du cou.
+        // Mesure : le trait disparaissait au palier LOW, qui coupe justement shadowBlur.
+        // Ces skins portent deja un halo de corps, la tete n'a rien a y ajouter.
+        const teteFuselee = !!(style && style.headShape === 'wedge');
+        if (save.settings.quality !== 'LOW' && !teteFuselee) { ctx.shadowBlur = glowRadius; ctx.shadowColor = this.color; }
         ctx.fill();
         ctx.shadowBlur = 0;
 
         const eo = r * 0.45, er = Math.max(2, r * 0.3);
         if (style && style.head === 'viper') this.drawViperEyes(ctx, head, eo, er);
+        else if (style && style.head === 'demon') this.drawDemonEyes(ctx, head, eo, er);
         else this.drawRoundEyes(ctx, head, eo, er);
         if (style && style.head === 'viper') this.drawHorns(ctx, head, r);
+        else if (style && style.head === 'demon') this.drawDemonHorns(ctx, head, r);
         if (style && style.head === 'predator') this.drawFangs(ctx, head, r);
     }
 
@@ -2964,6 +3239,387 @@ class Snake {
         ctx.lineJoin = 'round';
     }
 
+    // Veine electrique courant DANS le corps (`bodyBolts`), la ou l'aura `bolt` fait jaillir des
+    // arcs DEHORS. Confinee par construction : l'ecart lateral ne depasse jamais
+    // BODY_BOLT_REACH * r, soit un bon quart de rayon avant le bord.
+    // PERMANENTE et jamais intermittente, contrairement aux arcs de l'aura qui claquent et
+    // disparaissent : ici le motif EST le skin — sans lui il ne reste qu'un serpent noir. Il doit
+    // donc survivre a prefers-reduced-motion et au palier LOW, ou seule sa reptation s'arrete.
+    drawBodyBolts(ctx, pts, phase) {
+        if (pts.length < 3) return;
+        const r = this.radius;
+        // Onde TRIANGULAIRE, pas sinusoidale : une sinusoide donne une ondulation lisse qui lit
+        // "serpentin" et jamais "decharge". C'est la rupture d'angle qui fait l'eclair.
+        const tri = (u) => { const m = ((u % 2) + 2) % 2; return m < 1 ? m * 2 - 1 : 3 - m * 2; };
+        const off = (k) => {
+            // Amplitude tiree par LOBE, pas par ancrage : par ancrage le zigzag se decompose en
+            // bruit ; constante, il sort en accordeon regulier qui lit "ressort".
+            const amp = 0.55 + hash01(Math.floor(k / BODY_BOLT_PERIOD), 7) * 0.45;
+            return tri(k / BODY_BOLT_PERIOD + phase * 0.9) * amp * BODY_BOLT_OFFSET * r;
+        };
+        // Angles francs : lineJoin 'round' arrondirait chaque pointe du zigzag, et cela suffit a
+        // lui faire perdre sa lecture d'eclair.
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+
+        const veine = [];
+        for (let k = 0; k < pts.length; k++) {
+            const p = pts[k], d = off(k);
+            veine.push({ x: p.x + p.nx * d, y: p.y + p.ny * d });
+        }
+
+        // Craquelures : de la veine vers le bord, sans jamais l'atteindre. Tirage par (ancrage,
+        // pas de temps) via hash01, JAMAIS une formule modulo ecrite a la main — un tirage en
+        // (k*A + t*B) % M a deja gele les arcs de l'aura sur trois positions a vie.
+        const tick = Math.floor(phase * 6);
+        const cracks = [];
+        for (let k = 2; k < pts.length - 2; k++) {
+            if (hash01(k, tick) > 0.60) continue;
+            const p = pts[k];
+            const side = hash01(k, tick + 977) < 0.5 ? 1 : -1;
+            const from = off(k), to = side * BODY_BOLT_REACH * r;
+            const br = [{ x: p.x + p.nx * from, y: p.y + p.ny * from }];
+            for (let i = 1; i <= 3; i++) {
+                const lat = from + (to - from) * (i / 3);
+                // Decalage LONGITUDINAL seul : il casse la ligne droite sans jamais pousser la
+                // craquelure au-dela de la borne laterale.
+                const lon = (hash01(k * 31 + i, tick + i * 13) - 0.5) * r * 0.5;
+                br.push({ x: p.x + p.nx * lat + p.tx * lon, y: p.y + p.ny * lat + p.ty * lon });
+            }
+            cracks.push(br);
+        }
+
+        const trace = (list, w, color, alpha, blend) => {
+            ctx.beginPath();
+            for (const path of list) {
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+            }
+            const prevOp = ctx.globalCompositeOperation;
+            if (blend) ctx.globalCompositeOperation = blend;
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = Math.max(1, r * w);
+            ctx.stroke();
+            ctx.globalCompositeOperation = prevOp;
+        };
+
+        // Halo puis coeur blanc : un trait fin seul se perd sur un corps sombre, un halo seul ne
+        // lit pas comme un arc. C'est le duo qui fait la decharge — meme construction que
+        // boltBranch, calee sur ce constat.
+        // Epaisseurs calees pour que l'eclair OCCUPE le corps, comme sur le sprite. Une veine
+        // fine se lisait comme une fissure et pas comme une decharge — c'etait le principal
+        // ecart au sprite. Le confinement tient quand meme : demi-epaisseur du halo (0,36 r)
+        // ajoutee a l'ecart lateral maximal de la veine (0,46 r) reste sous le bord.
+        // Halo SEPARE pour la veine et pour les craquelures. Un halo commun, cale sur la
+        // veine, ajoutait sa demi-epaisseur a la pointe des craquelures (0,66 r) et faisait
+        // sortir quelques pixels du corps — c'est de la que venait le debordement, pas de
+        // l'ecart lateral de la veine, que reduire n'y changeait rien.
+        trace([veine], 0.62, this.color, 0.60, 'lighter');
+        trace(cracks, 0.28, this.color, 0.60, 'lighter');
+        trace([veine], 0.15, '#ffffff', 1, null);
+        trace(cracks, 0.10, '#eaffff', 0.9, null);
+
+        ctx.globalAlpha = 1;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+
+    // Chemin du museau profile, construit dans le repere du cap puis rabattu en coordonnees
+    // monde. Ne remplit pas : l'appelant garde la main sur le fond et le halo.
+    wedgeHeadPath(ctx, head, r) {
+        const c = Math.cos(this.angle), s = Math.sin(this.angle);
+        const P = (x, w) => [head.x + c * x * r - s * w * r, head.y + s * x * r + c * w * r];
+        let p = P(HEAD_WEDGE[0][0], 0);
+        ctx.moveTo(p[0], p[1]);
+        for (let i = 1; i < HEAD_WEDGE.length; i++) { p = P(HEAD_WEDGE[i][0], HEAD_WEDGE[i][1]); ctx.lineTo(p[0], p[1]); }
+        for (let i = HEAD_WEDGE.length - 1; i >= 1; i--) { p = P(HEAD_WEDGE[i][0], -HEAD_WEDGE[i][1]); ctx.lineTo(p[0], p[1]); }
+        ctx.closePath();
+    }
+
+
+    // AILES du skin serpent-dragon, en PAIRES symetriques. L'aile droite est le miroir de la
+    // gauche : le trace etant dessine a plat (et non en perspective), le miroir donne une vraie
+    // aile droite. Dessinees AVANT le corps, comme toute couche debordante.
+    drawDragonWings(ctx, pts, phase) {
+        if (pts.length < 6) return;
+        const r = this.radius, P = dragonPaths();
+        const paires = this.dragonPairs();
+        const s = (r * DRAGON_WING_SPAN) / 90;   // le trace occupe 90 des 100 unites du cadre
+        for (let p = 0; p < paires; p++) {
+            // Reparties sur la longueur, la premiere en retrait de la tete.
+            const f = (p + 0.9) / (paires + 0.6);
+            const k = Math.min(pts.length - 3, Math.max(2, Math.round(f * (pts.length - 1))));
+            const q = pts[k];
+            const forme = P.ailes[p % P.ailes.length];
+            // Battement lent, jamais jusqu'a zero : une aile qui se replierait entierement
+            // clignoterait, ce que prefers-reduced-motion proscrit.
+            const bat = 0.88 + Math.sin(phase * 1.5 + p * 0.9) * 0.12;
+            for (const side of [1, -1]) {
+                const nx = q.nx * side, ny = q.ny * side;
+                ctx.save();
+                ctx.translate(q.x + nx * r * 0.55, q.y + ny * r * 0.55);
+                // Le HAUT du cadre (0,-1) doit pointer le long de la normale : d'ou atan2(nx,-ny)
+                // et non atan2(ny,nx), qui alignerait la LARGEUR de l'aile sur la normale.
+                ctx.rotate(Math.atan2(nx, -ny));
+                if (side < 0) ctx.scale(-1, 1);
+                ctx.scale(s * bat, s * bat);
+                ctx.translate(-50, -100);          // epaule du trace ramenee a l'origine
+                // Halo AUTOUR de la membrane, en additif. La planche etait posee sur un fond
+                // bleu, ou le noir de la membrane ressortait ; le fond du jeu est noir, et
+                // sans ce halo l'aile disparait entierement — seules ses nervures restaient.
+                const opAv = ctx.globalCompositeOperation;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = 0.26;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 8;
+                ctx.stroke(forme.membrane);
+                ctx.globalCompositeOperation = opAv;
+                ctx.fillStyle = this.dragonMembrane();
+                ctx.globalAlpha = 0.95;
+                ctx.fill(forme.membrane);
+                ctx.globalAlpha = 0.95;
+                ctx.strokeStyle = this.color;
+                ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+                for (const n of forme.nervures) { ctx.lineWidth = n.w; ctx.stroke(n.path); }
+                ctx.fillStyle = this.color;
+                for (const [ax, ay, ar] of forme.accents) {
+                    ctx.beginPath(); ctx.ellipse(ax, ay, ar, ar, 0, 0, TAU); ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Paires d'ailes debloquees par la longueur : une de plus tous les MAX_LENGTH/6.
+    dragonPairs() {
+        const pas = CONFIG.MAX_LENGTH / DRAGON_WING_PAIRS_MAX;
+        return Math.max(1, Math.min(DRAGON_WING_PAIRS_MAX, Math.ceil(this.length / pas)));
+    }
+
+    dragonMembrane() {
+        return (this.skinStyle && this.skinStyle.wingColor) || '#0b0d12';
+    }
+
+    // Marques du corps, tirees des huit traces de la planche. Statiques : une tache qui se
+    // deplacerait sur la peau lirait comme un defaut d'affichage.
+    drawDragonMarks(ctx, pts) {
+        const r = this.radius, P = dragonPaths();
+        ctx.fillStyle = (this.skinStyle && this.skinStyle.splotchColor) || '#0c0e13';
+        for (let k = 2; k < pts.length - 2; k++) {
+            if (hash01(k, 4241) > 0.34) continue;
+            const q = pts[k];
+            const forme = P.marques[Math.floor(hash01(k, 77) * P.marques.length) % P.marques.length];
+            // Ecart lateral et taille bornes : la marque ne touche jamais le bord du corps, sans
+            // quoi elle brouillerait la silhouette, seul repere de taille du jeu.
+            const cote = hash01(k, 811) < 0.5 ? 1 : -1;
+            const off = (0.05 + hash01(k, 97) * 0.55) * 0.34 * r * cote;
+            const s = (r * (0.85 + hash01(k, 53) * 0.55)) / 100;
+            ctx.save();
+            ctx.translate(q.x + q.nx * off, q.y + q.ny * off);
+            ctx.rotate(Math.atan2(q.ty, q.tx));
+            ctx.scale(s, s * 0.8);
+            ctx.translate(-50, -20);              // centre du cadre 100x40 ramene a l'origine
+            ctx.fill(forme);
+            ctx.restore();
+        }
+    }
+
+    // Tete vue de dessus : museau vers +x dans le trace, axe en y=50, cou en x=0.
+    drawDragonHead(ctx, head) {
+        const r = this.radius, P = dragonPaths();
+        // Cale sur la largeur du CRANE (36 unites -> 1,9 r), pas sur celle du cou : cale sur
+        // le cou, la tete sortait a 7,7 r de long, soit une pointe demesuree devant le corps.
+        // Le cou du trace est alors plus etroit que le corps, ce qui est sans consequence :
+        // il tombe sous le bout arrondi du corps, deja trace.
+        const s = (r * 1.9) / 36;
+        ctx.save();
+        ctx.translate(head.x, head.y);
+        ctx.rotate(this.angle);
+        ctx.scale(s, s);
+        // Le museau porte a 92 unites ; on recule la tete pour que le cou reste sous le corps.
+        ctx.translate(-DRAGON_HEAD_ANCHOR, -50);
+        ctx.fillStyle = this.bodyTint();
+        ctx.fill(P.tete.peau);
+        ctx.fillStyle = 'rgba(12,14,19,0.92)';
+        for (const c of P.tete.cornes) ctx.fill(c);
+        ctx.fillStyle = (this.skinStyle && this.skinStyle.splotchColor) || '#0c0e13';
+        for (const m of P.tete.marques) ctx.fill(m);
+        for (const [cx, cy, rx, ry, rot] of DRAGON_HEAD.yeux) {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180);
+            if (save.settings.quality !== 'LOW') { ctx.shadowBlur = 6; ctx.shadowColor = this.color; }
+            ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+            ctx.fillStyle = this.color; ctx.fill();
+            ctx.shadowBlur = 0; ctx.restore();
+        }
+        for (const [cx, cy, rx, ry, rot] of DRAGON_HEAD.pupilles) {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180);
+            ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+            ctx.fillStyle = 'rgba(10,12,16,0.95)'; ctx.fill(); ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    // AILES membranees reparties le long du corps.
+    drawWings(ctx, pts, phase) {
+        if (pts.length < 6) return;
+        // Jointures ARRONDIES, explicitement. Les ailes sont dessinees avant que le corps ne
+        // fixe lineJoin, donc le contexte est encore sur la valeur initiale du canvas ('miter') :
+        // au sommet d'un doigt, angle tres aigu, la pointe en miter s'etire jusqu'a dix fois la
+        // demi-epaisseur et sortait de la borne de debordement. Deux pixels au rayon 60 — peu,
+        // mais c'est la borne elle-meme qui cesse alors d'etre garantie.
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        const span = this.radius * WING_SPAN;
+        for (let k = WING_EVERY; k < pts.length - 2; k += WING_EVERY) {
+            // Battement lent, et surtout JAMAIS jusqu'a zero : une aile qui se replierait
+            // entierement clignoterait, ce que prefers-reduced-motion proscrit. Phase gelee,
+            // elle reste simplement ouverte a 85 %.
+            const bat = 0.85 + Math.sin(phase * 1.6 + k * 0.5) * 0.15;
+            // PAIRES SYMETRIQUES : les deux cotes au meme ancrage, avec la MEME graine, donc
+            // exactement les memes longueurs de doigts a gauche et a droite. L'alternance d'un
+            // cote sur l'autre donnait un quinconce qui ne ressemblait a aucune creature ailee.
+            for (const side of [1, -1]) this.drawOneWing(ctx, pts[k], side, span * bat, k);
+        }
+    }
+
+    drawOneWing(ctx, p, side, span, seed) {
+        const r = this.radius;
+        const nx = p.nx * side, ny = p.ny * side;
+        // Base posee SUR le bord du corps : une aile qui naitrait au centre serait tranchee en
+        // deux par le coeur, trace par-dessus a alpha 1. Son attache disparait sous le corps,
+        // ce qui est voulu — une aile sort du dos, elle n'y est pas collee.
+        const bx = p.x + nx * r * 0.85, by = p.y + ny * r * 0.85;
+        const doigts = [];
+        for (let i = 0; i <= WING_FINGERS; i++) {
+            const f = i / WING_FINGERS;
+            // Direction par MELANGE DE VECTEURS et non par angle signe : l'angle est mesure
+            // depuis la normale (deja orientee du bon cote par `side`) vers la tangente, qui
+            // pointe tete -> queue. Aucun signe a propager, donc aucune aile ne peut se
+            // retourner vers l'interieur du corps — ce qui arrivait a un cote sur deux avec une
+            // rotation en atan2, et masquait la moitie des ailes sous le corps.
+            const a = WING_LEAN + (f - 0.5) * WING_SWEEP;
+            const dx = nx * Math.cos(a) + p.tx * Math.sin(a);
+            const dy = ny * Math.cos(a) + p.ty * Math.sin(a);
+            // Le premier doigt est le plus long, comme sur une main. Longueur PLAFONNEE : le
+            // tirage pouvait porter la pointe a 3,21 r du centre pour un plafond de 3,2 r, et
+            // deux pixels sortaient effectivement de la borne au rayon 60. Le clamp tient compte
+            // de la base et de la demi-epaisseur du contour, sinon c'est le trait qui deborde.
+            const lgMax = r * (1 + WING_MAX_EXTENT) - r * 0.85 - r * 0.06;
+            const lg = Math.min(lgMax, span * (1 - f * 0.20) * (0.85 + hash01(seed + i, 3) * 0.3));
+            doigts.push({ x: bx + dx * lg, y: by + dy * lg });
+        }
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(doigts[0].x, doigts[0].y);
+        for (let i = 1; i < doigts.length; i++) {
+            // Feston CONCAVE entre deux doigts : c'est lui, et lui seul, qui fait lire la
+            // membrane de chauve-souris. Relies par des segments droits, les doigts donnent un
+            // eventail.
+            const prev = doigts[i-1], d = doigts[i];
+            const mx = (prev.x + d.x) / 2 - nx * span * 0.40;
+            const my = (prev.y + d.y) / 2 - ny * span * 0.40;
+            ctx.quadraticCurveTo(mx, my, d.x, d.y);
+        }
+        ctx.closePath();
+        // La MEMBRANE prend la teinte du CORPS, pas la couleur identitaire : sur le sprite les
+        // ailes sont de la meme matiere claire que le serpent, et c'est le HALO qui est colore.
+        // Remplies de la couleur identitaire, elles sortaient en feuilles vertes collees au
+        // corps — l'ecart le plus visible avec le sprite.
+        const prevOp = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(2, r * 0.55);
+        ctx.stroke();
+        ctx.globalCompositeOperation = prevOp;
+
+        // Membrane NOIRE quand le skin la declare : la reference (Ulquiorra) porte des ailes
+        // de chauve-souris noires a lisere lumineux, pas les membranes claires du sprite.
+        // Repli sur la teinte du corps pour tout skin qui ne dit rien.
+        ctx.globalAlpha = 0.94;
+        ctx.fillStyle = (this.skinStyle && this.skinStyle.wingColor) || this.bodyTint();
+        ctx.fill();
+
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(1, r * 0.07);
+        ctx.stroke();
+        // Nervures a la couleur identitaire : sur une membrane noire, des nervures sombres
+        // disparaissent purement et simplement.
+        ctx.globalAlpha = 0.45;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(1, r * 0.05);
+        ctx.beginPath();
+        for (const d of doigts) { ctx.moveTo(bx, by); ctx.lineTo(d.x, d.y); }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // Eclaboussures sombres portees par le corps. Statiques : une tache qui se deplacerait sur
+    // la peau lirait comme un defaut d'affichage. Le tirage ne depend que de l'ancrage.
+    drawSplotches(ctx, pts) {
+        const r = this.radius;
+        ctx.fillStyle = (this.skinStyle && this.skinStyle.splotchColor) || '#0b0d10';
+        // Beaucoup de PETITES marques plutot que quelques gros blobs : le sprite porte une pluie
+        // d'eclaboussures fines, et des taches larges et rares lisaient comme des trous dans le
+        // corps. Chaque ancrage retenu porte une marque principale et jusqu'a deux satellites.
+        for (let k = 2; k < pts.length - 2; k++) {
+            if (hash01(k, 4241) > 0.72) continue;
+            const p = pts[k];
+            const nbSat = 1 + Math.floor(hash01(k, 1201) * 3);
+            for (let m = 0; m < nbSat; m++) {
+                const g = k * 31 + m * 7;
+                const side = hash01(g, 811) < 0.5 ? 1 : -1;
+                const off = (0.10 + hash01(g, 97) * 0.90) * SPLOTCH_OFFSET * r * side;
+                // Le satellite est nettement plus petit que la marque qui l'accompagne : a taille
+                // egale on obtient une trame reguliere, pas une projection.
+                const ech = m === 0 ? 1 : 0.34 + hash01(g, 613) * 0.28;
+                const lg = (0.45 + hash01(g, 53) * 0.55) * SPLOTCH_SIZE * r * ech;
+                // L'epaisseur ne se DEDUIT PLUS de la longueur : depuis que les marques sont des
+                // flammeches longues, une epaisseur proportionnelle les faisait deborder du corps
+                // (1,33 r pour un bord a 1 r). Elle est bornee pour elle-meme.
+                const ep = r * (0.17 + hash01(g, 71) * 0.17) * ech;
+                // Decalage LONGITUDINAL du satellite : sans lui les marques s'empilent sur la
+                // meme normale et forment des barres en travers du corps.
+                const lon = m === 0 ? 0 : (hash01(g, 349) - 0.5) * r * 1.3;
+                const cx = p.x + p.nx * off + p.tx * lon, cy = p.y + p.ny * off + p.ty * lon;
+                // FLAMMECHE et non pastille : la marque court LE LONG du corps, s'effile a ses
+                // deux bouts et porte des dents alternees. Le sprite montre des coups de pinceau
+                // noirs, pas des confettis — un contour quasi-elliptique, meme irregulier, ne
+                // donne jamais cette lecture.
+                const N = 7;
+                const bord = (sens) => {
+                    for (let i = 0; i <= N; i++) {
+                        const t = i / N;
+                        // Fuseau : nul aux extremites, maximal au milieu, avec un ventre decale
+                        // pour que la marque ne soit pas symetrique bout a bout.
+                        const fus = Math.pow(Math.sin(Math.PI * t), 0.65 + hash01(g, 421) * 0.5);
+                        // Dents : un sommet sur deux rentre franchement. C'est ce contraste, et
+                        // pas un bruit doux, qui fait la dechirure.
+                        const dent = (i % 2 ? 0.72 : 1) * (0.70 + hash01(g * 23 + i, 131) * 0.55);
+                        const ux = (t * 2 - 1) * lg;
+                        const uy = sens * ep * fus * dent;
+                        const x = cx + p.tx * ux + p.nx * uy, y = cy + p.ty * ux + p.ny * uy;
+                        if (i === 0 && sens > 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    }
+                };
+                ctx.beginPath();
+                bord(1);
+                for (let i = N; i >= 0; i--) {
+                    const t = i / N;
+                    const fus = Math.pow(Math.sin(Math.PI * t), 0.65 + hash01(g, 421) * 0.5);
+                    const dent = (i % 2 ? 0.72 : 1) * (0.70 + hash01(g * 29 + i, 137) * 0.55);
+                    const ux = (t * 2 - 1) * lg, uy = -ep * fus * dent;
+                    ctx.lineTo(cx + p.tx * ux + p.nx * uy, cy + p.ty * ux + p.ny * uy);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    }
+
     boltBranch(ctx, x, y, ang, len, depth, seed) {
         if (depth <= 0 || len < 1.5) return;
         const r = this.radius;
@@ -3031,6 +3687,36 @@ class Snake {
         }
     }
 
+    // Yeux de la tête démoniaque : l'iris prend la COULEUR IDENTITAIRE du skin et s'allume, là
+    // où les yeux ronds et vipère gardent une sclère blanche. Sur un skin à corps clair, c'est
+    // le seul endroit où cette couleur apparaît en aplat vif — sans lui, un corps blanc ne
+    // porterait plus aucun point de couleur et le skin deviendrait méconnaissable.
+    // Silhouette de tête inchangée (toujours r*1.05) : décoration pure, comme les cornes.
+    drawDemonEyes(ctx, head, eo, er) {
+        // Ecartement PROPRE a cette tete : l'ecartement commun (r*0.45) a ete cale pour des yeux
+        // ronds. Avec une amande de 1,35 er de demi-largeur, les deux yeux se recouvraient au
+        // centre du museau et formaient une seule masse verte — vu au gros plan.
+        eo *= 1.25;
+        for (const sign of [0.55, -0.55]) {
+            const ex = head.x + Math.cos(this.angle+sign)*eo, ey = head.y + Math.sin(this.angle+sign)*eo;
+            ctx.save();
+            ctx.translate(ex, ey);
+            ctx.rotate(this.angle);
+            // Halo coupé au palier LOW, comme tout shadowBlur du jeu.
+            if (save.settings.quality !== 'LOW') { ctx.shadowBlur = er * 1.5; ctx.shadowColor = this.color; }
+            ctx.beginPath();
+            ctx.ellipse(0, 0, er * 1.20, er * 0.70, 0, 0, TAU);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, er * 0.26, er * 0.58, 0, 0, TAU);
+            ctx.fillStyle = 'rgba(6,10,8,0.9)';
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
     // Deux cornes triangulaires posées sur le dessus de la tête, hors de son disque —
     // décoration pure, ne change jamais le rayon lu par les autres joueurs. Remplies en sombre
     // et non à this.color : à la couleur du corps elles se noyaient dans la tête et son halo.
@@ -3044,6 +3730,39 @@ class Snake {
             ctx.moveTo(bx + Math.cos(perp)*r*0.3, by + Math.sin(perp)*r*0.3);
             ctx.lineTo(bx - Math.cos(perp)*r*0.3, by - Math.sin(perp)*r*0.3);
             ctx.lineTo(tx, ty);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Cornes de la tête démoniaque : fines et RECOURBÉES vers l'arrière, là où celles de la
+    // vipère sont deux triangles droits. Le triangle, à cette taille, posait deux blocs noirs
+    // qui mangeaient une tête claire — mesuré au rayon 50. Décoration pure : la silhouette lue
+    // par les autres joueurs reste le disque de r*1.05, comme pour toutes les têtes.
+    drawDemonHorns(ctx, head, r) {
+        ctx.fillStyle = 'rgba(8,12,16,0.9)';
+        for (const sign of [1, -1]) {
+            // Base SUR le cercle de la tete, pointe a 2 r du centre et decalee vers l'arriere.
+            // Tout est mesure depuis le CENTRE de la tete : une pointe construite a partir de la
+            // base, en y rajoutant un recul, repassait par-dessus le disque et posait une barre
+            // noire en travers du visage.
+            // Vue DE DESSUS : il n'y a pas de sommet de crane ou planter une corne. Elles
+            // partent de l'ARRIERE-lateral du crane et se recourbent vers l'arriere. Plantees
+            // en avant-lateral (premiere version), elles poussaient depuis les yeux et leur
+            // passaient devant.
+            const ba = this.angle + sign * 2.05;
+            const pa = this.angle + sign * 2.55;
+            const bx = head.x + Math.cos(ba) * r * 0.85, by = head.y + Math.sin(ba) * r * 0.85;
+            const px = head.x + Math.cos(pa) * r * 2.45, py = head.y + Math.sin(pa) * r * 2.45;
+            const ca = this.angle + sign * 2.15;
+            const cx = head.x + Math.cos(ca) * r * 1.75, cy = head.y + Math.sin(ca) * r * 1.75;
+            const perp = ba + Math.PI / 2;
+            const l = r * 0.26;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(perp) * l, by + Math.sin(perp) * l);
+            ctx.quadraticCurveTo(cx, cy, px, py);
+            ctx.quadraticCurveTo(cx - Math.cos(perp) * l, cy - Math.sin(perp) * l,
+                                 bx - Math.cos(perp) * l, by - Math.sin(perp) * l);
             ctx.closePath();
             ctx.fill();
         }
@@ -3071,6 +3790,15 @@ class Snake {
 
     // Dégradé perpendiculaire à la direction de déplacement, positionné sur la seule tête :
     // coût O(1) par frame, indépendant du nombre de segments (jamais de bounding box du corps).
+    // Teinte REELLE du corps. `this.color` est la couleur IDENTITAIRE : elle sert au pseudo, au
+    // classement, a la minimap, a la pastille de boutique et au reseau, et doit donc rester
+    // lisible sur fond sombre. Un skin dont le corps est noir ne peut pas la declarer noire —
+    // il declare `bodyColor` et garde une couleur identitaire vive. Sans ce decouplage, tout
+    // endroit qui peignait avec this.color repeignait le corps de la mauvaise teinte.
+    bodyTint() {
+        return (this.skinStyle && this.skinStyle.bodyColor) || this.color;
+    }
+
     skinGradient(ctx, style, animated) {
         const head = this.segments[0];
         const r = this.radius;
