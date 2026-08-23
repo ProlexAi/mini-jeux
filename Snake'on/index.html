@@ -4001,28 +4001,20 @@ function updateLeaderboard() {
 
 // Ampleur d'un serpent sur la mini-carte : echelle logarithmique de sa masse (jamais du rayon,
 // plafonne a l'ecran par MAX_RADIUS — deux serpents tres differents y seraient identiques).
-// Point d'entree UNIQUE, partage par le trace local (hote/solo) ET le decodage reseau, pour que
-// les deux ne puissent plus diverger — voir MINIMAP_RAD_CAP ci-dessous pour l'incident que ce
-// partage corrige.
-function minimapAmpleur(mass) { return Math.log2(Math.max(1, mass / CONFIG.BASE_MASS)); }
-
-// Rayon (px) d'un point ennemi. Ancien plafond : 6 px, atteint des une masse d'environ 2 560
-// (ampleur 8) — insuffisant maintenant que les bots n'ont plus de plafond de masse (cf. lot
-// precedent) : un bot a 1 500 et un bot a 80 000 y faisaient le MEME point. Releve a 9 px, avec
-// un coefficient recalcule pour n'y saturer que vers ~50 000 de masse, soit un colosse reellement
-// exceptionnel plutot qu'un bot ordinaire en fin de partie.
+// Rayon (px) d'un point ennemi, au CLASSEMENT plutot qu'a la masse — meme principe que le
+// classement CLASSEMENT affiche a l'ecran (top 3 par masse), pas une echelle continue. Le rang
+// 0 designe "hors du top 3". Point d'entree UNIQUE, partage par le trace local (hote/solo) ET le
+// decodage reseau, pour que les deux ne puissent plus diverger.
 //
-// Cote reseau, le CLIENT d'une partie privee ne connait que l'ampleur quantifiee sur 4 bits que
-// l'hote lui envoie (voir hostSendSnapshot) : elle etait ENCODEE en log2(masse)*2 mais RELUE ici
-// avec un coefficient pense pour log2(masse) tout court — deux fois trop grande, donc plafonnee a
-// 6 px pour une masse ~16x plus petite que sur l'ecran de l'hote. Un client voyait donc des points
-// ennemis presque deux fois plus gros, et satures bien plus tot, que ce que l'hote affichait au
-// meme instant. minimapRadFromAmpleur() est desormais l'unique formule de conversion ampleur->px,
-// utilisee IDENTIQUEMENT par le trace local et par le decodage reseau (qui n'encode/relit plus
-// que l'ampleur elle-meme, sans facteur 2).
-const MINIMAP_RAD_MIN = 1.6, MINIMAP_RAD_CAP = 9, MINIMAP_RAD_GAIN = 0.6;
-function minimapRadFromAmpleur(ampleur) {
-    return Math.min(MINIMAP_RAD_CAP, MINIMAP_RAD_MIN + ampleur * MINIMAP_RAD_GAIN);
+// Remplace l'ancienne echelle logarithmique de la masse : meme recalibree (cf. historique de ce
+// fichier), une continue tassait toujours la moitie du classement dans 1-2 px d'ecart, et gonflait
+// n'importe quel bot moyen des qu'il depassait quelques milliers de masse — plus la peine de
+// distinguer "gros" de "enorme" quand la question qui compte est "qui est devant".
+function minimapRadForRank(rank) {
+    if (rank === 1) return 6;
+    if (rank === 2) return 4;
+    if (rank === 3) return 2;
+    return 1;
 }
 
 function drawMinimap() {
@@ -4060,7 +4052,8 @@ function drawMinimap() {
             const info = netRoster.get(netOrder[p.i]);
             const mine = p.t === NET_MM_SOI;
             const px = mx(p.x / K * CONFIG.WORLD_WIDTH), py = my(p.y / K * CONFIG.WORLD_HEIGHT);
-            const rad = mine ? 3 : minimapRadFromAmpleur(p.a);
+            // p.a transporte le RANG (1-3, 0 = hors podium), calcule par l'hote — cf. hostSendSnapshot.
+            const rad = mine ? 3 : minimapRadForRank(p.a);
             minimapCtx.beginPath();
             minimapCtx.arc(px, py, rad, 0, TAU);
             minimapCtx.fillStyle = mine ? '#00ffcc' : (info ? info.color : '#888');
@@ -4075,13 +4068,14 @@ function drawMinimap() {
         return;
     }
 
-    // Le point grossit avec la MASSE : a taille fixe, un colosse et un nouveau-ne etaient deux
-    // points identiques, et une menace occupant une region entiere de la carte passait inapercue.
-    // Echelle logarithmique, sinon un serpent tres lourd noierait la carte comme il noyait
-    // l'ecran. Le lisere reprend le code de menace du jeu, pour que la carte reponde a la meme
-    // question : ou sont les predateurs, ou sont les proies.
-    for (const s of aliveSnakes()) {
-        const rad = s.isPlayer ? 3 : minimapRadFromAmpleur(minimapAmpleur(s.mass));
+    // Le point grossit avec le RANG (masse decroissante), pas une taille fixe : top 1 se repere
+    // d'un coup d'oeil, le reste de la meute ne noie plus la carte a coups de points geants des
+    // que la masse grimpe. Le lisere reprend le code de menace du jeu, pour que la carte reponde
+    // a la meme question : ou sont les predateurs, ou sont les proies.
+    const parRang = aliveSnakes().slice().sort((a, b) => b.mass - a.mass);
+    for (let idx = 0; idx < parRang.length; idx++) {
+        const s = parRang[idx];
+        const rad = s.isPlayer ? 3 : minimapRadForRank(idx + 1);
         minimapCtx.beginPath();
         minimapCtx.arc(mx(s.x), my(s.y), rad, 0, TAU);
         minimapCtx.fillStyle = s.isPlayer ? '#00ffcc' : s.color;
@@ -5892,7 +5886,10 @@ function decodeSnapshot(buf) {
             const x = dv.getUint8(o); o += 1;
             const y = dv.getUint8(o); o += 1;
             const b = dv.getUint8(o); o += 1;
-            out.mm.push({ i, x, y, t: b >> 6, a: (b & 15) / 2 });
+            // 'a' porte le RANG (1-3, 0 = hors podium) depuis hostSendSnapshot, un entier — plus
+            // le facteur /2 hérité de l'ancienne amplitude doublée, qui donnait ici 0,5/1/1,5 au
+            // lieu de 1/2/3 et faisait retomber minimapRadForRank() sur le rang "hors podium".
+            out.mm.push({ i, x, y, t: b >> 6, a: b & 15 });
         }
     }
     return out;
@@ -6170,27 +6167,21 @@ function hostSendSnapshot(dt) {
     const pups = powerups.map(p => ({ id: p.id, x: p.x, y: p.y, t: POWERUP_TYPES.indexOf(p.type) }));
     const lb = top3.map(s => ({ i: netIndexOf.get(s.netId), m: s.mass }));
 
-    // Base de la minimap : position et ampleur, identiques pour tous. Seule la MENACE se juge par
-    // rapport à celui qui regarde, et s'ajoute donc dans la boucle des clients.
+    // Base de la minimap : position et RANG (1-3, 0 = hors podium), identiques pour tous — le
+    // meme `sorted` que le classement top3 ci-dessus, donc la meme reponse a "qui est devant".
+    // Seule la MENACE se juge par rapport à celui qui regarde, et s'ajoute donc dans la boucle
+    // des clients.
     netMinimapAccum += dt;
     let mmBase = null;
     if (netMinimapAccum >= NET_MINIMAP_MS) {
         netMinimapAccum = 0;
         const K = NET_MM_PRECISION;
-        mmBase = all.map(s => ({
+        mmBase = sorted.map((s, idx) => ({
             s,
             i: netIndexOf.get(s.netId),
             x: Math.round(s.x / CONFIG.WORLD_WIDTH * K),
             y: Math.round(s.y / CONFIG.WORLD_HEIGHT * K),
-            // Ampleur (minimapAmpleur) quantifiee a l'entier le plus proche, sur 4 bits : au-dela
-            // de 15, minimapRadFromAmpleur() plafonne de toute facon a MINIMAP_RAD_CAP, la perte
-            // de precision est invisible. AVANT : la valeur transmise etait doublee (`*2`) pour
-            // gagner un demi-palier de precision, mais le client la relisait avec le MEME
-            // coefficient que l'hote applique a l'ampleur NON doublee — ses points ennemis
-            // faisaient donc grossierement le double de ceux de l'hote, et saturaient a une masse
-            // ~16x plus petite (mesure : ampleur reelle 3 -> rayon hote 3,25 px, rayon client
-            // 4,90 px). Le champ transporte maintenant l'ampleur telle quelle, sans facteur cache.
-            a: Math.max(0, Math.min(15, Math.round(Math.log2(Math.max(1, s.mass / CONFIG.BASE_MASS))))),
+            a: idx < 3 ? idx + 1 : 0,
         }));
     }
 
@@ -6349,6 +6340,34 @@ function applySnapshot(buf) {
 }
 
 // Un pas de simulation côté client : aucune règle de jeu, seulement du rattrapage visuel.
+// Repousse la tete de `snake` (le joueur local) hors du corps de tout serpent netSnakes au moins
+// aussi lourd — meme regle, meme geometrie que le "Mur" de checkCollisions() (segment le plus
+// proche parmi un echantillon au pas du rayon, un seul push par serpent touche), mais jouee EN
+// LOCAL sur le client au lieu d'etre subie via la correction reseau. Voir l'appel dans
+// netClientStep() pour l'incident que ca corrige.
+function netAvoidWalls(snake) {
+    for (const o of netSnakes.values()) {
+        if (o === snake || !o.alive || o.segments.length === 0) continue;
+        if (!snake.canBeEaten() || !o.canBeEaten()) continue;   // bouclier = fantome
+        if (snake.beats(o)) continue;   // pas un mur pour moi : une proie, l'hote s'en charge
+        const reach = snake.radius + o.radius;
+        if (Math.hypot(snake.x - o.x, snake.y - o.y) > reach + o.segments.length * CONFIG.BASE_SPEED) continue;
+        const stride = Math.max(1, Math.round(o.radius / CONFIG.BASE_SPEED));
+        let bestSeg = null, bestD = Infinity;
+        for (let i = 0; i < o.segments.length; i += stride) {
+            const seg = o.segments[i];
+            const d = Math.hypot(snake.x - seg.x, snake.y - seg.y);
+            if (d < reach && d < bestD) { bestD = d; bestSeg = seg; }
+        }
+        if (!bestSeg) continue;
+        const dx = snake.x - bestSeg.x, dy = snake.y - bestSeg.y;
+        const dd = bestD || 1;
+        const push = reach - dd;
+        snake.x += (dx / dd) * push;
+        snake.y += (dy / dd) * push;
+    }
+}
+
 function netClientStep() {
     if (gameState === 'SPECTATING' && (gnow() >= spectateEndsAt || !spectateTarget || !spectateTarget.alive)) {
         finishSpectate();
@@ -6363,6 +6382,17 @@ function netClientStep() {
     const predictSelf = player && player.alive && gameState !== 'PAUSED';
     if (predictSelf) {
         player.update(screenToWorld(pointer.x, pointer.y), NET_NO_SNAKES, foodGrid);
+        // Mur LOCAL : sans lui, ma prediction traverse librement le corps d'un serpent plus gros
+        // (NET_NO_SNAKES ci-dessus = aucune collision testee), pendant que l'hote, lui, me bloque
+        // reellement chez lui et me le fait seulement savoir via la correction ci-dessous. Chaque
+        // tick, j'avance localement puis me fais tirer en arriere vers sa verite immobile : au
+        // regime permanent les deux s'annulent — je me sens arrete par un mur invisible, sans
+        // aucun corps a l'endroit ou je m'arrete (jamais reproduit cote hote, qui applique ce
+        // meme mur EN LOCAL des la premiere frame, cf. checkCollisions). netAvoidWalls() rejoue
+        // ici la meme regle a partir de ce que je vois deja (netSnakes) : approximative d'un tick
+        // (leur position n'est mise a jour qu'un peu plus bas), mais assez pour que je VOIE et
+        // SENTE le blocage au lieu de le subir en silence.
+        netAvoidWalls(player);
         const tgt = netTargets.get(party.selfId);
         if (tgt) {
             player.x += (tgt.x - player.x) * NET_SELF_CORRECTION;
