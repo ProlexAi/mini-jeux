@@ -1227,7 +1227,7 @@ const CONFIG = {
     MAX_HISTORY: 10,
     MAX_LENGTH: 800,
     SPAWN_SHIELD_MS: 3000,   // bouclier a l'apparition : 45 adversaires, dont certains deja plus gros
-    BOT_MAX_LENGTH: 300,     // plafond des bots : evite qu'un seul finisse par dominer toute l'arene
+    BOT_MAX_LENGTH: 800,     // plafond des bots, aligne sur MAX_LENGTH : meme limite que le joueur
     // GARDE-FOU de rendu, pas une regle de jeu : le rayon ne plafonne plus, il suit la masse par
     // une courbe amortie (RADIUS_EXPONENT). Un plafond dur detruisait l'information — au-dela,
     // deux serpents dont l'un pouvait devorer l'autre etaient identiques a l'ecran, ecart mesure
@@ -1248,14 +1248,18 @@ const CONFIG = {
     // Traque des bots. Sans bornes, un bot ne lachait jamais sa proie et l'empechait de grossir :
     // sa vitesse etant quasi identique, il restait colle et coupait la queue a chaque croissance
     // (cf. analyse-concurrence.md §2).
-    BOT_CHASE_RANGE: 300,      // distance a laquelle un bot engage la poursuite
-    BOT_CHASE_GIVEUP: 520,     // au-dela, il abandonne : une proie qui a pris le large est lachee
+    BOT_CHASE_RANGE: 380,      // distance a laquelle un bot engage la poursuite
+    BOT_CHASE_GIVEUP: 650,     // au-dela, il abandonne : une proie qui a pris le large est lachee
     BOT_CHASE_MAX_MS: 4500,    // duree maximale d'une poursuite, quoi qu'il arrive
     BOT_CHASE_COOLDOWN: 3000,  // repos avant de pouvoir rengager, pour laisser respirer la proie
-    BOT_CHASE_SPEED: 0.92,     // un poursuivant est TOUJOURS plus lent que sa proie
+    BOT_CHASE_SPEED: 0.97,     // un poursuivant reste TOUJOURS plus lent que sa proie (jamais 1)
+    BOT_FLEE_RANGE: 150,       // distance a laquelle un bot detecte un predateur et fuit
     BASE_MASS: 10,             // masse de depart, egale a la longueur de depart
     EAT_MASS_RATIO: 1.25,      // +25 % de masse pour absorber (modele agar.io, cf. analyse-concurrence.md §1)
-    BOT_MAX_MASS: 1500,        // plafond de masse des bots ; le joueur n'en a aucun
+    // Plus de plafond de masse pour les bots : le joueur n'en a aucun, un adversaire capable de
+    // le rattraper et de le battre en jeu long en a besoin lui aussi. Seul BOT_MAX_LENGTH continue
+    // de plafonner leur affichage (segments), comme MAX_LENGTH le fait pour le joueur.
+    BOT_MAX_MASS: Infinity,
     // Masse a laquelle la vitesse atteint son plancher. La masse n'ayant pas de plafond, la
     // courbe doit saturer quelque part, sinon un serpent tres lourd finirait immobile.
     SPEED_REF_MASS: 650,
@@ -2707,9 +2711,11 @@ class Snake {
         this.kills = 0;
         this.turnSmoothing = 0.1;
         this.maxLength = isPlayer ? CONFIG.MAX_LENGTH : CONFIG.BOT_MAX_LENGTH;
-        // Plafond de masse des bots : sans lui, un bot laisse tourner 15 minutes atteignait
-        // 31 574 de masse — devenu indevorable, il remplissait l'ecran de son propre corps.
-        // Le joueur, lui, n'a aucun plafond de masse : c'est sa progression.
+        // Masse des bots SANS PLAFOND, comme celle du joueur (BOT_MAX_MASS = Infinity) : un bot
+        // qui survit longtemps doit pouvoir devenir une vraie menace, pas plafonner a 1500 pendant
+        // que le joueur grimpe sans limite. Le rayon affiche reste borne par MAX_RADIUS, donc un
+        // bot tres lourd ne remplit pas l'ecran pour autant — seules sa masse (predation, vitesse)
+        // et sa longueur (segments, plafonnee separement par BOT_MAX_LENGTH) en tiennent compte.
         this.maxMass = isPlayer ? Infinity : CONFIG.BOT_MAX_MASS;
         // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
         this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
@@ -2833,7 +2839,7 @@ class Snake {
                 if (o === this || !o.alive) continue;
                 if (o.beats(this)) {
                     const d = Math.hypot(o.x - this.x, o.y - this.y);
-                    if (d < 150) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
+                    if (d < CONFIG.BOT_FLEE_RANGE) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
                 }
             }
         }
@@ -4196,6 +4202,7 @@ function endGame(opts) {
     // majoree du bonus de victoire. Un abandon hors du top 1 ne passe jamais par ici.
     const won = !!(opts && opts.won);
     const size = Math.round(player ? player.length : 0);
+    const mass = Math.round(player ? player.mass : 0);
     const duration = Math.floor(gameClock / 1000);
     const xpBase = Math.floor(size * 0.5) + sessionKills * 15;
     const xpGain = won ? Math.floor(xpBase * CONFIG.WIN_XP_MULTIPLIER) : xpBase;
@@ -4204,7 +4211,9 @@ function endGame(opts) {
     save.games++;
     save.totalTime += duration;
     save.kills += sessionKills;
-    if (size > save.bestSize) save.bestSize = size;
+    // Record = la MASSE, pas la taille affichee (celle-ci plafonne a MAX_LENGTH) : sinon deux
+    // parties qui depassent le plafond affichent le meme record alors que l'une a mange 5x plus.
+    if (mass > save.bestSize) save.bestSize = mass;
 
     save.history.unshift({ size, kills: sessionKills, duration, won, date: new Date().toLocaleDateString('fr-FR') });
     while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
