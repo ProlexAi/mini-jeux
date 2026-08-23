@@ -182,8 +182,8 @@
         }
         .shop-pane { display: none; }
         .shop-pane.active { display: block; }
-        .effects-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .effect-card {
+        .effects-grid, .colors-grid, .skins-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .effect-card, .color-card, .skin-card {
             position: relative; min-height: 76px; cursor: pointer;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 6px; padding: 10px 8px;
@@ -195,11 +195,75 @@
             width: 46px; height: 10px; border-radius: 5px;
             box-shadow: 0 0 10px currentColor;
         }
-        .effect-card.selected { border-color: #fff; transform: scale(1.03); }
-        .effect-card.locked { opacity: 0.4; cursor: not-allowed; }
-        .effect-card .unlock-level {
+        /* Aperçu de serpent, partagé par les catégories Couleurs et Skins. Il porte toujours la
+           TEINTE CHOISIE (`currentColor`, posé par le JS) : c'est ce qui rend les deux grilles
+           honnêtes une fois la couleur découplée de la forme — sur « Couleurs » seule la teinte
+           change d'une carte à l'autre, sur « Skins » seule la géométrie change.
+           Le halo passe par `filter: drop-shadow` et non `box-shadow` : les têtes sculptées sont
+           découpées au `clip-path`, qui rogne une box-shadow mais pas un drop-shadow. */
+        .snake-preview {
+            position: relative; width: 58px; height: 16px;
+            filter: drop-shadow(0 0 6px currentColor);
+        }
+        .snake-preview i { position: absolute; display: block; background: currentColor; }
+        .snake-preview .body { left: 0; top: 4px; width: 46px; height: 8px; border-radius: 4px; }
+        .snake-preview .head { right: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; }
+        /* Écailles de la vignette. Elles reprennent les trois plans du rendu en jeu — flancs à la
+           couleur pure, bande dorsale éclaircie, rangs sombres inclinés — pour que la carte ne
+           promette pas autre chose que ce qui sera joué. Le pas suit SCALE_STEP à l'échelle de la
+           vignette : cinq rangs sur les 46 px du corps, comme cinq rangs par 4 r en jeu. */
+        .snake-preview .body::before, .snake-preview .body::after {
+            content: ''; position: absolute; inset: 0; border-radius: inherit;
+        }
+        .snake-preview .body::before {
+            background: linear-gradient(180deg, transparent 18%,
+                        color-mix(in srgb, #fff 42%, transparent) 34% 66%, transparent 82%);
+        }
+        .snake-preview .body::after {
+            background: repeating-linear-gradient(74deg,
+                        color-mix(in srgb, #000 46%, transparent) 0 1.5px, transparent 1.5px 8px);
+        }
+        .snake-preview .head::after {
+            content: ''; position: absolute; left: 22%; top: 28%; width: 62%; height: 44%;
+            border-radius: 50%; background: color-mix(in srgb, #fff 40%, transparent);
+        }
+        /* Motifs de forme. Les six clés de `style` sont représentées, aucune n'est laissée de
+           côté : deux formes voisines ne doivent jamais rendre la même vignette, sans quoi la
+           grille promet un choix qu'elle ne montre pas. */
+        /* Le pointillé passe par un MASQUE, pas par un `background` en tirets : « Cristal » porte
+           en jeu un pointillé ET un dégradé, et deux règles de `background` se seraient écrasées
+           l'une l'autre — la dernière déclarée gagnant, la vignette aurait perdu son pointillé.
+           Un masque se compose avec n'importe quel fond. */
+        .snake-preview.dash .body {
+            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 12px);
+            mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 12px);
+        }
+        .snake-preview.grad .body {
+            background: linear-gradient(90deg, currentColor, color-mix(in srgb, currentColor 40%, #fff));
+        }
+        .snake-preview.head-viper .head { clip-path: polygon(0 6%, 100% 50%, 0 94%); }
+        .snake-preview.head-predator .head { clip-path: polygon(0 0, 100% 50%, 0 100%, 26% 50%); }
+        .snake-preview.glow { filter: drop-shadow(0 0 11px currentColor); }
+        /* Traînée : une écharpe qui s'efface vers l'arrière, posée SOUS le corps et débordant à
+           gauche de la vignette — c'est bien ce que la forme laisse derrière elle en jeu. */
+        .snake-preview.trail .tail {
+            left: -10px; top: 6px; width: 26px; height: 4px; border-radius: 2px;
+            background: linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 65%, #fff));
+        }
+        @media (prefers-reduced-motion: no-preference) {
+            .snake-preview.dash .body { animation: shopDash 1.1s linear infinite; }
+            .snake-preview.pulse { animation: shopPulse 1.4s ease-in-out infinite; }
+        }
+        @keyframes shopDash { to { -webkit-mask-position: 12px 0; mask-position: 12px 0; } }
+        @keyframes shopPulse { 50% { opacity: 0.42; } }
+        .effect-card.selected, .color-card.selected, .skin-card.selected { border-color: #fff; transform: scale(1.03); }
+        .effect-card.locked, .color-card.locked, .skin-card.locked { opacity: 0.4; cursor: not-allowed; }
+        .effect-card .unlock-level, .color-card .unlock-level, .skin-card .unlock-level {
             font-size: 10px; color: var(--warning); font-family: var(--font-head);
         }
+        /* Le nom porte la teinte : sur une carte verrouillée, l'aperçu est atténué à 40 % et le
+           nom reste le seul repère lisible de ce qu'on débloque. */
+        .color-card .name, .skin-card .name { color: currentColor; }
 
         /* Légende du liseré, écran de bienvenue. Les trois pastilles reprennent les teintes ET
            les épaisseurs réelles du jeu : la légende reste donc exacte pour qui ne distingue
@@ -383,29 +447,6 @@
         }
         .stat-box .val { font-size: 18px; font-weight: bold; color: var(--accent); }
         .stat-box .label { font-size: 10px; color: #aaa; }
-
-        /* ===== SKINS ===== */
-        .skins-row {
-            display: flex; flex-wrap: wrap; justify-content: center;
-            gap: 10px; margin: 10px 0; max-width: 400px;
-        }
-        .skin-btn {
-            width: 44px; height: 44px; border-radius: 50%; padding: 0;
-            border: 3px solid transparent; cursor: pointer;
-            position: relative; transition: transform 0.15s;
-        }
-        .skin-btn.selected { border-color: white; transform: scale(1.15); }
-        .skin-btn.locked { opacity: 0.3; cursor: not-allowed; }
-        .skin-btn.locked::after {
-            content: '\1F512'; position: absolute;
-            top: 50%; left: 50%; transform: translate(-50%,-50%);
-            font-size: 14px;
-        }
-        .skin-btn .unlock-level {
-            position: absolute; bottom: -5px; right: -5px;
-            background: rgba(0,0,0,0.8); color: white;
-            font-size: 9px; padding: 1px 3px; border-radius: 3px;
-        }
 
         /* ===== HISTORY ===== */
         .history-table {
@@ -846,7 +887,6 @@
             <div class="nav-entry">
                 <button class="tab-btn nav-bar active" data-tab="skins">
                     <span class="nav-label" data-i18n="tabSkins">🛒 Boutique</span>
-        shopEffects: 'Effets', shopSkins: 'Skins', effectsHint: 'Un effet se pose par-dessus ta forme.',
                     <span class="nav-chevron">❯</span><span class="nav-code">A01</span>
                     <span class="hachure" style="width:22px"></span>
                 </button>
@@ -886,22 +926,29 @@
             </div>
         </div>
         <div id="tab-skins" class="tab-content active">
-            <!-- Boutique : deux catégories. « Effets » est la première et celle ouverte par
-                 défaut (demande de Matt) ; « Skins » garde la grille des dix formes. Un effet
-                 se pose PAR-DESSUS une forme, les deux choix sont indépendants. -->
+            <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. « Couleurs » est
+                 la première et celle ouverte par défaut — c'est l'entrée de gamme, acquise dès
+                 les premiers niveaux. Les trois axes sont INDÉPENDANTS : une teinte unie, une
+                 forme qui lui donne son motif, un effet qui se pose par-dessus. -->
             <div class="shop-cats" role="tablist">
-                <button type="button" class="shop-cat active" data-cat="effects" role="tab" aria-selected="true"
-                        data-i18n="shopEffects">Effets</button>
+                <button type="button" class="shop-cat active" data-cat="colors" role="tab" aria-selected="true"
+                        data-i18n="shopColors">Couleurs</button>
                 <button type="button" class="shop-cat" data-cat="skins" role="tab" aria-selected="false"
                         data-i18n="shopSkins">Skins</button>
+                <button type="button" class="shop-cat" data-cat="effects" role="tab" aria-selected="false"
+                        data-i18n="shopEffects">Effets</button>
             </div>
-            <div id="shop-effects" class="shop-pane active">
-                <div class="effects-grid" id="effectsGrid"></div>
-                <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
+            <div id="shop-colors" class="shop-pane active">
+                <div class="colors-grid" id="colorsGrid"></div>
+                <div class="hint" data-i18n="colorsHint">Une couleur unie, sans motif ni aura.</div>
             </div>
             <div id="shop-skins" class="shop-pane">
-                <div class="skins-row" id="skinsRow"></div>
+                <div class="skins-grid" id="skinsRow"></div>
                 <div class="hint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
+            </div>
+            <div id="shop-effects" class="shop-pane">
+                <div class="effects-grid" id="effectsGrid"></div>
+                <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
             </div>
         </div>
         <div id="tab-stats" class="tab-content">
@@ -1171,19 +1218,53 @@ const CONFIG = {
     // lineCap='round' rallonge chaque tiret de r*0.35 de chaque cote. Un trou plus court que
     // r*0.7 est donc entierement comble par les deux caps et le pointille disparait — mesure :
     // un dash [6,4] sur un serpent de rayon 15 changeait exactement 0 pixel.
+    // Un nom de forme ne cite plus sa couleur ("Rose Ecailles" est devenu "Ecailles") : depuis la
+    // categorie "Couleurs", la teinte se choisit ailleurs, et un serpent rouge etiquete "Cyan
+    // Classique" aurait ete un mensonge affiche. `color` reste, mais n'est plus la teinte portee :
+    // c'est la teinte D'ORIGINE de la forme, dont migrateSkinSave() se sert pour deviner quelle
+    // couleur rendre a un joueur d'avant le decouplage. `gradient` et `hueStops` sont de meme des
+    // valeurs de reference : currentStyle() les rederive de la couleur choisie.
+    // `scales:true` porte le rendu ecailleux — c'est desormais l'allure de reference du serpent,
+    // dont les entrees de COLORS sont les variantes de teinte.
+    //
+    // `fixedColor:true` marque un SPECIAL : sa teinte est celle du dessin, la couleur choisie en
+    // boutique ne s'y applique pas (voir playerColor). Aucune forme n'en porte encore — le champ
+    // existe pour que les speciaux a venir s'ajoutent sans toucher au rendu.
     SKINS: [
-        { name:'Cyan Classique', color:'#00ffcc', unlockLevel:1, style:{} },
-        { name:'Rose Écailles', color:'#ff00ff', unlockLevel:2, style:{ dash:[0.45,1.3], dashAnim:true } },
-        { name:'Jaune Dégradé', color:'#ffcc00', unlockLevel:3, style:{ gradient:['#ffcc00','#fff6c8'] } },
-        { name:'Bleu Pulsé', color:'#00ccff', unlockLevel:4, style:{ pulse:true } },
-        { name:'Vert Vipère', color:'#00ff66', unlockLevel:5, style:{ head:'viper' } },
-        { name:'Orange Braise', color:'#ff6600', unlockLevel:7, style:{ trail:true, trailColor:'#ffd08a' } },
-        { name:'Rouge Prédateur', color:'#ff0055', unlockLevel:9, style:{ head:'predator' } },
-        { name:'Blanc Spectral', color:'#ffffff', unlockLevel:12, style:{ dash:[0.25,1.0], dashAnim:true, pulse:true } },
-        { name:'Violet Cristal', color:'#cc00ff', unlockLevel:15, style:{ gradient:['#cc00ff','#ff9dff'], dash:[0.6,1.15], dashAnim:true } },
-        { name:'Doré Légendaire', color:'#ffd700', unlockLevel:20, style:{ hueShift:true,
+        { name:'Classique', color:'#00ffcc', unlockLevel:1, style:{ scales:true } },
+        { name:'Écailles', color:'#ff00ff', unlockLevel:2, style:{ scales:true, dash:[0.45,1.3], dashAnim:true } },
+        { name:'Dégradé', color:'#ffcc00', unlockLevel:3, style:{ scales:true, gradient:['#ffcc00','#fff6c8'] } },
+        { name:'Pulsé', color:'#00ccff', unlockLevel:4, style:{ scales:true, pulse:true } },
+        { name:'Vipère', color:'#00ff66', unlockLevel:5, style:{ scales:true, head:'viper' } },
+        { name:'Braise', color:'#ff6600', unlockLevel:7, style:{ scales:true, trail:true, trailColor:'#ffd08a' } },
+        { name:'Prédateur', color:'#ff0055', unlockLevel:9, style:{ scales:true, head:'predator' } },
+        { name:'Spectral', color:'#ffffff', unlockLevel:12, style:{ scales:true, dash:[0.25,1.0], dashAnim:true, pulse:true } },
+        { name:'Cristal', color:'#cc00ff', unlockLevel:15, style:{ scales:true, gradient:['#cc00ff','#ff9dff'], dash:[0.6,1.15], dashAnim:true } },
+        { name:'Légendaire', color:'#ffd700', unlockLevel:20, style:{ scales:true, hueShift:true,
             hueStops:[['#ffd700','#fff6c8'],['#ffae00','#ffe08a'],['#fff2b0','#ffd700']],
             head:'predator', glowBoost:true } },
+    ],
+
+    // COULEURS — categorie "Couleurs" de la boutique, la premiere et celle ouverte par defaut.
+    // Une couleur est une TEINTE UNIE : elle habille le serpent sans lui donner de motif, de tete
+    // sculptee ni d'aura. C'est le contenu d'entree de gamme, d'ou des paliers serres (1 a 10)
+    // la ou une forme demande 1 a 20 et un effet 25 a 35.
+    // Les teintes reprennent exactement celles des dix formes : la boutique ne montre pas dix
+    // couleurs inedites, elle montre les serpents deja connus DEPOUILLES de leur decoration —
+    // seule la couleur differe d'une pastille a l'autre.
+    // Choisir une couleur neutralise les cles de TEINTE de la forme (degrade, hueShift,
+    // trailColor) sans toucher a sa geometrie (pointille, tete, pulsation) : voir currentStyle().
+    COLORS: [
+        { id:'cyan',   name:'Cyan',    hex:'#00ffcc', unlockLevel:1 },
+        { id:'rose',   name:'Rose',    hex:'#ff00ff', unlockLevel:1 },
+        { id:'jaune',  name:'Jaune',   hex:'#ffcc00', unlockLevel:2 },
+        { id:'bleu',   name:'Bleu',    hex:'#00ccff', unlockLevel:3 },
+        { id:'vert',   name:'Vert',    hex:'#00ff66', unlockLevel:4 },
+        { id:'orange', name:'Orange',  hex:'#ff6600', unlockLevel:5 },
+        { id:'rouge',  name:'Rouge',   hex:'#ff0055', unlockLevel:6 },
+        { id:'blanc',  name:'Blanc',   hex:'#ffffff', unlockLevel:7 },
+        { id:'violet', name:'Violet',  hex:'#cc00ff', unlockLevel:8 },
+        { id:'dore',   name:'Doré',    hex:'#ffd700', unlockLevel:10 },
     ],
 
     // EFFETS — categorie "Effets" de la boutique. Un effet se pose PAR-DESSUS une forme, il ne
@@ -1251,6 +1332,16 @@ const LICK_MAX_ALPHA = 0.25;    // plafond de la passe repassee DEVANT le coeur
 // detail voulu, et AURA_MAX_POINTS borne le cout dans le pire cas (serpent tres long et fin).
 const AURA_STEP = 0.6;
 const AURA_MAX_POINTS = 90;
+
+// ECAILLES — texture du serpent classique, dont les couleurs de la boutique sont les variantes.
+// Toutes les mesures sont en MULTIPLES DE r, jamais en pixels : le rayon va de 8 a 130 pendant
+// une partie, un motif en pixels absolus se noierait sur un gros serpent et boucherait un petit.
+// SCALE_SPAN est borne SOUS 1 : le lisere de menace est plaque a partir du bord du corps, et une
+// ecaille qui le recouvrirait effacerait la seule information qui dit s'il faut foncer ou fuir.
+const SCALE_STEP  = 0.82;   // un rang d'ecailles tous les 0,82 r le long du corps
+const SCALE_SPAN  = 0.88;   // demi-largeur d'un rang, en r (< 1 : ne touche jamais le lisere)
+const SCALE_SWEEP = 0.60;   // creux de l'arc vers l'arriere, en r — donne l'imbrication
+const SCALE_MIN_R = 6;      // sous ce rayon un rang n'est plus qu'un aplat de bruit : on l'omet
 
 // Inclinaison des excroissances vers la queue, en fraction de la tangente. Le feu est couche
 // par la course, la fumee s'etire mollement derriere, la foudre ne se couche pas — elle jaillit
@@ -1458,6 +1549,9 @@ const TRANSLATIONS = {
     fr: {
         tabSkins: '🛒 Boutique', tabStats: '📊 Stats', tabHistory: '📜 Historique',
         tabAchievements: '🏅 Succès', tabSettings: '⚙️ Réglages',
+        shopColors: 'Couleurs', shopSkins: 'Skins', shopEffects: 'Effets',
+        colorsHint: 'Une couleur unie, sans motif ni aura.',
+        effectsHint: 'Un effet se pose par-dessus ta forme.',
         level: 'Niveau', pseudoPlaceholder: 'Ton pseudo', skinsHint: 'Monte de niveau pour débloquer des skins !',
         statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
         colNum: '#', colSize: 'Taille', colKills: 'Kills', colDuration: 'Durée', noGames: 'Aucune partie',
@@ -1501,7 +1595,9 @@ const TRANSLATIONS = {
     },
     en: {
         tabSkins: '🛒 Shop', tabStats: '📊 Stats', tabHistory: '📜 History',
-        shopEffects: 'Effects', shopSkins: 'Skins', effectsHint: 'An effect layers over your shape.',
+        shopColors: 'Colours', shopSkins: 'Skins', shopEffects: 'Effects',
+        colorsHint: 'A solid colour, no pattern and no aura.',
+        effectsHint: 'An effect layers over your shape.',
         tabAchievements: '🏅 Achievements', tabSettings: '⚙️ Settings',
         level: 'Level', pseudoPlaceholder: 'Your nickname', skinsHint: 'Level up to unlock skins!',
         statBest: 'Best', statKills: 'Kills', statGames: 'Games', statTime: 'Time',
@@ -1546,7 +1642,9 @@ const TRANSLATIONS = {
     },
     es: {
         tabSkins: '🛒 Tienda', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
-        shopEffects: 'Efectos', shopSkins: 'Skins', effectsHint: 'Un efecto se superpone a tu forma.',
+        shopColors: 'Colores', shopSkins: 'Skins', shopEffects: 'Efectos',
+        colorsHint: 'Un color liso, sin patrón ni aura.',
+        effectsHint: 'Un efecto se superpone a tu forma.',
         tabAchievements: '🏅 Logros', tabSettings: '⚙️ Ajustes',
         level: 'Nivel', pseudoPlaceholder: 'Tu apodo', skinsHint: '¡Sube de nivel para desbloquear aspectos!',
         statBest: 'Récord', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tiempo',
@@ -1591,7 +1689,9 @@ const TRANSLATIONS = {
     },
     de: {
         tabSkins: '🛒 Shop', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
-        shopEffects: 'Effekte', shopSkins: 'Skins', effectsHint: 'Ein Effekt legt sich über deine Form.',
+        shopColors: 'Farben', shopSkins: 'Skins', shopEffects: 'Effekte',
+        colorsHint: 'Eine einfarbige Farbe, ohne Muster und ohne Aura.',
+        effectsHint: 'Ein Effekt legt sich über deine Form.',
         tabAchievements: '🏅 Erfolge', tabSettings: '⚙️ Einstellungen',
         level: 'Level', pseudoPlaceholder: 'Dein Spitzname', skinsHint: 'Steige auf, um Skins freizuschalten!',
         statBest: 'Rekord', statKills: 'Kills', statGames: 'Runden', statTime: 'Zeit',
@@ -1636,7 +1736,9 @@ const TRANSLATIONS = {
     },
     it: {
         tabSkins: '🛒 Negozio', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
-        shopEffects: 'Effetti', shopSkins: 'Skin', effectsHint: 'Un effetto si sovrappone alla tua forma.',
+        shopColors: 'Colori', shopSkins: 'Skin', shopEffects: 'Effetti',
+        colorsHint: 'Un colore pieno, senza motivo né aura.',
+        effectsHint: 'Un effetto si sovrappone alla tua forma.',
         tabAchievements: '🏅 Obiettivi', tabSettings: '⚙️ Impostazioni',
         level: 'Livello', pseudoPlaceholder: 'Il tuo soprannome', skinsHint: 'Sali di livello per sbloccare le skin!',
         statBest: 'Record', statKills: 'Kills', statGames: 'Partite', statTime: 'Tempo',
@@ -1681,7 +1783,9 @@ const TRANSLATIONS = {
     },
     pt: {
         tabSkins: '🛒 Loja', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
-        shopEffects: 'Efeitos', shopSkins: 'Skins', effectsHint: 'Um efeito sobrepõe-se à tua forma.',
+        shopColors: 'Cores', shopSkins: 'Skins', shopEffects: 'Efeitos',
+        colorsHint: 'Uma cor lisa, sem padrão nem aura.',
+        effectsHint: 'Um efeito sobrepõe-se à tua forma.',
         tabAchievements: '🏅 Conquistas', tabSettings: '⚙️ Definições',
         level: 'Nível', pseudoPlaceholder: 'A tua alcunha', skinsHint: 'Sobe de nível para desbloquear skins!',
         statBest: 'Recorde', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tempo',
@@ -1954,7 +2058,7 @@ const music = new MusicEngine(audio);
 // ============================================================
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
-    kills: 0, games: 0, totalTime: 0, selectedSkin: 0, selectedEffect: 'none',
+    kills: 0, games: 0, totalTime: 0, selectedSkin: 0, selectedEffect: 'none', selectedColor: '',
     seenWelcome: false, pseudo: '',
     settings: {
         musicVolume: 70, sfxVolume: 100, quality: 'MEDIUM',
@@ -2018,12 +2122,41 @@ function migrateSkinSave() {
     const legacy = SKINS_LEGACY_AURAS[save.selectedSkin];
     if (legacy) { save.selectedEffect = legacy; save.selectedSkin = 0; }
     if (typeof save.selectedEffect !== 'string') save.selectedEffect = 'none';
+    // MIGRATION du decouplage teinte/forme. Avant la categorie "Couleurs", la teinte etait celle
+    // de la forme portee. Un joueur qui revient en "Dore Legendaire" doit rester dore : on adopte
+    // la couleur de sa forme, pas le cyan par defaut, sinon la boutique lui repeint son serpent
+    // sans qu'il ait rien demande.
+    if (typeof save.selectedColor !== 'string' || !save.selectedColor) {
+        const teinte = (CONFIG.SKINS[save.selectedSkin] || CONFIG.SKINS[0]).color;
+        const trouvee = CONFIG.COLORS.find(c => c.hex === teinte);
+        save.selectedColor = trouvee ? trouvee.id : CONFIG.COLORS[0].id;
+    }
 }
 
 function currentSkin() {
     const skin = CONFIG.SKINS[save.selectedSkin];
     if (!skin || save.level < skin.unlockLevel) { save.selectedSkin = 0; return CONFIG.SKINS[0]; }
     return skin;
+}
+
+// La couleur est le troisieme axe, independant de la forme et de l'effet. Meme verrou de niveau
+// et meme repli silencieux : un joueur qui n'y a plus droit retombe sur la premiere couleur,
+// jamais sur une erreur.
+function currentColor() {
+    const col = CONFIG.COLORS.find(c => c.id === save.selectedColor);
+    if (!col || save.level < col.unlockLevel) { save.selectedColor = CONFIG.COLORS[0].id; return CONFIG.COLORS[0]; }
+    return col;
+}
+
+// Point d'entree UNIQUE de la teinte du joueur : rendu, minimap, classement et protocole reseau
+// lisent tous celle-ci. Avant la categorie "Couleurs" ils lisaient currentSkin().color.
+//
+// Une forme SPECIALE (fixedColor) impose la sienne : ces serpents-la sont dessines avec leurs
+// couleurs propres, la teinte choisie en boutique ne s'y applique pas. Le classique et ses
+// variantes, eux, prennent la couleur choisie — c'est tout l'objet de la categorie "Couleurs".
+function playerColor() {
+    const skin = currentSkin();
+    return skin.fixedColor ? skin.color : currentColor().hex;
 }
 
 // L'effet est independant de la forme. Verrouille par niveau comme elle, et on retombe
@@ -2034,11 +2167,39 @@ function currentEffect() {
     return eff;
 }
 
+// Melange une couleur #rrggbb vers le blanc (ratio > 0) ou vers le noir (ratio < 0). Sert a
+// DERIVER les nuances d'une forme a partir de la teinte choisie, plutot qu'a les coder en dur.
+function nuance(hex, ratio) {
+    const n = parseInt(hex.slice(1), 16);
+    const vers = ratio >= 0 ? 255 : 0, k = Math.abs(ratio);
+    const canal = d => Math.round(((n >> d) & 255) + (vers - ((n >> d) & 255)) * k);
+    return '#' + [16, 8, 0].map(d => canal(d).toString(16).padStart(2, '0')).join('');
+}
+
 // Style effectivement porte par le serpent : la forme, PLUS l'effet par-dessus. L'effet gagne
 // sur les cles qu'il definit, la forme garde les siennes — un motif de contour et une aura
 // cohabitent donc sans se marcher dessus.
+//
+// La couleur choisie, elle, REDERIVE les cles de teinte de la forme au lieu de les garder. Les
+// laisser telles quelles ferait mentir la categorie "Couleurs" : "Jaune Degrade" resterait jaune
+// quelle qu'en soit la teinte. Les supprimer serait pire — la forme deviendrait un doublon vide
+// de "Cyan Classique". On les recalcule donc a partir de la teinte : la forme garde son degrade,
+// aux nuances de la couleur portee.
 function currentStyle() {
-    return Object.assign({}, currentSkin().style || {}, currentEffect().style || {});
+    const skin = currentSkin();
+    const style = Object.assign({}, skin.style || {}, currentEffect().style || {});
+    // Une forme speciale garde les teintes de son dessin : les rederiver reviendrait a repeindre
+    // ce que l'auteur a compose. Seul le classique et ses variantes suivent la couleur choisie.
+    if (skin.fixedColor) return style;
+    const teinte = playerColor();
+    if (style.gradient) style.gradient = [teinte, nuance(teinte, 0.55)];
+    if (style.hueStops) style.hueStops = [
+        [teinte, nuance(teinte, 0.6)],
+        [nuance(teinte, -0.25), nuance(teinte, 0.35)],
+        [nuance(teinte, 0.7), teinte],
+    ];
+    if (style.trailColor) style.trailColor = nuance(teinte, 0.45);
+    return style;
 }
 
 // ============================================================
@@ -2699,6 +2860,21 @@ class Snake {
         ctx.strokeStyle = (style && style.gradient) ? this.skinGradient(ctx, style, animated) : this.color;
         ctx.stroke();
 
+        // BANDE DORSALE — le relief du serpent écailleux, posé sur le même chemin que le cœur.
+        // Les flancs gardent la couleur pure et la bande centrale l'éclaircit : c'est ce contraste
+        // qui donne le volume du tube en vue de dessus. Un dégradé linéaire aurait été plus fidèle
+        // à une planche dessinée, mais il ne suit pas un corps courbe — en virage, la lumière
+        // glisserait d'un flanc à l'autre. Le cœur reste dessous à la couleur choisie, donc la
+        // teinte de la boutique reste immédiatement reconnaissable.
+        // Sur un corps déjà clair, éclaircir encore ne produit rien — mesuré sur le blanc :
+        // 4 teintes avant, 4 après, soit aucun relief. Le sens du modelé s'inverse alors, comme
+        // le fait déjà la couleur du contour pointillé plus bas.
+        if (style && style.scales && r >= SCALE_MIN_R) {
+            ctx.lineWidth = r * 1.1;
+            ctx.strokeStyle = nuance(this.color, isLightColor(this.color) ? -0.20 : 0.28);
+            ctx.stroke();
+        }
+
         // Contour : seul endroit où un skin peut ajouter des pointillés (jamais le cœur).
         // Un contour porteur de motif monte à 0.34 d'alpha : à 0.15 le motif existait dans le
         // canvas mais ne se lisait pas à l'œil sur un corps saturé. Sa couleur suit la luminance
@@ -2714,6 +2890,11 @@ class Snake {
         ctx.stroke();
         ctx.setLineDash([]);   // jamais de fuite du pointillé vers les auras/particules dessinées après
         ctx.globalAlpha = 1;
+
+        // RANGS D'ÉCAILLES — dessinés ici, et pas juste après la bande dorsale, parce qu'ils
+        // ouvrent leurs propres chemins : les tracer plus haut détruirait le chemin du corps dont
+        // le liseré et le contour se servent encore.
+        if (style && style.scales && r >= SCALE_MIN_R) this.drawScales(ctx);
 
         // LECHAGE : la seule passe autorisee DEVANT le coeur, plafonnee a LICK_MAX_ALPHA.
         // C'est elle qui donne les langues qui passent devant la lame. Au-dela du plafond on
@@ -2799,11 +2980,82 @@ class Snake {
         ctx.fill();
         ctx.shadowBlur = 0;
 
+        // Modelé de la tête, dans la continuité des écailles du corps : un museau clair étiré
+        // dans l'axe du cap et une ligne de mâchoire sombre en travers. Dessiné SOUS les yeux,
+        // qui restent le repère d'orientation le plus fort et ne doivent rien perdre.
+        if (style && style.scales && r >= SCALE_MIN_R) this.drawHeadScales(ctx, head, r);
+
         const eo = r * 0.45, er = Math.max(2, r * 0.3);
         if (style && style.head === 'viper') this.drawViperEyes(ctx, head, eo, er);
         else this.drawRoundEyes(ctx, head, eo, er);
         if (style && style.head === 'viper') this.drawHorns(ctx, head, r);
         if (style && style.head === 'predator') this.drawFangs(ctx, head, r);
+    }
+
+    // Modele de la tete du serpent ecailleux. Tout est trace dans le repere de la tete, tourne
+    // selon le cap : en vue de dessus, un museau qui ne suivrait pas la direction ferait tourner
+    // la tete a contretemps du corps.
+    drawHeadScales(ctx, head, r) {
+        ctx.save();
+        ctx.translate(head.x, head.y);
+        ctx.rotate(this.angle);
+        // Museau : ovale clair etire vers l'avant. Alpha modere — la tete reste avant tout une
+        // masse pleine de la couleur choisie, c'est elle qu'on repere dans la melee.
+        ctx.globalAlpha = 0.32;
+        ctx.fillStyle = nuance(this.color, isLightColor(this.color) ? -0.24 : 0.45);
+        ctx.beginPath();
+        ctx.ellipse(r * 0.22, 0, r * 0.82, r * 0.48, 0, 0, TAU);
+        ctx.fill();
+        // Machoire : arc sombre en travers de l'arriere de la tete, creuse vers l'avant.
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = nuance(this.color, -0.6);
+        ctx.lineWidth = Math.max(1, r * 0.13);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.42, -r * 0.78);
+        ctx.quadraticCurveTo(-r * 0.12, 0, -r * 0.42, r * 0.78);
+        ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    // ECAILLES du corps. Deux rangs par ancrage : un arc large qui separe les ecailles des
+    // flancs, un chevron dorsal plus court et plus clair. Les deux se courbent VERS LA QUEUE,
+    // ce qui donne l'imbrication — des arcs droits auraient lu comme des barreaux d'echelle.
+    //
+    // Le parcours passe par sampleBody, donc a pas constant en pixels et plafonne a
+    // AURA_MAX_POINTS ancrages : le cout ne depend pas de la longueur du serpent. Seul un
+    // serpent PORTEUR D'UN STYLE arrive ici, et les bots n'en portent jamais — les 150 bots
+    // d'une partie ne paient donc rien de ce rendu.
+    drawScales(ctx) {
+        const r = this.radius;
+        const pts = this.sampleBody(r * SCALE_STEP);
+        if (pts.length < 4) return;
+        // Même bascule que la bande dorsale : sur un corps clair, le rang « clair » doit assombrir,
+        // sinon il se confond avec le fond et l'écaille n'existe pas.
+        const pale   = isLightColor(this.color);
+        const sombre = nuance(this.color, pale ? -0.42 : -0.55);
+        const clair  = nuance(this.color, pale ? -0.22 : 0.5);
+        // On saute le premier ancrage (la tete le recouvre) et les deux derniers : le lineCap
+        // arrondi du coeur ferme la queue en dome, et un rang pose la deborderait du corps.
+        for (let pass = 0; pass < 2; pass++) {
+            const dorsal = pass === 1;
+            ctx.beginPath();
+            for (let i = 1; i < pts.length - 2; i++) {
+                const p = pts[i];
+                const span  = r * (dorsal ? SCALE_SPAN * 0.38 : SCALE_SPAN);
+                const sweep = r * (dorsal ? SCALE_SWEEP * 0.75 : SCALE_SWEEP);
+                // Extremites du rang, de part et d'autre du corps ; point de controle recule
+                // le long de la tangente, qui pointe deja de la tete vers la queue.
+                ctx.moveTo(p.x - p.nx * span, p.y - p.ny * span);
+                ctx.quadraticCurveTo(p.x + p.tx * sweep, p.y + p.ty * sweep,
+                                     p.x + p.nx * span, p.y + p.ny * span);
+            }
+            ctx.globalAlpha = dorsal ? 0.30 : 0.38;
+            ctx.strokeStyle = dorsal ? clair : sombre;
+            ctx.lineWidth = Math.max(1, r * (dorsal ? 0.11 : 0.15));
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
     }
 
     // Parcourt le corps a PAS CONSTANT EN PIXELS, jamais segment par segment. Le nombre
@@ -3214,6 +3466,61 @@ function inView(x, y, margin, v) {
     return x > v.x0-margin && x < v.x1+margin && y > v.y0-margin && y < v.y1+margin;
 }
 
+// Grille de la categorie "Couleurs" de la boutique. Chaque carte montre le serpent DEPOUILLE :
+// corps plein et tete ronde, sans pointille, sans degrade, sans tete sculptee ni aura — d'une
+// carte a l'autre, seule la teinte change. La selection est independante de la forme et de
+// l'effet, comme eux elle ne touche qu'a sa propre cle de sauvegarde.
+function renderColorsGrid() {
+    const grid = $('colorsGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    CONFIG.COLORS.forEach(col => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'color-card';
+        card.style.color = col.hex;     // currentColor alimente l'apercu ET le nom
+        const debloque = save.level >= col.unlockLevel;
+        const choisi = save.selectedColor === col.id;
+
+        const apercu = document.createElement('span');
+        apercu.className = 'snake-preview';
+        apercu.setAttribute('aria-hidden', 'true');
+        const corps = document.createElement('i');
+        corps.className = 'body';
+        const tete = document.createElement('i');
+        tete.className = 'head';
+        apercu.appendChild(corps);
+        apercu.appendChild(tete);
+        card.appendChild(apercu);
+
+        const nom = document.createElement('span');
+        nom.className = 'name';
+        nom.textContent = col.name;
+        card.appendChild(nom);
+
+        if (debloque) {
+            if (choisi) card.classList.add('selected');
+            card.setAttribute('aria-pressed', String(choisi));
+            card.setAttribute('aria-label', 'Couleur ' + col.name + (choisi ? ' (sélectionnée)' : ''));
+            card.addEventListener('click', () => {
+                audio.init(); audio.play('click');
+                save.selectedColor = col.id;
+                writeSave();
+                renderMenu();
+            });
+        } else {
+            card.classList.add('locked');
+            card.disabled = true;
+            card.setAttribute('aria-label', 'Couleur ' + col.name + ', débloquée au niveau ' + col.unlockLevel);
+            const badge = document.createElement('span');
+            badge.className = 'unlock-level';
+            badge.textContent = 'Niv ' + col.unlockLevel;
+            card.appendChild(badge);
+        }
+        grid.appendChild(card);
+    });
+}
+
 // Grille de la categorie "Effets" de la boutique. Un effet est independant de la forme : le
 // selectionner ne touche pas a `selectedSkin`. La pastille reprend la teinte de l'effet, ce qui
 // donne un apercu sans avoir a lancer une partie.
@@ -3301,38 +3608,74 @@ function renderMenu() {
 
     migrateSkinSave();
     currentSkin();
+    currentColor();
     currentEffect();
+    renderColorsGrid();
     renderEffectsGrid();
+    // Grille de la categorie "Skins". Chaque carte porte la COULEUR CHOISIE, jamais la teinte
+    // d'origine de la forme : la teinte venant desormais de la categorie "Couleurs", peindre dix
+    // pastilles de dix couleurs differentes aurait promis un choix que cliquer ne rend pas. A
+    // teinte egale, ce qui distingue les cartes est ce que la forme apporte reellement — son
+    // motif de corps et sa tete.
     const row = $('skinsRow');
     row.innerHTML = '';
+    const teinte = playerColor();
     CONFIG.SKINS.forEach((skin, i) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'skin-btn';
-        btn.style.background = skin.color;
-        btn.style.boxShadow = '0 0 8px ' + skin.color;
-        btn.title = skin.name;
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'skin-card';
+        card.style.color = teinte;
+        const st = skin.style || {};
+
+        const apercu = document.createElement('span');
+        apercu.className = 'snake-preview';
+        apercu.setAttribute('aria-hidden', 'true');
+        if (st.dash) apercu.classList.add('dash');
+        if (st.gradient || st.hueShift) apercu.classList.add('grad');
+        if (st.pulse) apercu.classList.add('pulse');
+        if (st.head === 'viper') apercu.classList.add('head-viper');
+        if (st.head === 'predator') apercu.classList.add('head-predator');
+        if (st.glowBoost) apercu.classList.add('glow');
+        if (st.trail) {
+            apercu.classList.add('trail');
+            const trainee = document.createElement('i');
+            trainee.className = 'tail';
+            apercu.appendChild(trainee);
+        }
+        const corps = document.createElement('i');
+        corps.className = 'body';
+        const tete = document.createElement('i');
+        tete.className = 'head';
+        apercu.appendChild(corps);
+        apercu.appendChild(tete);
+        card.appendChild(apercu);
+
+        const nom = document.createElement('span');
+        nom.className = 'name';
+        nom.textContent = skin.name;
+        card.appendChild(nom);
+
         if (save.level >= skin.unlockLevel) {
             const selected = i === save.selectedSkin;
-            if (selected) btn.classList.add('selected');
-            btn.setAttribute('aria-pressed', String(selected));
-            btn.setAttribute('aria-label', 'Skin ' + skin.name + (selected ? ' (sélectionné)' : ''));
-            btn.addEventListener('click', () => {
+            if (selected) card.classList.add('selected');
+            card.setAttribute('aria-pressed', String(selected));
+            card.setAttribute('aria-label', 'Skin ' + skin.name + (selected ? ' (sélectionné)' : ''));
+            card.addEventListener('click', () => {
                 audio.init(); audio.play('click');
                 save.selectedSkin = i;
                 writeSave();
                 renderMenu();
             });
         } else {
-            btn.classList.add('locked');
-            btn.disabled = true;
-            btn.setAttribute('aria-label', 'Skin ' + skin.name + ', débloqué au niveau ' + skin.unlockLevel);
+            card.classList.add('locked');
+            card.disabled = true;
+            card.setAttribute('aria-label', 'Skin ' + skin.name + ', débloqué au niveau ' + skin.unlockLevel);
             const badge = document.createElement('span');
             badge.className = 'unlock-level';
             badge.textContent = 'Niv ' + skin.unlockLevel;
-            btn.appendChild(badge);
+            card.appendChild(badge);
         }
-        row.appendChild(btn);
+        row.appendChild(card);
     });
 
     const tbody = $('historyBody');
@@ -3594,7 +3937,7 @@ function startGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color, currentStyle()
+        true, playerName(), playerColor(), currentStyle()
     );
 
     cam.x = player.x; cam.y = player.y; cam.zoom = CONFIG.MAX_ZOOM;
@@ -3918,7 +4261,7 @@ function respawnPlayer() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color, currentStyle()
+        true, playerName(), playerColor(), currentStyle()
     );
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
     sessionKills = 0;
@@ -4955,7 +5298,7 @@ async function createParty() {
 
     peer.on('open', () => {
         party.active = true; party.code = code;
-        party.players.set('host', { name: playerName(), color: currentSkin().color, isHost: true });
+        party.players.set('host', { name: playerName(), color: playerColor(), isHost: true });
         enterLobbyRoom();
         lobbySetStatus('lobbyWaitingPlayers');
     });
@@ -5037,7 +5380,7 @@ async function joinParty() {
         party.hostConn = conn;
         conn.on('open', () => {
             netLastSentScreen = WIDTH + 'x' + HEIGHT;
-            lobbySend(conn, { type: 'HELLO', name: playerName(), color: currentSkin().color, w: WIDTH, h: HEIGHT });
+            lobbySend(conn, { type: 'HELLO', name: playerName(), color: playerColor(), w: WIDTH, h: HEIGHT });
         });
         conn.on('data', (msg) => handleClientMessage(msg, code));
         conn.on('close', () => {
@@ -5063,7 +5406,7 @@ function handleClientMessage(msg, code) {
         party.active = true; party.code = code; party.selfId = msg.selfId;
         party.players.clear();
         msg.players.forEach(p => party.players.set(p.id, { name: p.name, color: p.color, isHost: p.isHost }));
-        party.players.set(party.selfId, { name: playerName(), color: currentSkin().color, isHost: false });
+        party.players.set(party.selfId, { name: playerName(), color: playerColor(), isHost: false });
         enterLobbyRoom();
         lobbySetStatus('lobbyWaiting');
     } else if (msg.type === 'PLAYER_JOINED') {
@@ -5463,7 +5806,7 @@ function launchPrivateGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), currentSkin().color
+        true, playerName(), playerColor()
     );
     player.netId = 'host';
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;

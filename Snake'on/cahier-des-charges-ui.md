@@ -61,8 +61,10 @@ garde exactement son rôle de v0.2 (seule action destructrice) mais devient la s
 
 Un skin change l'apparence physique du serpent en jeu — trait du corps et forme de la tête —
 jamais sa couleur d'interface (indépendante, voir ci-dessus), jamais sa hitbox. Le trait "cœur"
-du corps (opacité et largeur pleines) reste identique sur tous les skins : c'est le repère de
-lisibilité qui permet de juger en un coup d'œil qui est plus gros. Un skin animé a toujours une
+du corps garde sur tous les skins sa largeur et son opacité pleines, et peut porter une texture
+contenue sous 1 r : c'est la silhouette, non l'aplat, qui est le repère de lisibilité permettant
+de juger en un coup d'œil qui est plus gros. Une texture qui déborderait recouvrirait le liseré
+de menace, et c'est cela seul qui est proscrit. Un skin animé a toujours une
 version figée sous `prefers-reduced-motion`. Les bots ne portent jamais de skin.
 
 **Auras élémentaires (v0.5).** Un skin peut porter une *aura* : une silhouette vivante qui
@@ -124,7 +126,7 @@ Français partout, sauf **« Kills »**, conservé tel quel (tranché, §5.4).
 
 | Entrée | Code | Rôle | Contenu |
 |---|---|---|---|
-| 🎨 Skins | A01 | Personnalisation de l'apparence | Grille de 13 skins (trait + tête + aura), verrouillés selon le niveau |
+| 🛒 Boutique | A01 | Personnalisation de l'apparence | Trois catégories indépendantes — couleurs, formes, effets — verrouillées selon le niveau |
 | 📊 Stats | A02 | Progression cumulée, toutes vies confondues | Record, kills total, parties jouées, temps total |
 | 📜 Historique | A03 | Les 10 dernières vies | # / taille / kills / durée |
 | 🏅 Succès | A04 | Objectifs de jeu (8) | Icône, nom, description, verrouillé/déverrouillé |

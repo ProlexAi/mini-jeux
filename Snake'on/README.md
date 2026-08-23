@@ -76,7 +76,8 @@ par un Web Worker de secours dès qu'elle héberge (mesuré : 0 instantané par 
 ---
 
 **Bonus :** ⚡ Vitesse (×1,8) · 🧲 Aimant (attire la nourriture) · 🛡️ Invincible.
-**Progression :** XP, niveaux, 10 skins à débloquer, 8 succès, historique des 10 dernières vies.
+**Progression :** XP, niveaux, une boutique à trois catégories indépendantes — couleurs, formes,
+effets — 8 succès, historique des 10 dernières vies.
 **Réglages :** son (musique / effets séparés), qualité graphique (Low/Medium/High), rappel des
 commandes — accessibles à tout moment depuis l'onglet ⚙️ du menu. La **musique est générée**, comme
 les sons : aucun fichier, une boucle de seize secondes sur quatre accords, volontairement discrète.
@@ -168,7 +169,8 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | `FOOD_CLUSTER_RADIUS` / `FOOD_PER_CLUSTER` | rayon d'un amas de pastilles / pastilles visées par amas |
 | `MIN_ZOOM: 0.45` | jusqu'où on dézoome quand on devient énorme |
 | `MIN_SPEED_RATIO: 0.65` | vitesse minimale (fraction de la vitesse de base) à la taille max |
-| `POWERUPS` / `SKINS` | durées, couleurs, niveaux de déblocage |
+| `POWERUPS` | durées, couleurs, effets de chaque bonus |
+| `COLORS` / `SKINS` / `EFFECTS` | les trois catégories de la boutique et leurs niveaux de déblocage |
 
 Juste après l'objet `CONFIG`, deux tables séparées pilotent la qualité graphique (onglet
 Réglages) : `QUALITY_DPR` (plafond de résolution de l'écran) et `QUALITY_PARTICLES` (nombre max
