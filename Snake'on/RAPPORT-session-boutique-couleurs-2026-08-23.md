@@ -256,3 +256,72 @@ un seuil calculé sur cette hypothèse fausse. Le bon critère est l'écart de l
 seule liste à choix unique, on ne peut plus porter un motif *et* une aura en même temps. Les
 quarante combinaisons de la session précédente tombent à treize choix. Personne ne l'a demandé
 dans un sens ou dans l'autre ; c'est réversible en rendant les deux axes simultanés.
+
+---
+
+## 9. Annotation — troisième passe (23/08/2026, fin d'après-midi)
+
+*Toujours sans réécriture de ce qui précède.*
+
+Matt signale deux défauts sur le menu en **portrait mobile**, capture à l'appui.
+
+### Le haut du menu avait disparu
+
+Titre, pseudo, niveau et barre d'XP étaient invisibles, et l'entrée « Boutique » tronquée en haut
+d'écran. **La cause n'est pas la boutique, c'est `.overlay`** : il centrait son contenu avec
+`justify-content: center`. Un conteneur flex centre même quand le contenu déborde, et le
+débordement part alors des **deux** côtés — le haut passe au-dessus de l'origine de défilement,
+où aucun scroll ne va le chercher.
+
+Mesuré sur 375×812 : titre à `top: -179` avec `scrollTop: 0`, donc définitivement hors d'atteinte.
+Un correctif partiel existait déjà — `@media (max-height: 520px) { justify-content: flex-start }` —
+mais il vise la hauteur du **viewport**, alors que le problème vient de la hauteur du **contenu**.
+
+`justify-content: safe center` répond exactement à ce cas. Il n'est pas supporté ici :
+`getComputedStyle` renvoyait `center`, la déclaration était donc ignorée — vérifié avant de
+conclure, et non supposé. La correction retenue est l'alignement en haut plus deux cales
+`::before` / `::after` en `margin: auto`, qui absorbent l'espace libre : le contenu reste centré
+tant qu'il tient, se cale en haut dès qu'il déborde. Après : plus rien de coupé, et l'onglet Stats,
+plus court, est toujours centré.
+
+**Ce défaut n'était pas propre à la boutique** : toute page assez longue le déclenchait.
+
+### Les catégories devaient être des sous-pages
+
+Couleurs, Skins et Effets étaient des onglets dont le contenu restait déployé. Matt demande des
+**entrées qui ouvrent une sous-page au clic**, comme les entrées `A0x` du menu.
+
+Elles reprennent donc telles quelles les barres HUD codées de la navigation principale, sous les
+codes `B01` à `B03`, et le protocole d'ouverture est celui de la ligne LANGUE des Réglages : la
+racine se masque, la sous-page s'affiche, un bouton Retour fait le chemin inverse. Aucune
+sous-page n'est ouverte par défaut.
+
+Deux points traités que la demande n'énonçait pas mais qui en découlaient :
+
+- Quitter la Boutique puis y revenir la retrouve sur ses trois entrées, jamais sur la dernière
+  sous-page consultée.
+- Choisir une couleur ne referme pas la sous-page : on peut en essayer plusieurs de suite.
+
+`CACHE_VERSION` du service worker passe à `v4`, comme son en-tête le prescrit à chaque
+déploiement.
+
+**Mesures de cette passe :**
+
+| Contrôle | Résultat |
+|---|---|
+| Haut du menu, portrait 375×812 | **rien de coupé** (titre à `top: 20`, contre `-179` avant) |
+| Centrage quand le contenu tient | conservé (onglet Stats, titre à `top: 36`) |
+| Racine de la boutique | 3 entrées, **aucune** sous-page ouverte |
+| Ouverture / Retour / changement d'onglet | conformes dans les trois cas |
+| Sous-page la plus longue (Effets, 13 cartes) | dernière carte et bouton Retour atteignables |
+| Cibles tactiles | entrées et Retour à 44 px et plus |
+| Paysage 844×390 | aucun défilement du document, colonne défilante intacte |
+| Combinaisons couleur × effet | **130 / 130** |
+| Traductions | `OK — 6 langues, 97 clés` |
+| Erreurs console | aucune |
+
+**Un piège d'instrument de plus, à verser au §5 du manifeste :** la première vérification du
+correctif a montré `justify-content: center` alors que le fichier servi contenait bien la nouvelle
+règle. Ce n'était ni le CSS ni le navigateur, mais **le service worker**, qui servait la page
+depuis son cache. Confronter le fichier récupéré par `fetch` à ce qu'affiche le DOM est ce qui a
+tranché — un rechargement seul ne prouve rien tant que le SW est enregistré.

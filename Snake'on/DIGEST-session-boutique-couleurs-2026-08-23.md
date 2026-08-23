@@ -128,3 +128,46 @@ yeux au lieu du museau.
 
 **Non arbitré :** la fusion met effets et motifs dans une liste à choix unique. On ne peut plus
 porter un motif *et* une aura : quarante combinaisons deviennent treize choix. Réversible.
+
+---
+
+## Annotation — troisième passe (23/08/2026, fin d'après-midi)
+
+Deux défauts signalés par Matt sur le menu en **portrait mobile**.
+
+### Le haut du menu avait disparu
+
+**La cause n'est pas la boutique, c'est `.overlay`** : `justify-content: center` centre le contenu
+même quand il déborde, et le débordement part des **deux** côtés — le haut passe au-dessus de
+l'origine de défilement, hors d'atteinte du scroll. Mesuré : titre à `top: -179` avec
+`scrollTop: 0`.
+
+`safe center` aurait répondu exactement à ce cas, mais n'est pas supporté ici (vérifié :
+`getComputedStyle` renvoyait `center`). Correction retenue : alignement en haut plus deux cales
+`::before` / `::after` en `margin: auto`. Le contenu reste centré tant qu'il tient, se cale en haut
+dès qu'il déborde.
+
+**Le défaut n'était pas propre à la boutique** — toute page assez longue le déclenchait.
+
+### Les catégories deviennent des sous-pages
+
+Couleurs, Skins et Effets ne sont plus des onglets déployés mais des **entrées qui ouvrent une
+sous-page au clic**, sous les codes `B01`-`B03`, reprenant les barres HUD de la navigation
+principale et le protocole de la ligne LANGUE des Réglages. Aucune sous-page ouverte par défaut ;
+quitter puis rouvrir la Boutique la retrouve sur ses trois entrées.
+
+`CACHE_VERSION` du service worker passe à `v4`.
+
+| Contrôle | Résultat |
+|---|---|
+| Haut du menu, portrait | **rien de coupé** (`top: 20`, contre `-179`) |
+| Centrage quand le contenu tient | conservé |
+| Racine / ouverture / retour / changement d'onglet | conformes |
+| Sous-page la plus longue (13 cartes) | dernière carte et Retour atteignables |
+| Paysage 844×390 | aucun défilement du document |
+| Combinaisons couleur × effet | **130 / 130** |
+| Traductions | **OK**, 97 clés |
+
+**Piège d'instrument, à verser au §5 du manifeste :** la première vérification montrait l'ancien
+CSS alors que le fichier servi portait le nouveau — c'était le **service worker** qui servait sa
+page en cache. Confronter le `fetch` au DOM est ce qui a tranché.

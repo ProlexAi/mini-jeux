@@ -165,23 +165,20 @@
             text-shadow: none; font-variant-numeric: tabular-nums;
         }
         /* ===== BOUTIQUE ===== */
-        /* Catégories de la boutique. Cibles tactiles à 44 px de haut, conformément au §2 du
-           cahier des charges — ce sont des boutons qu'on presse au doigt sur mobile. */
-        .shop-cats { display: flex; gap: 8px; margin-bottom: 12px; }
-        .shop-cat {
-            flex: 1; min-height: 44px; cursor: pointer;
-            background: rgba(0,0,0,0.35); color: #cfd8e3;
-            border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-            border-radius: 8px; font-family: var(--font-head);
-            font-size: 13px; letter-spacing: 0.06em;
+        /* Les trois catégories sont des ENTRÉES, pas des onglets : elles reprennent telles quelles
+           les barres HUD codées de la navigation principale (`.nav-bar`, cf. cahier des charges
+           §3), et ouvrent chacune leur sous-page. Aucun style propre n'est donc nécessaire ici —
+           c'est justement le but, une seule apparence pour un seul comportement.
+           Le bouton Retour reprend de même celui du sous-écran Langue. */
+        .tab-btn.shop-back {
+            display: block; margin: 14px auto 0; padding: 12px 20px; min-height: 46px;
+            border-radius: 0; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            color: color-mix(in srgb, var(--accent) 85%, transparent);
+            letter-spacing: 0.12em;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
         }
-        .shop-cat.active {
-            color: var(--accent);
-            border-color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 14%, rgba(0,0,0,0.35));
-        }
-        .shop-pane { display: none; }
-        .shop-pane.active { display: block; }
+        .tab-btn.shop-back:active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+        #shopRoot.hidden, .shop-pane.hidden { display: none; }
         .effects-grid, .colors-grid, .skins-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .effect-card, .color-card, .skin-card {
             position: relative; min-height: 76px; cursor: pointer;
@@ -360,7 +357,15 @@
             width: 100%; height: 100%;
             background: rgba(15,15,19,0.95);
             display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
+            /* Alignement en HAUT, le centrage étant obtenu par les marges auto des pseudo-éléments
+               ci-dessous. `justify-content: center` centrait le contenu MÊME en débordement, et le
+               débordement partait alors des deux côtés : le haut passait au-dessus de l'origine de
+               défilement, où aucun scroll ne va le chercher. Mesuré sur 375x812, titre à top:-179
+               avec scrollTop:0 — définitivement hors d'atteinte.
+               `justify-content: safe center` répond exactement à ce cas, mais n'est pas supporté
+               ici : getComputedStyle renvoyait `center`, la déclaration était donc ignorée. */
+            justify-content: flex-start;
+            align-items: center;
             color: white; z-index: 20;
             overflow-y: auto; -webkit-overflow-scrolling: touch;
             padding: calc(20px + var(--safe-t)) calc(20px + var(--safe-r)) calc(20px + var(--safe-b)) calc(20px + var(--safe-l));
@@ -369,6 +374,11 @@
         /* L'overlay est un conteneur flex colonne : sans ça, un contenu plus haut que l'écran
            écrase ses enfants (les boutons tombaient sous les 44px tactiles). Il défile déjà. */
         .overlay > * { flex-shrink: 0; }
+        /* Deux cales de hauteur nulle qui absorbent l'espace libre à parts égales : le contenu est
+           donc centré tant qu'il tient, et se cale en haut dès qu'il déborde — sans jamais passer
+           au-dessus de l'origine de défilement. C'est le centrage sûr que `safe center` aurait
+           donné, obtenu par des marges auto, qui elles sont supportées partout. */
+        .overlay::before, .overlay::after { content: ''; margin: auto; }
         /* Transparent à la mise en page : en portrait, navigation et onglets restent enfants
            directs de l'overlay, exactement comme avant. Seul le paysage lui donne un rôle. */
         #menuBrowse { display: contents; }
@@ -936,23 +946,46 @@
             </div>
         </div>
         <div id="tab-skins" class="tab-content active">
-            <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. « Couleurs » est
-                 la première et celle ouverte par défaut — c'est l'entrée de gamme, acquise dès
-                 les premiers niveaux. Les trois axes sont INDÉPENDANTS : une teinte unie, une
-                 forme qui lui donne son motif, un effet qui se pose par-dessus. -->
-            <div class="shop-cats" role="tablist">
-                <button type="button" class="shop-cat active" data-cat="colors" role="tab" aria-selected="true"
-                        data-i18n="shopColors">Couleurs</button>
-                <button type="button" class="shop-cat" data-cat="skins" role="tab" aria-selected="false"
-                        data-i18n="shopSkins">Skins</button>
-                <button type="button" class="shop-cat" data-cat="effects" role="tab" aria-selected="false"
-                        data-i18n="shopEffects">Effets</button>
+            <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. Chacune est une
+                 ENTRÉE qui ouvre sa sous-page au clic, jamais un onglet dont le contenu reste
+                 déployé — même protocole que la ligne LANGUE des Réglages, et pour la même
+                 raison : trois grilles empilées débordaient de l'écran et poussaient le haut du
+                 menu hors d'atteinte. Les trois axes sont INDÉPENDANTS : une teinte, une forme
+                 qui lui donne son motif, un effet qui se pose par-dessus. -->
+            <div id="shopRoot">
+                <div class="nav-bars">
+                    <div class="nav-entry">
+                        <button type="button" class="tab-btn nav-bar" data-shop="colors">
+                            <span class="nav-label" data-i18n="shopColors">🎨 Couleurs</span>
+                            <span class="nav-chevron">❯</span><span class="nav-code">B01</span>
+                            <span class="hachure" style="width:22px"></span>
+                        </button>
+                        <span class="nav-underline" style="width:54%"></span>
+                    </div>
+                    <div class="nav-entry">
+                        <button type="button" class="tab-btn nav-bar" data-shop="skins">
+                            <span class="nav-label" data-i18n="shopSkins">🐍 Skins</span>
+                            <span class="nav-chevron">❯</span><span class="nav-code">B02</span>
+                            <span class="hachure" style="width:22px"></span>
+                        </button>
+                        <span class="nav-underline" style="width:46%"></span>
+                    </div>
+                    <div class="nav-entry">
+                        <button type="button" class="tab-btn nav-bar" data-shop="effects">
+                            <span class="nav-label" data-i18n="shopEffects">✨ Effets</span>
+                            <span class="nav-chevron">❯</span><span class="nav-code">B03</span>
+                            <span class="hachure" style="width:22px"></span>
+                        </button>
+                        <span class="nav-underline" style="width:50%"></span>
+                    </div>
+                </div>
             </div>
-            <div id="shop-colors" class="shop-pane active">
+            <div id="shop-colors" class="shop-pane hidden">
                 <div class="colors-grid" id="colorsGrid"></div>
                 <div class="hint" data-i18n="colorsHint">Une couleur unie, sans motif ni aura.</div>
+                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
             </div>
-            <div id="shop-skins" class="shop-pane">
+            <div id="shop-skins" class="shop-pane hidden">
                 <div class="skins-grid" id="skinsRow"></div>
                 <!-- État vide : la catégorie attend son lot de serpents spéciaux. Une grille
                      blanche sans un mot se lirait comme un défaut d'affichage. -->
@@ -961,10 +994,12 @@
                     <span data-i18n="skinsEmpty">Les serpents spéciaux arrivent bientôt.</span>
                 </div>
                 <div class="hint hidden" id="skinsHint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
+                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
             </div>
-            <div id="shop-effects" class="shop-pane">
+            <div id="shop-effects" class="shop-pane hidden">
                 <div class="effects-grid" id="effectsGrid"></div>
                 <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
+                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
             </div>
         </div>
         <div id="tab-stats" class="tab-content">
@@ -1570,7 +1605,7 @@ const TRANSLATIONS = {
     fr: {
         tabSkins: '🛒 Boutique', tabStats: '📊 Stats', tabHistory: '📜 Historique',
         tabAchievements: '🏅 Succès', tabSettings: '⚙️ Réglages',
-        shopColors: 'Couleurs', shopSkins: 'Skins', shopEffects: 'Effets',
+        shopColors: '🎨 Couleurs', shopSkins: '🐍 Skins', shopEffects: '✨ Effets',
         colorsHint: 'Une couleur unie, sans motif ni aura.',
         skinsEmpty: 'Les serpents spéciaux arrivent bientôt.',
         effectsHint: 'Un effet se pose par-dessus ta forme.',
@@ -1617,7 +1652,7 @@ const TRANSLATIONS = {
     },
     en: {
         tabSkins: '🛒 Shop', tabStats: '📊 Stats', tabHistory: '📜 History',
-        shopColors: 'Colours', shopSkins: 'Skins', shopEffects: 'Effects',
+        shopColors: '🎨 Colours', shopSkins: '🐍 Skins', shopEffects: '✨ Effects',
         colorsHint: 'A solid colour, no pattern and no aura.',
         skinsEmpty: 'Special snakes are coming soon.',
         effectsHint: 'An effect layers over your shape.',
@@ -1665,7 +1700,7 @@ const TRANSLATIONS = {
     },
     es: {
         tabSkins: '🛒 Tienda', tabStats: '📊 Estadísticas', tabHistory: '📜 Historial',
-        shopColors: 'Colores', shopSkins: 'Skins', shopEffects: 'Efectos',
+        shopColors: '🎨 Colores', shopSkins: '🐍 Skins', shopEffects: '✨ Efectos',
         colorsHint: 'Un color liso, sin patrón ni aura.',
         skinsEmpty: 'Las serpientes especiales llegan pronto.',
         effectsHint: 'Un efecto se superpone a tu forma.',
@@ -1713,7 +1748,7 @@ const TRANSLATIONS = {
     },
     de: {
         tabSkins: '🛒 Shop', tabStats: '📊 Statistik', tabHistory: '📜 Verlauf',
-        shopColors: 'Farben', shopSkins: 'Skins', shopEffects: 'Effekte',
+        shopColors: '🎨 Farben', shopSkins: '🐍 Skins', shopEffects: '✨ Effekte',
         colorsHint: 'Eine einfarbige Farbe, ohne Muster und ohne Aura.',
         skinsEmpty: 'Besondere Schlangen kommen bald.',
         effectsHint: 'Ein Effekt legt sich über deine Form.',
@@ -1761,7 +1796,7 @@ const TRANSLATIONS = {
     },
     it: {
         tabSkins: '🛒 Negozio', tabStats: '📊 Statistiche', tabHistory: '📜 Cronologia',
-        shopColors: 'Colori', shopSkins: 'Skin', shopEffects: 'Effetti',
+        shopColors: '🎨 Colori', shopSkins: '🐍 Skin', shopEffects: '✨ Effetti',
         colorsHint: 'Un colore pieno, senza motivo né aura.',
         skinsEmpty: 'I serpenti speciali arrivano presto.',
         effectsHint: 'Un effetto si sovrappone alla tua forma.',
@@ -1809,7 +1844,7 @@ const TRANSLATIONS = {
     },
     pt: {
         tabSkins: '🛒 Loja', tabStats: '📊 Estatísticas', tabHistory: '📜 Histórico',
-        shopColors: 'Cores', shopSkins: 'Skins', shopEffects: 'Efeitos',
+        shopColors: '🎨 Cores', shopSkins: '🐍 Skins', shopEffects: '✨ Efeitos',
         colorsHint: 'Uma cor lisa, sem padrão nem aura.',
         skinsEmpty: 'As cobras especiais chegam em breve.',
         effectsHint: 'Um efeito sobrepõe-se à tua forma.',
@@ -4993,25 +5028,34 @@ document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
         const content = $('tab-' + tab);
         if (content) content.classList.add('active');
         this.classList.add('active');
+        // Quitter puis rouvrir la Boutique doit la retrouver sur ses trois entrees, jamais sur la
+        // derniere sous-page consultee : sinon l'ecran d'accueil de la categorie disparait.
+        shopRetour();
     });
 });
 
-// Catégories de la boutique. Sélecteur scopé à .shop-cats, pour la même raison que les onglets
-// du menu : la classe .active vit à plusieurs endroits et un sélecteur large en viderait d'autres.
-document.querySelectorAll('.shop-cats .shop-cat').forEach(btn => {
+// Ouverture d'une sous-page de la boutique. Meme protocole que la ligne LANGUE des Reglages :
+// la racine se masque, la sous-page s'affiche, un bouton Retour fait le chemin inverse. Aucune
+// sous-page n'est ouverte par defaut — la boutique montre ses trois entrees et rien d'autre.
+function shopOuvrir(cat) {
+    const pane = $('shop-' + cat);
+    if (!pane) return;
+    $('shopRoot').classList.add('hidden');
+    document.querySelectorAll('.shop-pane').forEach(el => el.classList.add('hidden'));
+    pane.classList.remove('hidden');
+}
+function shopRetour() {
+    document.querySelectorAll('.shop-pane').forEach(el => el.classList.add('hidden'));
+    $('shopRoot').classList.remove('hidden');
+}
+document.querySelectorAll('[data-shop]').forEach(btn => {
     btn.addEventListener('click', function() {
         audio.init(); audio.play('click');
-        const cat = this.getAttribute('data-cat');
-        document.querySelectorAll('.shop-pane').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.shop-cats .shop-cat').forEach(el => {
-            el.classList.remove('active');
-            el.setAttribute('aria-selected', 'false');
-        });
-        const pane = $('shop-' + cat);
-        if (pane) pane.classList.add('active');
-        this.classList.add('active');
-        this.setAttribute('aria-selected', 'true');
+        shopOuvrir(this.getAttribute('data-shop'));
     });
+});
+document.querySelectorAll('[data-shop-back]').forEach(btn => {
+    btn.addEventListener('click', () => { audio.init(); audio.play('click'); shopRetour(); });
 });
 
 // Les mêmes contrôles existent en double (Accueil + Pause) : on cible par attribut plutôt
