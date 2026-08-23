@@ -831,7 +831,10 @@
                 display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px;
                 align-content: start; margin: 0 0 8px; flex: 0 0 auto;
             }
-            #menuBrowse > .tab-content { width: 100%; margin: 0; }
+            /* #tab-skins n'est plus un enfant direct de #menuBrowse : il vit desormais sous
+               #mainTabs, entre Boutique et Stats (cf. structure du menu). Le second selecteur
+               le rattrape pour qu'il garde exactement le meme habillage que les autres onglets. */
+            #menuBrowse > .tab-content, #mainTabs > .tab-content { width: 100%; margin: 0; }
             .nav-bar { min-height: 44px; padding: 0 0 0 10px; }
             .nav-underline { display: none; }
 
@@ -912,6 +915,75 @@
                 </button>
                 <span class="nav-underline" style="width:56%"></span>
             </div>
+            <!-- Contenu de Boutique NESTÉ ici, entre Boutique et Stats, au lieu d'être un simple
+                 frère de #mainTabs après Réglages : Boutique est le seul onglet repliable (cf.
+                 handler #mainTabs .tab-btn), donc ses trois entrées doivent apparaitre juste sous
+                 son propre bouton, jamais en bas de toute la liste. -->
+            <div id="tab-skins" class="tab-content active">
+                <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. Chacune est une
+                     ENTRÉE qui ouvre sa sous-page au clic, jamais un onglet dont le contenu reste
+                     déployé — même protocole que la ligne LANGUE des Réglages, et pour la même
+                     raison : trois grilles empilées débordaient de l'écran et poussaient le haut du
+                     menu hors d'atteinte. Les trois axes sont INDÉPENDANTS : une teinte, une forme
+                     qui lui donne son motif, un effet qui se pose par-dessus. -->
+                <div id="shopRoot">
+                    <div class="nav-bars">
+                        <div class="nav-entry">
+                            <button type="button" class="tab-btn nav-bar" data-shop="colors">
+                                <span class="nav-label" data-i18n="shopColors">🎨 Couleurs</span>
+                                <span class="nav-chevron">❯</span><span class="nav-code">B01</span>
+                                <span class="hachure" style="width:22px"></span>
+                            </button>
+                            <span class="nav-underline" style="width:54%"></span>
+                        </div>
+                        <div class="nav-entry">
+                            <button type="button" class="tab-btn nav-bar" data-shop="skins">
+                                <span class="nav-label" data-i18n="shopSkins">🐍 Skins</span>
+                                <span class="nav-chevron">❯</span><span class="nav-code">B02</span>
+                                <span class="hachure" style="width:22px"></span>
+                            </button>
+                            <span class="nav-underline" style="width:46%"></span>
+                        </div>
+                        <div class="nav-entry">
+                            <button type="button" class="tab-btn nav-bar" data-shop="effects">
+                                <span class="nav-label" data-i18n="shopEffects">✨ Effets</span>
+                                <span class="nav-chevron">❯</span><span class="nav-code">B03</span>
+                                <span class="hachure" style="width:22px"></span>
+                            </button>
+                            <span class="nav-underline" style="width:50%"></span>
+                        </div>
+                    </div>
+                </div>
+                <div id="shop-colors" class="shop-pane hidden">
+                    <div class="colors-grid" id="colorsGrid"></div>
+                    <div class="hint" data-i18n="colorsHint">Une couleur unie, sans motif ni aura.</div>
+                    <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
+                </div>
+                <div id="shop-skins" class="shop-pane hidden">
+                    <div class="skins-grid" id="skinsRow"></div>
+                    <!-- État vide : la catégorie attend son lot de serpents spéciaux. Une grille
+                         blanche sans un mot se lirait comme un défaut d'affichage. -->
+                    <div class="shop-empty" id="skinsEmpty">
+                        <span class="shop-empty-icon" aria-hidden="true">🐍</span>
+                        <span data-i18n="skinsEmpty">Les serpents spéciaux arrivent bientôt.</span>
+                    </div>
+                    <div class="hint hidden" id="skinsHint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
+                    <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
+                </div>
+                <div id="shop-effects" class="shop-pane hidden">
+                    <!-- Effets de kills : un axe distinct de la grille ci-dessous. Celle-ci se
+                         debloque au NIVEAU et habille le serpent en permanence ; celui-ci se
+                         gagne EN PARTIE, aux kills, et s'eteint a la mort. D'ou le titre qui
+                         les separe plutot qu'une seule grille melangeant les deux regles. -->
+                    <h2 data-i18n="secKillEffects">En série</h2>
+                    <div class="effects-grid" id="killEffectsGrid"></div>
+                    <div class="hint" id="killEffectsHint"></div>
+                    <h2 style="margin-top:16px" data-i18n="secShopEffects">Effets</h2>
+                    <div class="effects-grid" id="effectsGrid"></div>
+                    <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
+                    <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
+                </div>
+            </div>
             <div class="nav-entry">
                 <button class="tab-btn nav-bar" data-tab="stats">
                     <span class="nav-label" data-i18n="tabStats">📊 Stats</span>
@@ -943,63 +1015,6 @@
                     <span class="hachure" style="width:22px"></span>
                 </button>
                 <span class="nav-underline" style="width:52%"></span>
-            </div>
-        </div>
-        <div id="tab-skins" class="tab-content active">
-            <!-- Boutique : trois catégories, dans l'ordre du coût de déblocage. Chacune est une
-                 ENTRÉE qui ouvre sa sous-page au clic, jamais un onglet dont le contenu reste
-                 déployé — même protocole que la ligne LANGUE des Réglages, et pour la même
-                 raison : trois grilles empilées débordaient de l'écran et poussaient le haut du
-                 menu hors d'atteinte. Les trois axes sont INDÉPENDANTS : une teinte, une forme
-                 qui lui donne son motif, un effet qui se pose par-dessus. -->
-            <div id="shopRoot">
-                <div class="nav-bars">
-                    <div class="nav-entry">
-                        <button type="button" class="tab-btn nav-bar" data-shop="colors">
-                            <span class="nav-label" data-i18n="shopColors">🎨 Couleurs</span>
-                            <span class="nav-chevron">❯</span><span class="nav-code">B01</span>
-                            <span class="hachure" style="width:22px"></span>
-                        </button>
-                        <span class="nav-underline" style="width:54%"></span>
-                    </div>
-                    <div class="nav-entry">
-                        <button type="button" class="tab-btn nav-bar" data-shop="skins">
-                            <span class="nav-label" data-i18n="shopSkins">🐍 Skins</span>
-                            <span class="nav-chevron">❯</span><span class="nav-code">B02</span>
-                            <span class="hachure" style="width:22px"></span>
-                        </button>
-                        <span class="nav-underline" style="width:46%"></span>
-                    </div>
-                    <div class="nav-entry">
-                        <button type="button" class="tab-btn nav-bar" data-shop="effects">
-                            <span class="nav-label" data-i18n="shopEffects">✨ Effets</span>
-                            <span class="nav-chevron">❯</span><span class="nav-code">B03</span>
-                            <span class="hachure" style="width:22px"></span>
-                        </button>
-                        <span class="nav-underline" style="width:50%"></span>
-                    </div>
-                </div>
-            </div>
-            <div id="shop-colors" class="shop-pane hidden">
-                <div class="colors-grid" id="colorsGrid"></div>
-                <div class="hint" data-i18n="colorsHint">Une couleur unie, sans motif ni aura.</div>
-                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
-            </div>
-            <div id="shop-skins" class="shop-pane hidden">
-                <div class="skins-grid" id="skinsRow"></div>
-                <!-- État vide : la catégorie attend son lot de serpents spéciaux. Une grille
-                     blanche sans un mot se lirait comme un défaut d'affichage. -->
-                <div class="shop-empty" id="skinsEmpty">
-                    <span class="shop-empty-icon" aria-hidden="true">🐍</span>
-                    <span data-i18n="skinsEmpty">Les serpents spéciaux arrivent bientôt.</span>
-                </div>
-                <div class="hint hidden" id="skinsHint" data-i18n="skinsHint">Monte de niveau pour débloquer des skins !</div>
-                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
-            </div>
-            <div id="shop-effects" class="shop-pane hidden">
-                <div class="effects-grid" id="effectsGrid"></div>
-                <div class="hint" data-i18n="effectsHint">Un effet se pose par-dessus ta forme.</div>
-                <button type="button" class="tab-btn shop-back" data-shop-back data-i18n="back">❮ Retour</button>
             </div>
         </div>
         <div id="tab-stats" class="tab-content">
@@ -1241,7 +1256,10 @@ const CONFIG = {
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
-    FOOD_CORPSE_MAX: 14,     // nombre max de pastilles existantes reutilisees pour une decoupe
+    // Nombre max de pastilles reutilisees pour une decoupe. Monte de 14 a 40 le jour ou les
+    // pastilles se sont mises a couvrir TOUT le corps : etalees sur 800 segments, 14 pastilles
+    // laissaient 171 px de vide entre deux, et chacune sortait au rayon plafond.
+    FOOD_CORPSE_MAX: 40,
     FOOD_CORPSE_MAX_RADIUS: 14,   // rayon max d'une pastille issue d'une decoupe (4 = pastille normale)
     FOOD_CORPSE_RADIUS_SCALE: 2.2, // rayon ~ 4 + sqrt(valeur)*scale : aire perçue ~ proportionnelle a la valeur
     BODY_CUT_SKIP_RADIUS: 1.5, // marge pres de la tete de la cible exclue du test de decoupe (x son rayon)
@@ -1338,12 +1356,18 @@ const CONFIG = {
         { id:'bolt',       name:'Orage',           unlockLevel:30, style:{ aura:'bolt'  }, tint:'#00c8ff' },
         { id:'smoke',      name:'Volutes',         unlockLevel:35, style:{ aura:'smoke' }, tint:'#c8d4e0' },
     ],
+    // EFFETS DE KILLS — la parure que porte un serpent qui enchaine. Un seul effet, CHOISI par
+    // le joueur en boutique, allume a KILL_EFFECT_MIN kills dans la vie en cours et tenu tant
+    // qu'il survit.
+    //
+    // Les paliers d'avant faisaient TOURNER les effets au lieu de les cumuler : 5 kills donnaient
+    // la fumee, 10 la remplacaient par l'eclair, 20 rendaient la fumee mais reprenaient l'eclair.
+    // Le joueur voyait donc son effet disparaitre en progressant, sans jamais choisir lequel.
+    KILL_EFFECT_MIN: 10,
     KILL_EFFECTS: [
-        { kills:5, effects:['smoke'], label:'💨 Fumée' },
-        { kills:10, effects:['lightning'], label:'⚡ Éclair' },
-        { kills:15, effects:['flame'], label:'🔥 Flamme' },
-        { kills:20, effects:['smoke','flame'], label:'💨🔥' },
-        { kills:25, effects:['lightning','smoke'], label:'⚡💨' },
+        { id:'smoke',     name:'Fumée',  icon:'💨', tint:'#c8d4e0' },
+        { id:'lightning', name:'Éclair', icon:'⚡', tint:'#00c8ff' },
+        { id:'flame',     name:'Flamme', icon:'🔥', tint:'#ff4500' },
     ],
     POWERUP_SPAWN_CHANCE: 0.33,
     POWERUP_MAX_ON_MAP: 3,
@@ -2131,6 +2155,7 @@ const SHOP_VERSION = 2;
 const DEFAULT_SAVE = {
     level: 1, xp: 0, bestSize: 0,
     kills: 0, games: 0, totalTime: 0, selectedSkin: -1, selectedEffect: 'none', selectedColor: '',
+    selectedKillEffect: 'smoke',
     shopVersion: 0,
     seenWelcome: false, pseudo: '',
     settings: {
@@ -2216,6 +2241,7 @@ const SKINS_LEGACY = {
 function migrateSkinSave() {
     // Garde-fous de type : joues a chaque appel, ils ne dependent d'aucune version.
     if (typeof save.selectedEffect !== 'string') save.selectedEffect = 'none';
+    if (!CONFIG.KILL_EFFECTS.some(k => k.id === save.selectedKillEffect)) save.selectedKillEffect = 'smoke';
     if (typeof save.selectedSkin !== 'number') save.selectedSkin = -1;
     // La conversion, elle, ne vaut QUE pour une sauvegarde anterieure. La rejouer indefiniment
     // relirait `selectedSkin` comme un ancien index et retirerait sa forme a un joueur qui vient
@@ -2685,6 +2711,10 @@ class PowerUp {
 //  SERPENT
 // ============================================================
 
+// Retour constant de getActiveEffects() quand il n'y a rien a montrer : appelee a chaque frame
+// pour chaque serpent vivant, elle allouerait sinon 150 tableaux vides par image.
+const NO_EFFECTS = [];
+
 class Snake {
     constructor(x, y, isPlayer, name, color, skinStyle) {
         this.x = x; this.y = y;
@@ -2699,6 +2729,11 @@ class Snake {
         // Style visuel du skin (joueur uniquement — les bots gardent une couleur plate, cf.
         // cahier des charges UI §5.4/v0.4 "Bots sans skin"). null = rendu d'origine.
         this.skinStyle = skinStyle || null;
+        // Effet de kills porte une fois KILL_EFFECT_MIN atteint. Le joueur porte celui qu'il a
+        // choisi en boutique (lu au vol dans getActiveEffects) ; un bot en recoit un au tirage,
+        // pour qu'un adversaire qui enchaine se signale de loin sans porter tous le meme.
+        this.killEffect = isPlayer ? null
+            : CONFIG.KILL_EFFECTS[Math.floor(Math.random() * CONFIG.KILL_EFFECTS.length)].id;
         this.skinPhase = 0;
         this.lastTrailEmit = 0;
         // Etat de traque (bots) : cible en cours, echeance d'abandon, repos avant reengagement.
@@ -2769,9 +2804,9 @@ class Snake {
     canBeEaten() { return !this.hasPowerUp('invincible'); }
 
     getActiveEffects() {
-        let effects = [];
-        for (const tier of CONFIG.KILL_EFFECTS) if (this.kills >= tier.kills) effects = tier.effects;
-        return effects;
+        if (this.kills < CONFIG.KILL_EFFECT_MIN) return NO_EFFECTS;
+        const id = this.isPlayer ? save.selectedKillEffect : this.killEffect;
+        return id ? [id] : NO_EFFECTS;
     }
 
     // target : point vise en coordonnees MONDE (le pointeur est converti par screenToWorld).
@@ -3667,6 +3702,44 @@ function apercuSerpent(st) {
 // venant de la categorie "Couleurs", peindre ici des pastilles de couleurs differentes aurait
 // promis un choix que cliquer ne rend pas. Les auras, qui n'ont pas de motif de corps, gardent
 // leur teinte propre : c'est elle qui les identifie.
+// Choix de l'effet porte en serie. Toujours selectionnable, jamais verrouille : il ne se gagne
+// pas au niveau mais EN PARTIE, a KILL_EFFECT_MIN kills — la carte dit donc ce qu'il faut faire
+// pour le voir, au lieu d'un cadenas que rien dans le menu ne peut ouvrir.
+function renderKillEffectsGrid() {
+    const grid = $('killEffectsGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    CONFIG.KILL_EFFECTS.forEach(eff => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'effect-card';
+        card.style.color = eff.tint;
+        const choisi = save.selectedKillEffect === eff.id;
+
+        const icone = document.createElement('span');
+        icone.className = 'name';
+        icone.textContent = eff.icon;
+        card.appendChild(icone);
+        const nom = document.createElement('span');
+        nom.className = 'name';
+        nom.textContent = eff.name;
+        card.appendChild(nom);
+
+        if (choisi) card.classList.add('selected');
+        card.setAttribute('aria-pressed', String(choisi));
+        card.setAttribute('aria-label', 'Effet de série ' + eff.name + (choisi ? ' (sélectionné)' : ''));
+        card.addEventListener('click', () => {
+            audio.init(); audio.play('click');
+            save.selectedKillEffect = eff.id;
+            writeSave();
+            renderMenu();
+        });
+        grid.appendChild(card);
+    });
+    const hint = $('killEffectsHint');
+    if (hint) hint.textContent = 'Apparaît à ' + CONFIG.KILL_EFFECT_MIN + ' kills sans mourir.';
+}
+
 function renderEffectsGrid() {
     const grid = $('effectsGrid');
     if (!grid) return;
@@ -3803,6 +3876,7 @@ function renderMenu() {
     currentEffect();
     renderColorsGrid();
     renderEffectsGrid();
+    renderKillEffectsGrid();
     renderSkinsGrid();
 
     const tbody = $('historyBody');
@@ -4290,9 +4364,15 @@ function scatterCorpseFood(snake, fromIndex, totalValue) {
     if (!dropped.length) return;
     const valuePerPellet = totalValue / dropped.length;
     const radius = Math.min(CONFIG.FOOD_CORPSE_MAX_RADIUS, 4 + Math.sqrt(valuePerPellet) * CONFIG.FOOD_CORPSE_RADIUS_SCALE);
+    // Les pastilles s'etalent sur TOUT le troncon, de la tete a la queue. Ecrire positions[k]
+    // les entassait sur les FOOD_CORPSE_MAX premieres positions : mesure sur un corps de 800
+    // segments, les 14 pastilles tombaient aux segments 0 a 130 — 16 % du corps, et les 670
+    // segments restants ne rendaient rien. Le pas se calcule donc sur la longueur reelle.
+    const last = Math.max(1, dropped.length - 1);
     for (let k = 0; k < dropped.length; k++) {
-        dropped[k].x = positions[k].x;
-        dropped[k].y = positions[k].y;
+        const p = positions[Math.round(k * (positions.length - 1) / last)];
+        dropped[k].x = p.x;
+        dropped[k].y = p.y;
         dropped[k].value = valuePerPellet;
         dropped[k].radius = radius;
         dropped[k].pulseOffset = Math.random() * TAU;
@@ -4351,6 +4431,11 @@ function cutSnake(attacker, target, atIndex) {
     scatterCorpseFood(target, atIndex, removed);
     target.cut(atIndex);
     particles.emitCut(cutPoint.x, cutPoint.y, target.color, target.angle);
+    // Sursaut de la victime : 5 s de vitesse, pour lui donner de quoi decrocher. Sans lui, se
+    // faire raboter etait une punition seche — plus court donc plus lent que l'attaquant, la
+    // victime se refaisait couper aussitot. Reutilise le bonus 'speed' plutot qu'un compteur
+    // dedie : elle herite ainsi de son badge, de sa trainee et de sa fin d'effet deja ecrits.
+    target.applyPowerUp('speed');
     if (attacker.isPlayer) { audio.play('cut'); screenShake.trigger(3); }
     if (target.isPlayer) screenShake.trigger(6);
 }
@@ -4570,20 +4655,22 @@ function emitSnakeEffects(snake) {
     const effects = snake.getActiveEffects();
     const segs = snake.segments;
 
-    // Les trois effets emanent de TOUTE la surface du serpent, pas seulement de la tete : un
-    // point tire au hasard le long du corps entier a chaque declenchement.
-    if (effects.includes('smoke') && Math.random() < 0.35) {
-        const seg = segs[Math.floor(Math.random() * segs.length)];
-        particles.emitSmoke(seg.x, seg.y);
+    // Les trois effets emanent de TOUTE la surface du serpent, pas seulement de la tete : des
+    // points tires au hasard le long du corps entier a chaque declenchement.
+    //
+    // Le NOMBRE de points suit la longueur. Une emission fixe habillait un serpent court et se
+    // perdait sur un long : a nombre constant, la meme bouffee couvre 6 % d'un corps de 800
+    // segments contre 50 % d'un corps de 100 — l'effet semblait ne marcher que sur les petits.
+    const bouffees = Math.max(1, Math.round(segs.length / 160));
+    const auHasard = () => segs[Math.floor(Math.random() * segs.length)];
+    if (effects.includes('smoke')) {
+        for (let i = 0; i < bouffees; i++) if (Math.random() < 0.35) { const s = auHasard(); particles.emitSmoke(s.x, s.y); }
     }
-    if (effects.includes('lightning') && Math.random() < 0.35) {
-        const seg = segs[Math.floor(Math.random() * segs.length)];
-        particles.emitLightning(seg.x, seg.y);
+    if (effects.includes('lightning')) {
+        for (let i = 0; i < bouffees; i++) if (Math.random() < 0.35) { const s = auHasard(); particles.emitLightning(s.x, s.y); }
     }
-    if (effects.includes('flame') && Math.random() < 0.5) {
-        const seg = segs[Math.floor(Math.random() * segs.length)];
-        particles.emitFlame(seg.x, seg.y);
-        if (Math.random() < 0.5) particles.emitFlame(segs[Math.floor(Math.random() * segs.length)].x, segs[Math.floor(Math.random() * segs.length)].y);
+    if (effects.includes('flame')) {
+        for (let i = 0; i < bouffees; i++) if (Math.random() < 0.5) { const s = auHasard(); particles.emitFlame(s.x, s.y); }
     }
     if (snake.hasPowerUp('speed') && Math.random() < 0.5) {
         const tail = snake.segments[snake.segments.length-1];
@@ -4610,7 +4697,9 @@ function drawAuras(snake) {
         ctx.strokeStyle = 'rgba(200,245,255,0.85)';
         ctx.lineWidth = 1.6;
         if (glow) { ctx.shadowBlur = 8; ctx.shadowColor = '#00e5ff'; }
-        const arcCount = Math.min(5, Math.max(2, Math.floor(n / 35)));
+        // Plafond releve de 5 a 16 : cale sur n/35, il ne se declenchait plus des 175 segments et
+        // laissait un corps de 800 avec les memes 5 arcs — invisibles a cette echelle.
+        const arcCount = Math.min(16, Math.max(2, Math.floor(n / 35)));
         for (let i = 0; i < arcCount; i++) {
             const phase = t / 260 + i * (TAU / arcCount);
             const centerT = Math.sin(phase) * 0.5 + 0.5;   // va-et-vient 0..1 le long du corps
@@ -4631,7 +4720,9 @@ function drawAuras(snake) {
     // qui vacillent chacune a un rythme different (dephasage par index) pour un effet organique.
     if (effects.includes('flame') && n > 1) {
         ctx.save();
-        const flameCount = Math.min(7, Math.max(3, Math.floor(n / 25)));
+        // Meme correction que les arcs : plafonne a 7, la nappe de flammes s'arretait des 175
+        // segments et un corps de 800 n'en portait pas davantage.
+        const flameCount = Math.min(24, Math.max(3, Math.floor(n / 25)));
         for (let i = 0; i < flameCount; i++) {
             const idx = Math.floor((i / flameCount) * n);
             const seg = segs[idx];
@@ -5032,6 +5123,14 @@ document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         audio.init(); audio.play('click');
         const tab = this.getAttribute('data-tab');
+        // Boutique est le seul onglet repliable : un second clic dessus le referme sans rien
+        // rouvrir, puisque ses trois entrees s'affichent directement sous son bouton (entre
+        // Boutique et Stats) plutot que de remplacer un contenu neutre en bas de liste.
+        if (tab === 'skins' && this.classList.contains('active')) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            this.classList.remove('active');
+            return;
+        }
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('#mainTabs .tab-btn').forEach(el => el.classList.remove('active'));
         const content = $('tab-' + tab);
