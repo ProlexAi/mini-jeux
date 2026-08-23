@@ -290,6 +290,19 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     et **sa propre gerbe** de particules, dirigée le long de la coupure. Faire compter la découpe
     aurait été l'autre issue possible : elle est écartée, on « tuerait » dix fois le même serpent
     en le coupant dix fois.
+28. **Quitter l'écran des yeux : cinq secondes de grâce.** En partie privée, la pause ne fige rien
+    et le serpent laissé derrière passe sous IA. Le laisser ainsi sans limite reviendrait à occuper
+    une place dans l'arène sans y jouer, en laissant l'IA récolter à sa place. Au-delà de cinq
+    secondes, la partie s'arrête donc pour ce joueur, sa vie comptée comme une mort (§5.26). En
+    solo rien ne change : la pause fige tout et peut durer, personne n'attend.
+29. **Paysage mobile : deux colonnes, pas un rétrécissement.** Accueil, Pause et Salon disposent
+    l'identité et les actions à gauche, la navigation et son contenu à droite — seuls ces derniers
+    défilent. La cible de 44 px reste un plancher : la place se prend sur les marges et les
+    interlignes, jamais sur la zone touchable.
+30. **Musique : générée, comme les sons.** Aucun fichier, aucune dépendance — une boucle de seize
+    secondes sur quatre accords, trois voix, sans percussion. Elle accompagne une partie qui dure,
+    elle ne doit ni réclamer l'attention ni fatiguer. À zéro, le curseur ARRÊTE réellement les
+    oscillateurs au lieu de jouer un silence ; un onglet caché suspend le contexte audio.
 
 ---
 
@@ -335,47 +348,14 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
 
 ## 8. Reste à faire
 
-- **Variantes paysage mobile** (844×390) pour Accueil, Réglages et Pause : maquettées, non
-  implémentées — le jeu reste pensé portrait d'abord.
-- **Curseur Musique sans moteur** : le réglage existe et se sauvegarde, mais aucune musique de fond
-  n'est produite par le jeu à ce jour. Le curseur Sons, lui, pilote réellement le volume des sons.
-- **Écran de Salon en paysage mobile** : non maquetté, comme les autres écrans (voir premier point).
-- **Reconnexion après coupure brève** : une coupure réseau, même d'une seconde, compte comme un
-  départ. Assumé pour un jeu entre amis ; à rouvrir si l'usage montre que ça gêne.
-- **Classement et protocole réseau à aligner sur la MASSE.** Le classement trie aujourd'hui sur la
-  **longueur**, et les instantanés réseau transportent la longueur. Or la longueur et le rayon sont
-  tous deux plafonnés (contraintes de rendu) : au-delà du plafond, ils ne départagent plus personne.
-  C'est la **masse** qui décide de la prédation et du classement — modèle arbitré par Matt, apporté
-  par le chantier « skins et équilibrage ». Dès sa fusion, `updateLeaderboard()` doit trier sur
-  `snake.mass`, et `netApplyLength()` déduire le rayon de la masse reçue (`syncRadius`) plutôt que
-  de la longueur. Sans ça, deux joueurs au plafond s'afficheraient à égalité en étant très
-  différents.
-
-  Quatre points arbitrés d'avance avec ce chantier, pour que la fusion n'ait pas à les redécouvrir :
-  1. **La masse voyage en plus de la longueur, pas à sa place.** La longueur reste nécessaire : le
-     client s'en sert pour savoir combien de segments dessiner. La masse s'y ajoute pour le
-     classement, le liseré de menace et la minimap.
-  2. **Sur 4 octets, pas 2.** Deux mesures divergent d'un facteur deux — une partie simulée projette
-     ~57 500 à une heure, l'observation réelle d'un bot à 31 574 en quinze minutes en projette
-     ~126 000. C'est l'observation réelle qui prime : un Uint16 déborderait en partie longue, et un
-     compteur qui boucle en silence coûte plus cher que deux octets par serpent.
-  3. **Arrondie au transport.** La masse est fractionnaire (les pastilles de découpe valent une
-     fraction), mais côté client elle ne sert qu'à afficher — la décision de prédation reste chez
-     l'hôte, à pleine précision.
-  4. **Le champ transporté est `massValue`, pas `mass`** : ce dernier est un accesseur, qui ne
-     survivrait pas à une sérialisation.
-  5. **La minimap reçoit la RÉPONSE, pas la donnée.** Elle montre *tous* les serpents, y compris
-     ceux que le filtrage par intérêt exclut de l'instantané : ceux-là n'ont donc aucune masse à
-     jour côté client, et c'est justement d'eux qu'il s'agit — la menace lointaine qu'on veut
-     repérer sur la carte avant de la croiser. Plutôt que d'y transporter la masse, l'hôte y
-     transporte ce qu'il est seul à pouvoir calculer : un octet par serpent portant le **niveau de
-     menace** (2 bits) et l'**amplitude** du point en échelle log (4 bits). Le client peint, il
-     n'arbitre pas — c'est la ligne de toute la partie privée.
-     *Conséquence :* le paquet minimap, aujourd'hui construit une fois et diffusé tel quel, devient
-     **propre à chaque destinataire**, puisque la menace se juge par rapport au serpent de celui
-     qui regarde. Le coût reste négligeable (un octet de plus par serpent, à 3 Hz).
-
----
+- **Apparence d'un joueur distant en partie privée.** Le protocole ne transporte que sa
+  **couleur** : forme et effet ne voyagent pas, si bien qu'un joueur se voit avec son skin mais
+  que les autres le voient uni. Antérieur au découplage forme/effet, qui le rend seulement plus
+  visible. À corriger en joignant les deux index au `HELLO` et au roster de `GAME_START` — deux
+  entiers par joueur, envoyés une seule fois : l'apparence ne change pas en cours de partie, elle
+  n'a donc rien à faire dans les instantanés.
+- **Reconnexion réseau.** Une coupure de la liaison compte comme un départ définitif. Le retrait
+  d'écran, lui, est traité (§5.28). À rouvrir si l'usage montre que les coupures brèves gênent.
 
 ## 9. Contrôles rejouables
 

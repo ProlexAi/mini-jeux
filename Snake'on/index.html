@@ -1785,6 +1785,106 @@ class AudioManager {
 const audio = new AudioManager();
 
 // ============================================================
+//  MUSIQUE — générée, comme les sons : aucun fichier, aucune dépendance
+// ============================================================
+//
+// Le curseur Musique existait depuis la V0.3 et ne pilotait rien : il se réglait, se
+// sauvegardait, et ne coupait aucun son puisqu'il n'y en avait aucun à couper.
+//
+// Une boucle de seize secondes sur quatre accords, jouée par trois voix : une basse qui pose
+// l'accord, une nappe qui le tient, un arpège clairsemé par-dessus. Le tout volontairement
+// discret et sans percussion — la musique accompagne une partie qui dure, elle ne doit pas
+// réclamer l'attention ni fatiguer au bout de trois boucles.
+//
+// Les notes sont programmées À L'AVANCE sur l'horloge audio, jamais déclenchées par une minuterie :
+// setTimeout dérive et se fait brider en arrière-plan, ce qui s'entendrait immédiatement sur un
+// tempo. La minuterie ne sert qu'à REMPLIR la file, toujours quelques secondes devant.
+const MUSIC_CHORDS = [   // La mineur · Fa · Do · Sol — fondamentale puis les degrés tenus
+    { basse: 110.00, notes: [220.00, 261.63, 329.63] },
+    { basse:  87.31, notes: [174.61, 220.00, 261.63] },
+    { basse: 130.81, notes: [261.63, 329.63, 392.00] },
+    { basse:  98.00, notes: [196.00, 246.94, 293.66] },
+];
+const MUSIC_STEP = 0.5;              // une croche, en secondes
+const MUSIC_STEPS_PER_CHORD = 8;     // quatre secondes par accord
+const MUSIC_LOOKAHEAD = 2.0;         // profondeur de la file, en secondes
+const MUSIC_TICK_MS = 400;
+const MUSIC_GAIN = 0.09;             // à 100 sur le curseur : présent, jamais envahissant
+
+class MusicEngine {
+    constructor(am) { this.am = am; this.bus = null; this.timer = null; this.step = 0; this.nextAt = 0; }
+
+    start() {
+        if (this.timer !== null || !this.am.enabled || !this.am.initialized || !this.am.ctx) return;
+        this.bus = this.am.ctx.createGain();
+        this.bus.connect(this.am.ctx.destination);
+        this.applyVolume();
+        this.step = 0;
+        this.nextAt = this.am.ctx.currentTime + 0.15;
+        this.timer = setInterval(() => this.fill(), MUSIC_TICK_MS);
+        this.fill();
+    }
+
+    stop() {
+        if (this.timer !== null) { clearInterval(this.timer); this.timer = null; }
+        if (this.bus) { try { this.bus.disconnect(); } catch(e) {} this.bus = null; }
+    }
+
+    // Le curseur agit sur le bus, pas sur les notes déjà programmées : le changement s'entend
+    // tout de suite, y compris sur une note en train d'être tenue.
+    applyVolume() {
+        if (!this.bus) return;
+        const v = (save.settings.musicVolume || 0) / 100 * MUSIC_GAIN;
+        this.bus.gain.setTargetAtTime(v, this.am.ctx.currentTime, 0.05);
+    }
+
+    // Volume à zéro : on arrête vraiment les oscillateurs au lieu de jouer en silence.
+    sync() {
+        const veut = (save.settings.musicVolume || 0) > 0 && this.am.enabled && this.am.initialized;
+        if (veut && this.timer === null) this.start();
+        else if (!veut && this.timer !== null) this.stop();
+        else this.applyVolume();
+    }
+
+    voix(type, freq, at, duree, pic) {
+        const ctx = this.am.ctx;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, at);
+        // Attaque et extinction douces : une note carrée claquerait au milieu d'une nappe.
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(pic, at + duree * 0.25);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + duree);
+        osc.connect(g); g.connect(this.bus);
+        osc.start(at); osc.stop(at + duree + 0.05);
+    }
+
+    fill() {
+        if (!this.bus || !this.am.ctx) return;
+        const ctx = this.am.ctx;
+        if (ctx.state === 'suspended') return;   // onglet muet : on ne remplit pas dans le vide
+        while (this.nextAt < ctx.currentTime + MUSIC_LOOKAHEAD) {
+            const at = Math.max(this.nextAt, ctx.currentTime + 0.02);
+            const accord = MUSIC_CHORDS[Math.floor(this.step / MUSIC_STEPS_PER_CHORD) % MUSIC_CHORDS.length];
+            const dansAccord = this.step % MUSIC_STEPS_PER_CHORD;
+
+            if (dansAccord === 0) {
+                this.voix('triangle', accord.basse, at, 3.6, 0.30);
+                accord.notes.forEach((f, i) => this.voix('sine', f, at, 3.8, 0.10 - i * 0.02));
+            }
+            // Arpège sur les temps faibles seulement : la boucle respire au lieu de marteler.
+            if (dansAccord === 3 || dansAccord === 6)
+                this.voix('sine', accord.notes[dansAccord === 3 ? 2 : 1] * 2, at, 0.7, 0.05);
+
+            this.nextAt += MUSIC_STEP;
+            this.step++;
+        }
+    }
+}
+const music = new MusicEngine(audio);
+
+// ============================================================
 //  SAUVEGARDE
 // ============================================================
 const DEFAULT_SAVE = {
@@ -4413,6 +4513,7 @@ document.querySelectorAll('[data-vol]').forEach(slider => {
         const key = slider.dataset.vol === 'music' ? 'musicVolume' : 'sfxVolume';
         save.settings[key] = Number(slider.value);
         applySettingsUI();
+        if (key === 'musicVolume') music.sync();   // s'entend pendant qu'on fait glisser
     });
     slider.addEventListener('change', () => { writeSave(); audio.init(); audio.play('click'); });
 });
@@ -4512,8 +4613,20 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-document.addEventListener('touchstart', () => { audio.init(); audio.resume(); }, { once: true });
-document.addEventListener('click', () => { audio.init(); audio.resume(); }, { once: true });
+// La musique ne peut démarrer qu'après un geste du joueur : les navigateurs refusent tout son
+// avant. D'où ce démarrage au premier contact plutôt qu'au chargement.
+function reveilAudio() { audio.init(); audio.resume(); music.sync(); }
+document.addEventListener('touchstart', reveilAudio, { once: true });
+document.addEventListener('click', reveilAudio, { once: true });
+document.addEventListener('keydown', reveilAudio, { once: true });
+
+// Onglet caché : on suspend le contexte audio, sinon la musique continue de jouer chez quelqu'un
+// qui regarde ailleurs. Elle repart où elle en était au retour.
+document.addEventListener('visibilitychange', () => {
+    if (!audio.ctx) return;
+    if (document.hidden) { audio.ctx.suspend().catch(() => {}); }
+    else { audio.resume(); music.sync(); }
+});
 
 document.addEventListener('touchmove', (e) => {
     if (e.target === canvas) { if (e.cancelable) e.preventDefault(); }
