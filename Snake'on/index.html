@@ -1232,7 +1232,14 @@ const CONFIG = {
     // Indissociable de WORLD_SCREENS : le monde ayant ete multiplie par 5,4, garder 45 bots
     // faisait tomber le nombre d'adversaires visibles a l'ecran de 14,2 a 3,0 — un desert.
     // 150 restitue la densite percue d'avant (mesure : 18,4 visibles a 160 bots).
+    // Sert de peuplement pour la partie PRIVEE : la simulation des bots (IA, collisions) reste a
+    // la charge du seul hote, mais chaque bot ajoute aussi un serpent a diffuser a chaque invite
+    // (bande passante + hostRelevant) — pas touche ici, la demande porte sur le solo seul.
     BOT_COUNT: 150,
+    // Solo : tourne entierement sur la machine du joueur, sans le cout reseau/bande-passante de
+    // la partie privee — peut se permettre plus de peuplement pour une arene plus disputee,
+    // desormais que les bots eux-memes n'ont plus de plafond de masse (cf. BOT_MAX_MASS).
+    BOT_COUNT_SOLO: 220,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
     GRID_SIZE: 40,
@@ -4189,7 +4196,7 @@ function startGame() {
     clampCamera();
 
     bots = [];
-    for (let i = 0; i < CONFIG.BOT_COUNT; i++) {
+    for (let i = 0; i < CONFIG.BOT_COUNT_SOLO; i++) {
         const bot = new Snake(
             Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT,
             false, CONFIG.BOT_NAMES[i % CONFIG.BOT_NAMES.length],
@@ -4479,7 +4486,10 @@ function cutSnake(attacker, target, atIndex) {
     // faire raboter etait une punition seche — plus court donc plus lent que l'attaquant, la
     // victime se refaisait couper aussitot. Reutilise le bonus 'speed' plutot qu'un compteur
     // dedie : elle herite ainsi de son badge, de sa trainee et de sa fin d'effet deja ecrits.
-    target.applyPowerUp('speed');
+    // Retire en partie privee (party.inGame) a la demande de Matt. Le reste du mecanisme —
+    // sync reseau du champ spd, netAvoidWalls — continue de servir aux VRAIS powerups 'speed'
+    // ramasses en jeu ; seul ce declenchement automatique a la decoupe est desactive ici.
+    if (!party.inGame) target.applyPowerUp('speed');
     if (attacker.isPlayer) { audio.play('cut'); screenShake.trigger(3); }
     if (target.isPlayer) screenShake.trigger(6);
 }
