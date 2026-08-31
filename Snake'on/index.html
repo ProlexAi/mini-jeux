@@ -5995,9 +5995,18 @@ function neonFrame(ts) {
     neonCtx.setTransform(neonDPR, 0, 0, neonDPR, 0, 0);
     // On ne clear PAS si on est sur le menu avec des points : on efface avec un voile semi-
     // transparent pour laisser une légère trainee (effet "particules qui derivent").
+    // ATTENTION : un fillRect semi-transparent en 'source-over', rejoue chaque frame sur un canvas
+    // qui doit rester translucide, fait converger l'ALPHA du canvas vers 1 (opaque) en ~15 frames
+    // (a_n+1 = 0.35 + 0.65*a_n -> 1). Ce canvas est en z-index 25, AU-DESSUS du menu (z-index 20) :
+    // une fois opaque il masque tout l'ecran d'accueil derriere lui, sauf les points (dessines en
+    // 'lighter' plus bas, qui percent le noir). Bug reel observe en prod (menu invisible apres
+    // ~0,5 s). Fix : 'destination-out' ne fait qu'ERODER l'alpha existant (jamais de couleur
+    // ajoutee), donc jamais de convergence vers l'opacite.
     if (menuBgDots.length && gameState === 'MENU') {
-        neonCtx.fillStyle = 'rgba(15, 15, 19, 0.35)';
+        neonCtx.globalCompositeOperation = 'destination-out';
+        neonCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         neonCtx.fillRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+        neonCtx.globalCompositeOperation = 'source-over';
     } else {
         neonCtx.clearRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
     }
