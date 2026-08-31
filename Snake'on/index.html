@@ -5817,6 +5817,38 @@ function updateNetDisplay() {
                      (fpsValue ? fpsValue + ' fps' : '—');
 }
 
+// Qualité adaptative : si le FPS RÉELLEMENT MESURÉ reste sous le seuil plusieurs secondes de
+// suite en jeu, on descend d'un palier (HIGH -> MEDIUM -> LOW). LOW divise la résolution du
+// canvas par le devicePixelRatio complet (DPR plafonné à 1 au lieu de 2-3, donc jusqu'à 9x moins
+// de pixels à remplir) et désactive les ombres portées (shadowBlur) — les deux postes de rendu
+// les plus coûteux sur GPU mobile. Remplace l'ancien palier "économie batterie" détecté par
+// user-agent (retiré : aveugle à la performance réelle, ignorait le choix explicite du joueur).
+// Ici on mesure, on ne suppose pas — et on ne redescend qu'une fois par palier, jamais en boucle.
+let lowFpsStreak = 0;
+const ADAPTIVE_FPS_THRESHOLD = 30;
+const ADAPTIVE_FPS_STREAK_NEEDED = 4;   // secondes consécutives sous le seuil avant de réagir
+function checkAdaptiveQuality() {
+    if (gameState !== 'PLAYING') { lowFpsStreak = 0; return; }
+    const tiers = ['HIGH', 'MEDIUM', 'LOW'];
+    const idx = tiers.indexOf(save.settings.quality);
+    if (idx < 0 || idx >= tiers.length - 1) { lowFpsStreak = 0; return; }   // déjà au minimum
+    if (fpsValue > 0 && fpsValue < ADAPTIVE_FPS_THRESHOLD) {
+        lowFpsStreak++;
+        if (lowFpsStreak >= ADAPTIVE_FPS_STREAK_NEEDED) {
+            lowFpsStreak = 0;
+            save.settings.quality = tiers[idx + 1];
+            writeSave();
+            particles.maxParticles = QUALITY_PARTICLES[save.settings.quality] || 400;
+            resizeCanvas();
+            applySettingsUI();
+            const tierKey = 'q' + save.settings.quality[0] + save.settings.quality.slice(1).toLowerCase();
+            showToast('⚙️ ' + t('secQuality') + ' → ' + t(tierKey));
+        }
+    } else {
+        lowFpsStreak = 0;
+    }
+}
+
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
     lastRafAt = rnow();
@@ -5834,6 +5866,7 @@ function gameLoop(ts) {
         // partie, le ping ne se rafraichirait donc jamais depuis les menus.
         if (ts - lastPingAt > PING_INTERVAL) { lastPingAt = ts; mesurePing(); }
         updateNetDisplay();
+        checkAdaptiveQuality();
     }
 
     advanceGame(ts);
