@@ -164,6 +164,62 @@
             font-size: 10px; opacity: 0.42; margin-top: 3px;
             text-shadow: none; font-variant-numeric: tabular-nums;
         }
+        /* Badge UNDERDOG : même langage que les pu-badge des bonus (style "puce" encadrée),
+           mais couleur d'interface (le bonus te concerne, contrairement à un power-up neutre).
+           Affiché uniquement quand underdogBonusActive && joueur non-leader. Pas d'éclat de clic
+           sur ce badge : il vit dans le HUD, comme les bonus — non-bloquant et silencieux. */
+        #underdogDisplay {
+            margin-top: 6px;
+            padding: 2px 6px; border-radius: 4px;
+            font-size: 11px; line-height: 1.2;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid;
+            display: inline-block;
+            letter-spacing: 0.04em;
+        }
+        #underdogDisplay.hidden { display: none; }
+        /* Slides du tutoriel de bienvenue (3 slides, navigation par SUIVANT). Chaque slide est
+           un bloc independant ; .welcome-slide.hidden la masque. */
+        .welcome-slide.hidden { display: none; }
+        /* Points de progression du tutoriel : 3 ronds, le courant prend la couleur d'interface
+           (var(--accent)) et devient plein ; les autres restent creux et fonce. */
+        .welcome-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .welcome-dot.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+        /* Compte à rebours 3-2-1 avant reprise (post-Pause). Overlay centre ecran, gros chiffre
+           Tektur (typo des titres), couleur d'interface, sans clic requis. Le jeu reste fige
+           dessous — le rendu est en PAUSED, mais l'overlay reste visible car superpose au canvas
+           (z-index superieur au #gameCanvas). */
+        #resumeCountdown {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--font-head);
+            font-size: 120px;
+            font-weight: 800;
+            color: var(--accent);
+            text-shadow: 0 0 30px var(--accent), 0 0 60px var(--accent);
+            z-index: 8;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+            animation: resumePulse 0.5s ease-out;
+        }
+        #resumeCountdown.hidden { display: none; }
+        @keyframes resumePulse {
+            0%   { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+            20%  { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #resumeCountdown { animation: none; }
+        }
         /* ===== BOUTIQUE ===== */
         /* Les trois catégories sont des ENTRÉES, pas des onglets : elles reprennent telles quelles
            les barres HUD codées de la navigation principale (`.nav-bar`, cf. cahier des charges
@@ -880,6 +936,10 @@
         <div id="netDisplay">— / —</div>
         <div class="powerup-indicators" id="puIndicators"></div>
         <div id="comboDisplay"></div>
+        <!-- Badge UNDERDOG : visible uniquement quand le bonus +30 % est actif ET que le joueur
+             n'est pas le leader. Cohérent visuellement avec les pu-badge des bonus (même classe
+             .pu-badge), couleur d'interface, contenu court. Non-bloquant, hors éclat de clic. -->
+        <div id="underdogDisplay" class="hidden"></div>
     </div>
     <div id="killStreak"></div>
     <div id="leaderboard"><h3 data-i18n="leaderboard">CLASSEMENT</h3><div id="lbContent"></div></div>
@@ -892,13 +952,17 @@
     <button id="pauseBtn">II</button>
     <div id="toastContainer"></div>
     <canvas id="neonFxCanvas"></canvas>
+    <!-- Compte à rebours 3-2-1 avant la reprise (post-Pause) : overlay non-bloquant, superposé
+         au canvas. Le jeu reste PAUSED pendant le décompte ; on bascule en PLAYING au 0. Affiché
+         en gros chiffres Tektur, couleur d'interface, sans casser la lecture de l'arene freeze. -->
+    <div id="resumeCountdown" class="hidden"></div>
 
     <!-- MENU -->
     <div id="menuScreen" class="overlay">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
         <div id="menuIdentity" style="text-align:center;">
             <input type="text" id="pseudoInput" class="pseudo-input" maxlength="14" data-i18n-ph="pseudoPlaceholder" placeholder="Ton pseudo">
-            <div style="font-size:16px;"><span data-i18n="level">Niveau</span> <span id="menuLevel" class="accent">1</span></div>
+            <div style="font-size:16px;"><span data-i18n="level">Niveau</span> <span id="menuLevel" class="accent">1</span> <span id="menuRank" class="accent" style="font-size:13px;opacity:0.85;"></span></div>
             <div class="xp-bar-container"><div class="xp-bar-fill" id="menuXpBar"></div></div>
             <div class="xp-text" id="menuXpText">0 / 100 XP</div>
         </div>
@@ -1011,6 +1075,14 @@
                 <span class="nav-underline" style="width:44%"></span>
             </div>
             <div class="nav-entry">
+                <button class="tab-btn nav-bar" data-tab="daily">
+                    <span class="nav-label" data-i18n="tabDaily">🎯 Défis du jour</span>
+                    <span class="nav-chevron">❯</span><span class="nav-code">A07</span>
+                    <span class="hachure" style="width:22px"></span>
+                </button>
+                <span class="nav-underline" style="width:60%"></span>
+            </div>
+            <div class="nav-entry">
                 <button class="tab-btn nav-bar" data-tab="settings">
                     <span class="nav-label" data-i18n="tabSettings">⚙️ Réglages</span>
                     <span class="nav-chevron">❯</span><span class="nav-code">A05</span>
@@ -1025,6 +1097,11 @@
                 <div class="stat-box"><div class="val" id="statKills">0</div><div class="label" data-i18n="statKills">Kills</div></div>
                 <div class="stat-box"><div class="val" id="statGames">0</div><div class="label" data-i18n="statGames">Parties</div></div>
                 <div class="stat-box"><div class="val" id="statTime">0s</div><div class="label" data-i18n="statTime">Temps</div></div>
+                <!-- Stats carrière étendues : parties gagnées (top1), pastilles d'or, rang max.
+                     Repris du tab Stats, mêmes .stat-box, même .label/.val que les existants. -->
+                <div class="stat-box"><div class="val" id="statWins">0</div><div class="label" data-i18n="statWins">Top 1</div></div>
+                <div class="stat-box"><div class="val" id="statGold">0</div><div class="label" data-i18n="statGold">Pastilles d'or</div></div>
+                <div class="stat-box"><div class="val" id="statRank">—</div><div class="label" data-i18n="statRank">Rang</div></div>
             </div>
         </div>
         <div id="tab-history" class="tab-content">
@@ -1035,6 +1112,11 @@
         </div>
         <div id="tab-achievements" class="tab-content">
             <div class="achievements-grid" id="achievementsGrid"></div>
+        </div>
+        <!-- Onglet Défis du jour (Phase 4.1). Affiche les 3 défis quotidiens, le streak et le
+             multiplicateur XP en cours. Le contenu est généré en JS par renderDaily(). -->
+        <div id="tab-daily" class="tab-content">
+            <div id="dailyContent"></div>
         </div>
         <div id="tab-settings" class="tab-content">
             <div id="settingsRoot">
@@ -1066,6 +1148,24 @@
                     <button type="button" class="tab-btn quality-btn" data-quality="LOW"><span class="q-px">1280×720</span><span class="q-note" data-i18n="qLow">économe</span></button>
                     <button type="button" class="tab-btn quality-btn" data-quality="MEDIUM"><span class="q-px">1600×900</span><span class="q-note" data-i18n="qMedium">équilibré</span></button>
                     <button type="button" class="tab-btn quality-btn" data-quality="HIGH"><span class="q-px">1920×1080</span><span class="q-note" data-i18n="qHigh">natif</span></button>
+                </div>
+                <h2 style="margin-top:16px" data-i18n="secDifficulty">Difficulté</h2>
+                <!-- Trois paliers : Facile (-30 % d'XP, arene plus calme), Normal (reference),
+                     Difficile (+30 % d'XP, bots plus agressifs). Le seul levier de difficulte pour
+                     l'instant ; la Phase 2 y branchera aussi les personnalites de bots. Le XP final
+                     en fin de run est multiplie par DIFFICULTY_XP_MULTIPLIER (cf. CONFIG). -->
+                <div class="tabs quality-row" id="difficultyRow">
+                    <button type="button" class="tab-btn quality-btn" data-difficulty="easy"><span class="q-px" data-i18n="diffEasy">Facile</span><span class="q-note" data-i18n="diffEasyNote">x0,7 XP</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-difficulty="normal"><span class="q-px" data-i18n="diffNormal">Normal</span><span class="q-note" data-i18n="diffNormalNote">x1,0 XP</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-difficulty="hard"><span class="q-px" data-i18n="diffHard">Difficile</span><span class="q-note" data-i18n="diffHardNote">x1,3 XP</span></button>
+                </div>
+                <h2 style="margin-top:16px" data-i18n="secAccessibility">Accessibilité</h2>
+                <!-- Toggle daltonien : ajoute un motif (pointillés) au liseré de menace, pour que
+                     l'info de predation reste lisible sans distinguer les couleurs. Reprend la
+                     mécanique de .tab-btn on/off — pas de nouvelle classe visuelle. -->
+                <div class="tabs quality-row" id="colorblindRow">
+                    <button type="button" class="tab-btn quality-btn" data-colorblind="off"><span class="q-px" data-i18n="cbOff">Off</span><span class="q-note" data-i18n="cbOffNote">couleur seule</span></button>
+                    <button type="button" class="tab-btn quality-btn" data-colorblind="on"><span class="q-px" data-i18n="cbOn">Daltonien</span><span class="q-note" data-i18n="cbOnNote">motif + couleur</span></button>
                 </div>
                 <h2 style="margin-top:16px" data-i18n="secLanguage">Langue</h2>
                 <button type="button" class="lang-row" id="openLangBtn">
@@ -1099,23 +1199,47 @@
     <!-- BIENVENUE (1ere partie uniquement) -->
     <div id="welcomeScreen" class="overlay hidden">
         <h1>🐍 <span class="title-glitch"><span class="tg-base">SNAKE'ON</span><span class="tg-slice tg-a" aria-hidden="true">SNAKE'ON</span><span class="tg-slice tg-b" aria-hidden="true">SNAKE'ON</span></span></h1>
-        <p style="max-width:340px;text-align:center;" data-i18n="welcomeText">
-            Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les
-            plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
-            tu réapparais aussitôt dans la même arène.
-        </p>
-        <!-- Légende du liseré de menace : c'est la seule information que le joueur doit avoir
-             comprise avant sa première partie, puisqu'elle décide à chaque rencontre s'il fonce
-             ou s'il fuit. Montrée plutôt qu'expliquée — un nouveau venu lit une couleur plus
-             vite qu'une phrase. L'épaisseur des trois traits reprend celle du jeu, pour que la
-             légende reste juste sans distinguer les teintes. -->
-        <div class="rim-legend">
-            <h2 data-i18n="rimTitle">LE LISERÉ DES SERPENTS</h2>
-            <div class="rim-row"><span class="rim-swatch rim-danger"></span><span data-i18n="rimDanger">Il peut te dévorer — fuis</span></div>
-            <div class="rim-row"><span class="rim-swatch rim-neutral"></span><span data-i18n="rimNeutral">Ni l'un ni l'autre ne mange</span></div>
-            <div class="rim-row"><span class="rim-swatch rim-prey"></span><span data-i18n="rimPrey">C'est ta proie — fonce</span></div>
+
+        <!-- SLIDE 1 : le but du jeu -->
+        <div class="welcome-slide" id="welcomeSlide1">
+            <p style="max-width:340px;text-align:center;" data-i18n="welcomeText">
+                Mange les pastilles, grossis, évite les serpents plus gros que toi — et dévore les
+                plus petits. Touche leur corps pour les couper. Le jeu ne s'arrête jamais : à ta mort,
+                tu réapparais aussitôt dans la même arène.
+            </p>
         </div>
-        <button id="welcomeStartBtn" class="btn-primary" data-i18n="welcomeStart">C'EST PARTI ▶</button>
+
+        <!-- SLIDE 2 : les contrôles -->
+        <div class="welcome-slide hidden" id="welcomeSlide2">
+            <h2 style="margin: 0 0 14px;" data-i18n="ctrlTitle">CONTROLES</h2>
+            <p data-i18n="ctrlDesktop">🖱️ Ordinateur : le serpent suit la souris</p>
+            <p data-i18n="ctrlMobile">👆 Mobile : le serpent suit ton doigt</p>
+            <p data-i18n="ctrlKeys">⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
+            <p data-i18n="ctrlDash" style="margin-top: 10px;">⚡ Double-tap / double-clic : DASH (x1,8 vitesse 1,2 s, coûte 5 % de masse)</p>
+        </div>
+
+        <!-- SLIDE 3 : le liseré de menace (legende) -->
+        <div class="welcome-slide hidden" id="welcomeSlide3">
+            <div class="rim-legend">
+                <h2 data-i18n="rimTitle">LE LISERÉ DES SERPENTS</h2>
+                <div class="rim-row"><span class="rim-swatch rim-danger"></span><span data-i18n="rimDanger">Il peut te dévorer — fuis</span></div>
+                <div class="rim-row"><span class="rim-swatch rim-neutral"></span><span data-i18n="rimNeutral">Ni l'un ni l'autre ne mange</span></div>
+                <div class="rim-row"><span class="rim-swatch rim-prey"></span><span data-i18n="rimPrey">C'est ta proie — fonce</span></div>
+            </div>
+        </div>
+
+        <!-- Navigation entre slides : les boutons sont masqués via JS selon la slide courante.
+             On garde un seul #welcomeStartBtn pour finir, et un #welcomeNextBtn pour avancer. -->
+        <div style="display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap;">
+            <button id="welcomeNextBtn" class="btn-primary" data-i18n="welcomeNext">SUIVANT ▶</button>
+            <button id="welcomeStartBtn" class="btn-primary hidden" data-i18n="welcomeStart">C'EST PARTI ▶</button>
+        </div>
+        <!-- Indicateur de progression : 3 points, le courant en couleur d'interface. -->
+        <div id="welcomeDots" style="display:flex; gap:6px; justify-content:center; margin-top:14px;">
+            <span class="welcome-dot active"></span>
+            <span class="welcome-dot"></span>
+            <span class="welcome-dot"></span>
+        </div>
     </div>
 
     <!-- PAUSE -->
@@ -1239,7 +1363,9 @@ const CONFIG = {
     // Solo : tourne entierement sur la machine du joueur, sans le cout reseau/bande-passante de
     // la partie privee — peut se permettre plus de peuplement pour une arene plus disputee,
     // desormais que les bots eux-memes n'ont plus de plafond de masse (cf. BOT_MAX_MASS).
-    BOT_COUNT_SOLO: 220,
+    // Baisse de 15 % (220 -> 187) a la demande du joueur : une arene un peu moins dense en solo
+    // pour respirer et progresser plus sereinement. La partie privee garde BOT_COUNT (150).
+    BOT_COUNT_SOLO: 187,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
     GRID_SIZE: 40,
@@ -1262,6 +1388,27 @@ const CONFIG = {
     // l'ecran et se noie dans son propre corps. 0,34 conserve un ecart visible sans le blob.
     RADIUS_EXPONENT: 0.34,
     WIN_XP_MULTIPLIER: 1.5,  // XP d'une partie terminee en tete, en fraction de l'XP d'une mort
+    // Multiplieur d'XP final selon la difficulte (Réglages). La difficulte agit aussi sur le
+    // peuplement (BOT_COUNT_SOLO ajuste) et l'agressivite des bots (BOT_CHASE_* ajustes), voir
+    // difficultyBotCount()/difficultyBotTuning(). En partie privee, la difficulte du joueur
+    // local n'affecte que l'XP qu'il garde ; les bots restent regles par l'hote sur la sienne.
+    DIFFICULTY_XP_MULTIPLIER: { easy: 0.7, normal: 1.0, hard: 1.3 },
+    // Ajustements de peuplement et d'IA selon la difficulte, cote hote ou en solo. "Facile"
+    // reduit le nombre de bots et l'agressivite ; "Difficile" augmente les deux. La fonction
+    // difficultyBotTuning() renvoie { chaseRange, chaseSpeed, chaseGiveup } ; le joueur peut
+    // ainsi fuir plus facilement en Facile, et se faire prendre au piege plus tot en Difficile.
+    DIFFICULTY_BOT_COUNT_RATIO: { easy: 0.70, normal: 1.0, hard: 1.25 },
+    DIFFICULTY_BOT_CHASE_RANGE_RATIO: { easy: 0.70, normal: 1.0, hard: 1.30 },
+    DIFFICULTY_BOT_CHASE_SPEED_DELTA: { easy: -0.05, normal: 0, hard: +0.04 },
+    // Personnalites des bots — 4 profils qui modulent l'IA existante sans toucher au peuplement
+    // ni a la difficulte. Tirage equilibre au spawn (cf. assignBotPersonality).
+    BOT_PERSONALITIES: {
+        'chasseur':    { chaseRangeMul: 1.30, fleeRangeMul: 0.70, speedMul: 1.05 }, // agressif
+        'opportuniste':{ chaseRangeMul: 1.00, fleeRangeMul: 1.00, speedMul: 1.00 }, // equilibre
+        'fuyant':      { chaseRangeMul: 0.70, fleeRangeMul: 1.30, speedMul: 0.95 }, // prudent
+        'embusque':    { chaseRangeMul: 0.50, fleeRangeMul: 1.40, speedMul: 0.85, spawnMassBonus: 60 }, // gros, lent, defensif
+    },
+    BOT_PERSONALITY_WEIGHTS: { chasseur: 0.25, opportuniste: 0.45, fuyant: 0.20, embusque: 0.10 },
     MIN_SPEED_RATIO: 0.65,   // vitesse a la taille max, en fraction de BASE_SPEED : plus c'est gros, plus c'est lent
     SPECTATE_MS: 4000,       // duree du mode spectateur (vue du tueur) avant l'ecran de fin
     FOOD_CORPSE_SPACING: 30, // espacement approx. (px) entre les pastilles issues d'une decoupe
@@ -1394,10 +1541,16 @@ const CONFIG = {
         { id:'five_kills', name:'Chasseur', desc:'5 kills en une partie', icon:'🎯' },
         { id:'ten_kills', name:'Prédateur', desc:'10 kills en une partie', icon:'💀' },
         { id:'big_snake', name:'Géant', desc:'Atteindre une taille de 200', icon:'🐍' },
+        { id:'huge_snake', name:'Titan', desc:'Atteindre une taille de 500', icon:'🐉' },
         { id:'speed_demon', name:'Éclair', desc:'Ramasser 3 bonus vitesse', icon:'⚡' },
         { id:'combo_master', name:'Combo Master', desc:'Manger 5 pastilles sans interruption (combo x2)', icon:'🔥' },
         { id:'level_5', name:'Vétéran', desc:'Atteindre le niveau 5', icon:'⭐' },
         { id:'level_10', name:'Légende', desc:'Atteindre le niveau 10', icon:'👑' },
+        { id:'level_20', name:'Mythe', desc:'Atteindre le niveau 20', icon:'🌟' },
+        { id:'top1', name:'Premier', desc:'Terminer une partie en tête du classement', icon:'🏆' },
+        { id:'careers_50', name:'Marathonien', desc:'Jouer 50 parties au total', icon:'🎮' },
+        { id:'dash_kill', name:'Foudre de guerre', desc:'Tuer un serpent pendant un DASH', icon:'💨' },
+        { id:'gold_eater', name:'Goinfre d\'or', desc:'Manger 10 pastilles d\'or en carrière', icon:'💰' },
     ]
 };
 
@@ -1409,6 +1562,59 @@ const MAX_STEPS_PER_FRAME = 5;
 // et les halos (shadowBlur) ; High les augmente. Medium = comportement d'avant ce réglage.
 const QUALITY_DPR = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 const QUALITY_PARTICLES = { LOW: 150, MEDIUM: 400, HIGH: 700 };
+
+// ----- DIFFICULTÉ (Réglages) -----
+// Le sélecteur de difficulté ajuste le peuplement (BOT_COUNT_SOLO) et l'agressivité des bots
+// au démarrage d'une partie solo, ainsi que l'XP final à la fin de la run. En partie privée,
+// la difficulté de l'hôte s'applique aux bots ; chaque client garde sa propre difficulté pour
+// le calcul de l'XP qu'il encaisse (les masses reçues via snapshot sont déjà bumpées par l'hôte).
+// Les helpers ci-dessous sont sans effet si save.settings.difficulty vaut 'normal' (référence).
+function currentDifficulty() { return save.settings.difficulty || 'normal'; }
+function difficultyBotCount(baseCount) {
+    const ratio = CONFIG.DIFFICULTY_BOT_COUNT_RATIO[currentDifficulty()] ?? 1;
+    return Math.max(10, Math.round(baseCount * ratio));
+}
+// Renvoie les paramètres d'IA ajustés par la difficulté. Appelé à chaque pas de simulation car
+// le réglage peut changer en plein jeu (Réglages accessibles depuis Pause) ; le coût est nul.
+function difficultyBotTuning() {
+    const d = currentDifficulty();
+    return {
+        chaseRange: CONFIG.BOT_CHASE_RANGE * (CONFIG.DIFFICULTY_BOT_CHASE_RANGE_RATIO[d] ?? 1),
+        chaseSpeed: Math.min(0.999, CONFIG.BOT_CHASE_SPEED + (CONFIG.DIFFICULTY_BOT_CHASE_SPEED_DELTA[d] ?? 0)),
+    };
+}
+function difficultyXpMultiplier() {
+    return CONFIG.DIFFICULTY_XP_MULTIPLIER[currentDifficulty()] ?? 1;
+}
+
+// Personnalité des bots : tirage pondéré selon BOT_PERSONALITY_WEIGHTS. Appelé au spawn du bot
+// (startGame, respawnBot, hostStartGame). Renvoie l'id de personnalité ('chasseur', etc.).
+function rollBotPersonality() {
+    const weights = CONFIG.BOT_PERSONALITY_WEIGHTS;
+    const total = Object.values(weights).reduce((s, w) => s + w, 0);
+    let r = Math.random() * total;
+    for (const [p, w] of Object.entries(weights)) {
+        if (r < w) return p;
+        r -= w;
+    }
+    return 'opportuniste';   // repli (jamais atteint si les poids somment à 1)
+}
+
+// Applique la personnalité à un bot fraîchement créé : affecte this.personality et, pour
+// l'embusqué, ajoute le bonus de masse au spawn. Sans effet si le snake est le joueur.
+function applyBotPersonality(bot) {
+    if (!bot || bot.isPlayer) return;
+    bot.personality = rollBotPersonality();
+    const cfg = CONFIG.BOT_PERSONALITIES[bot.personality];
+    if (cfg && cfg.spawnMassBonus) bot.grow(cfg.spawnMassBonus);
+}
+
+// Renvoie les multiplicateurs de portée et de vitesse pour la personnalité du bot. Appelé à
+// chaque pas dans botAI — coût nul. Pour le joueur, renvoie le profil 'opportuniste' (référence)
+// car l'IA n'est jamais appelée pour lui.
+function botPersonalityTuning(bot) {
+    return CONFIG.BOT_PERSONALITIES[bot.personality || 'opportuniste'] || CONFIG.BOT_PERSONALITIES.opportuniste;
+}
 
 // ============================================================
 //  AURAS ELEMENTAIRES (skins Flamme / Foudre / Fumee)
@@ -1656,6 +1862,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Effets · Aucun', fxLightPause: 'Effets · Léger', fxFullPause: 'Effets · Complet',
         fxNoneHint: 'flash seul', fxLightHint: 'anneau + moitié', fxFullHint: 'bille lancée',
         qLow: 'économe', qMedium: 'équilibré', qHigh: 'natif',
+        secDifficulty: 'Difficulté', diffEasy: 'Facile', diffNormal: 'Normal', diffHard: 'Difficile',
+        diffEasyNote: '×0,7 XP', diffNormalNote: '×1,0 XP', diffHardNote: '×1,3 XP',
+        underdogHint: 'MASSE',
+        secAccessibility: 'Accessibilité', cbOff: 'Off', cbOn: 'Daltonien', cbOffNote: 'couleur seule', cbOnNote: 'motif + couleur',
+        rank_bronze: 'Bronze', rank_silver: 'Argent', rank_gold: 'Or', rank_platinum: 'Platine', rank_diamond: 'Diamant', rank_master: 'Maître',
+        statWins: 'Top 1', statGold: 'Pastilles d\'or', statRank: 'Rang',
+        ctrlTitle: 'CONTRÔLES', ctrlDash: '⚡ Double-tap / double-clic : DASH (x1,8 vitesse 1,2 s, coûte 5 % de masse)',
+        welcomeNext: 'SUIVANT ▶',
+        tabDaily: '🎯 Défis du jour', streak: 'Série du jour',
+        dailyGames: 'Jouer 3 parties', dailyKills: 'Tuer 5 serpents', dailySize: 'Atteindre une taille de 150',
+        dailyHint: 'Récompenses en XP bonus. Reset chaque jour à minuit.',
         back: '❮ Retour', play: '▶ JOUER', install: "📱 Installer l'appli",
         ctrlDesktop: '🖱️ Ordinateur : le serpent suit la souris',
         ctrlMobile: '👆 Mobile : le serpent suit ton doigt',
@@ -1704,6 +1921,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Effects · None', fxLightPause: 'Effects · Light', fxFullPause: 'Effects · Full',
         fxNoneHint: 'flash only', fxLightHint: 'ring + half', fxFullHint: 'thrown bead',
         qLow: 'thrifty', qMedium: 'balanced', qHigh: 'native',
+        secDifficulty: 'Difficulty', diffEasy: 'Easy', diffNormal: 'Normal', diffHard: 'Hard',
+        diffEasyNote: '×0.7 XP', diffNormalNote: '×1.0 XP', diffHardNote: '×1.3 XP',
+        underdogHint: 'MASS',
+        secAccessibility: 'Accessibility', cbOff: 'Off', cbOn: 'Colour-blind', cbOffNote: 'colour only', cbOnNote: 'pattern + colour',
+        rank_bronze: 'Bronze', rank_silver: 'Silver', rank_gold: 'Gold', rank_platinum: 'Platinum', rank_diamond: 'Diamond', rank_master: 'Master',
+        statWins: 'Top 1', statGold: 'Gold pellets', statRank: 'Rank',
+        ctrlTitle: 'CONTROLS', ctrlDash: '⚡ Double-tap / double-click: DASH (x1.8 speed 1.2 s, costs 5 % mass)',
+        welcomeNext: 'NEXT ▶',
+        tabDaily: '🎯 Daily challenges', streak: 'Daily streak',
+        dailyGames: 'Play 3 games', dailyKills: 'Kill 5 snakes', dailySize: 'Reach a size of 150',
+        dailyHint: 'Bonus XP rewards. Reset every day at midnight.',
         back: '❮ Back', play: '▶ PLAY', install: '📱 Install app',
         ctrlDesktop: '🖱️ Desktop: the snake follows your mouse',
         ctrlMobile: '👆 Mobile: the snake follows your finger',
@@ -1752,6 +1980,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Efectos · Ninguno', fxLightPause: 'Efectos · Ligero', fxFullPause: 'Efectos · Completo',
         fxNoneHint: 'solo destello', fxLightHint: 'anillo + mitad', fxFullHint: 'bola lanzada',
         qLow: 'ahorro', qMedium: 'equilibrado', qHigh: 'nativo',
+        secDifficulty: 'Dificultad', diffEasy: 'Fácil', diffNormal: 'Normal', diffHard: 'Difícil',
+        diffEasyNote: '×0,7 XP', diffNormalNote: '×1,0 XP', diffHardNote: '×1,3 XP',
+        underdogHint: 'MASA',
+        secAccessibility: 'Accesibilidad', cbOff: 'Off', cbOn: 'Daltonismo', cbOffNote: 'solo color', cbOnNote: 'patrón + color',
+        rank_bronze: 'Bronce', rank_silver: 'Plata', rank_gold: 'Oro', rank_platinum: 'Platino', rank_diamond: 'Diamante', rank_master: 'Maestro',
+        statWins: 'Top 1', statGold: 'Pastillas de oro', statRank: 'Rango',
+        ctrlTitle: 'CONTROLES', ctrlDash: '⚡ Doble toque / doble clic: DASH (x1,8 velocidad 1,2 s, cuesta 5 % de masa)',
+        welcomeNext: 'SIGUIENTE ▶',
+        tabDaily: '🎯 Retos del día', streak: 'Racha diaria',
+        dailyGames: 'Jugar 3 partidas', dailyKills: 'Matar 5 serpientes', dailySize: 'Alcanzar un tamaño de 150',
+        dailyHint: 'Recompensas en XP bonus. Se reinician cada día a medianoche.',
         back: '❮ Volver', play: '▶ JUGAR', install: '📱 Instalar la app',
         ctrlDesktop: '🖱️ Ordenador: la serpiente sigue el ratón',
         ctrlMobile: '👆 Móvil: la serpiente sigue tu dedo',
@@ -1800,6 +2039,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Effekte · Keine', fxLightPause: 'Effekte · Leicht', fxFullPause: 'Effekte · Voll',
         fxNoneHint: 'nur Blitz', fxLightHint: 'Ring + Hälfte', fxFullHint: 'geworfene Kugel',
         qLow: 'sparsam', qMedium: 'ausgewogen', qHigh: 'nativ',
+        secDifficulty: 'Schwierigkeit', diffEasy: 'Leicht', diffNormal: 'Normal', diffHard: 'Schwer',
+        diffEasyNote: '×0,7 XP', diffNormalNote: '×1,0 XP', diffHardNote: '×1,3 XP',
+        underdogHint: 'MASSE',
+        secAccessibility: 'Barrierefreiheit', cbOff: 'Aus', cbOn: 'Farbenblind', cbOffNote: 'nur Farbe', cbOnNote: 'Muster + Farbe',
+        rank_bronze: 'Bronze', rank_silver: 'Silber', rank_gold: 'Gold', rank_platinum: 'Platin', rank_diamond: 'Diamant', rank_master: 'Meister',
+        statWins: 'Top 1', statGold: 'Gold-Pellets', statRank: 'Rang',
+        ctrlTitle: 'STEUERUNG', ctrlDash: '⚡ Doppel-Tap / Doppelklick: DASH (x1,8 Geschwindigkeit 1,2 s, kostet 5 % Masse)',
+        welcomeNext: 'WEITER ▶',
+        tabDaily: '🎯 Tägliche Herausforderungen', streak: 'Tägliche Serie',
+        dailyGames: '3 Runden spielen', dailyKills: '5 Schlangen töten', dailySize: 'Eine Größe von 150 erreichen',
+        dailyHint: 'Bonus-XP-Belohnungen. Jeden Tag um Mitternacht zurückgesetzt.',
         back: '❮ Zurück', play: '▶ SPIELEN', install: '📱 App installieren',
         ctrlDesktop: '🖱️ Computer: Die Schlange folgt der Maus',
         ctrlMobile: '👆 Mobil: Die Schlange folgt deinem Finger',
@@ -1848,6 +2098,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Effetti · Nessuno', fxLightPause: 'Effetti · Leggero', fxFullPause: 'Effetti · Completo',
         fxNoneHint: 'solo lampo', fxLightHint: 'anello + metà', fxFullHint: 'biglia lanciata',
         qLow: 'economico', qMedium: 'equilibrato', qHigh: 'nativo',
+        secDifficulty: 'Difficoltà', diffEasy: 'Facile', diffNormal: 'Normale', diffHard: 'Difficile',
+        diffEasyNote: '×0,7 XP', diffNormalNote: '×1,0 XP', diffHardNote: '×1,3 XP',
+        underdogHint: 'MASSA',
+        secAccessibility: 'Accessibilità', cbOff: 'Off', cbOn: 'Daltonismo', cbOffNote: 'solo colore', cbOnNote: 'motivo + colore',
+        rank_bronze: 'Bronzo', rank_silver: 'Argento', rank_gold: 'Oro', rank_platinum: 'Platino', rank_diamond: 'Diamante', rank_master: 'Maestro',
+        statWins: 'Top 1', statGold: 'Palline d\'oro', statRank: 'Rango',
+        ctrlTitle: 'COMANDI', ctrlDash: '⚡ Doppio tocco / doppio clic: DASH (x1,8 velocità 1,2 s, costa 5 % di massa)',
+        welcomeNext: 'AVANTI ▶',
+        tabDaily: '🎯 Sfide del giorno', streak: 'Serie giornaliera',
+        dailyGames: 'Gioca 3 partite', dailyKills: 'Uccidi 5 serpenti', dailySize: 'Raggiungi una taglia di 150',
+        dailyHint: 'Ricompense in XP bonus. Reset ogni giorno a mezzanotte.',
         back: '❮ Indietro', play: '▶ GIOCA', install: "📱 Installa l'app",
         ctrlDesktop: '🖱️ Computer: il serpente segue il mouse',
         ctrlMobile: '👆 Mobile: il serpente segue il tuo dito',
@@ -1896,6 +2157,17 @@ const TRANSLATIONS = {
         fxNonePause: 'Efeitos · Nenhum', fxLightPause: 'Efeitos · Ligeiro', fxFullPause: 'Efeitos · Completo',
         fxNoneHint: 'só o clarão', fxLightHint: 'anel + metade', fxFullHint: 'bola lançada',
         qLow: 'económico', qMedium: 'equilibrado', qHigh: 'nativo',
+        secDifficulty: 'Dificuldade', diffEasy: 'Fácil', diffNormal: 'Normal', diffHard: 'Difícil',
+        diffEasyNote: '×0,7 XP', diffNormalNote: '×1,0 XP', diffHardNote: '×1,3 XP',
+        underdogHint: 'MASSA',
+        secAccessibility: 'Acessibilidade', cbOff: 'Off', cbOn: 'Daltónico', cbOffNote: 'só cor', cbOnNote: 'padrão + cor',
+        rank_bronze: 'Bronze', rank_silver: 'Prata', rank_gold: 'Ouro', rank_platinum: 'Platina', rank_diamond: 'Diamante', rank_master: 'Mestre',
+        statWins: 'Top 1', statGold: 'Pastilhas d\'ouro', statRank: 'Rango',
+        ctrlTitle: 'COMANDOS', ctrlDash: '⚡ Toque duplo / duplo clique: DASH (x1,8 velocidade 1,2 s, custa 5 % de massa)',
+        welcomeNext: 'PRÓXIMO ▶',
+        tabDaily: '🎯 Desafios do dia', streak: 'Série diária',
+        dailyGames: 'Jogar 3 partidas', dailyKills: 'Matar 5 cobras', dailySize: 'Atingir um tamanho de 150',
+        dailyHint: 'Recompensas em XP bónus. Reset todos os dias à meia-noite.',
         back: '❮ Voltar', play: '▶ JOGAR', install: '📱 Instalar a app',
         ctrlDesktop: '🖱️ Computador: a cobra segue o rato',
         ctrlMobile: '👆 Telemóvel: a cobra segue o teu dedo',
@@ -2192,9 +2464,20 @@ const DEFAULT_SAVE = {
     seenWelcome: false, pseudo: '',
     settings: {
         musicVolume: 70, sfxVolume: 100, quality: 'MEDIUM',
-        uiColor: '#00ffcc', clickEffects: 'FULL', lang: 'fr'
+        uiColor: '#00ffcc', clickEffects: 'FULL', lang: 'fr',
+        difficulty: 'normal',   // 'easy' | 'normal' | 'hard' — impacte le peuplement, l'IA des bots, et l'XP final
+        colorblind: false       // true = le liseré de menace ajoute un motif (pointillés) par-dessus la couleur
     },
-    history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 }
+    history: [], achievements: [], powerupsCollected: { speed: 0, magnet: 0, invincible: 0 },
+    goldEaten: 0,   // compteur de pastilles d'or mangees en carrière (succès gold_eater)
+    wins: 0,        // compteur de parties terminees en tete (top1)
+    // Défis quotidiens + streak (Phase 4.1/4.2). On stocke la date ISO (YYYY-MM-DD) du dernier
+    // jour joueé, le streak courant, et la progression des 3 défis du jour (reset chaque jour).
+    lastPlayedDate: '',
+    dailyStreak: 0,
+    dailyDate: '',         // date des défis courants (si différente de lastPlayedDate, on reset)
+    dailyProgress: { kills: 0, games: 0, size: 0 },   // progression agrégée du jour
+    dailyClaimed: []       // ids des défis déjà réclamés (pour ne pas distribuer l'XP bonus 2 fois)
 };
 
 function loadSave() {
@@ -2232,6 +2515,144 @@ applyUiColor(save.settings.uiColor);
 
 function xpForLevel(lvl) { return Math.floor(lvl * 100); }
 
+// Rangs tous les 10 niveaux : Bronze (1-9), Argent (10-19), Or (20-29), Platine (30-39),
+// Diamant (40-49), Maître (50+). Affiché dans le menu sous le niveau, dans la même couleur
+// d'interface. Juste cosmétique — ne change rien à l'XP ni au gameplay.
+const RANKS = [
+    { min: 50, id: 'master',   icon: '🏆' },
+    { min: 40, id: 'diamond',  icon: '💎' },
+    { min: 30, id: 'platinum', icon: '💠' },
+    { min: 20, id: 'gold',     icon: '🥇' },
+    { min: 10, id: 'silver',   icon: '🥈' },
+    { min: 1,  id: 'bronze',   icon: '🥉' },
+];
+function rankForLevel(level) {
+    for (const r of RANKS) if (level >= r.min) return r;
+    return RANKS[RANKS.length - 1];
+}
+
+// ----- DÉFIS QUOTIDIENS + STREAK (Phase 4.1/4.2) -----
+// 3 défis fixes par jour (mêmes pour tous), seedés par la date ISO. Récompense en XP bonus
+// (50, 100, 200 XP) — distribué au moment de l'endGame() qui detecte la complétion.
+// Le streak journalier ajoute un multiplicateur XP total : +10 % par jour consécutif, plafonné
+// à x2 (10 jours). Le multiplicateur est appliqué après celui de difficulté.
+
+// Date ISO YYYY-MM-DD en heure locale (date du jour).
+function todayISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// 3 défis fixes : les mêmes pour tous les joueurs le même jour (seedés par la date).
+// On les définit en dur — c'est volontaire : "joue 3 parties", "tue 5 serpents", "taille 150".
+// Récompenses respectives : 50, 100, 200 XP.
+function dailyChallenges() {
+    return [
+        { id: 'daily_games', stat: 'games', target: 3, xp: 50,  icon: '🎮', descKey: 'dailyGames' },
+        { id: 'daily_kills', stat: 'kills', target: 5, xp: 100, icon: '🗡️', descKey: 'dailyKills' },
+        { id: 'daily_size',  stat: 'size',  target: 150, xp: 200, icon: '🐍', descKey: 'dailySize' },
+    ];
+}
+
+// Réinitialise les défis du jour si la date a changé.
+function refreshDailyIfNeeded() {
+    const today = todayISO();
+    if (save.dailyDate !== today) {
+        save.dailyDate = today;
+        save.dailyProgress = { kills: 0, games: 0, size: 0 };
+        save.dailyClaimed = [];
+        writeSave();
+    }
+}
+
+// Met à jour le streak journalier. Appelé au démarrage d'une partie : si le dernier jour joué
+// était hier, on incrémente le streak ; si c'était aujourd'hui, on ne change rien ; sinon
+// (avant-hier ou plus), on remet le streak à 1.
+function updateDailyStreak() {
+    const today = todayISO();
+    if (save.lastPlayedDate === today) return;   // déjà joué aujourd'hui : pas de changement
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const y = yesterday.getFullYear() + '-' + String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + String(yesterday.getDate()).padStart(2, '0');
+    if (save.lastPlayedDate === y) save.dailyStreak = (save.dailyStreak || 0) + 1;
+    else save.dailyStreak = 1;
+    save.lastPlayedDate = today;
+    writeSave();
+}
+
+// Multiplicateur d'XP total (difficulté + streak). Plafonné à x2 streak inclus.
+//   - streak 0 jour  : x1 (démarre une session)
+//   - streak 1 jour  : x1
+//   - streak 5 jours : x1.4
+//   - streak 10+     : x2 (plafond)
+function streakXpMultiplier() {
+    const s = save.dailyStreak || 0;
+    if (s <= 1) return 1;
+    return Math.min(2, 1 + (s - 1) * 0.1);
+}
+
+// Vérifie les défis complétés ce jour et distribue l'XP bonus. Appelé dans endGame() après
+// l'update de dailyProgress. Ne réclame qu'une fois (save.dailyClaimed).
+function checkDailyChallenges() {
+    refreshDailyIfNeeded();
+    const challenges = dailyChallenges();
+    let leveledUp = false;
+    for (const c of challenges) {
+        if (save.dailyClaimed.includes(c.id)) continue;
+        const val = save.dailyProgress[c.stat] || 0;
+        if (val >= c.target) {
+            save.dailyClaimed.push(c.id);
+            if (addXP(c.xp)) leveledUp = true;
+            showToast('🎯 Défi du jour : ' + t(c.descKey) + ' — +' + c.xp + ' XP');
+        }
+    }
+    writeSave();
+    return leveledUp;
+}
+
+// Rendu de l'onglet Défis du jour. Affiche les 3 défis (avec barre de progression), le streak
+// courant et le multiplicateur XP total. Contenu généré en JS — pas de template statique
+// car la progression change à chaque endGame.
+function renderDaily() {
+    refreshDailyIfNeeded();
+    const el = $('dailyContent');
+    if (!el) return;
+    const challenges = dailyChallenges();
+    const streak = save.dailyStreak || 0;
+    const xpMul = streakXpMultiplier();
+    let html = '';
+    // Bloc streak + multiplicateur
+    html += '<div class="daily-streak" style="text-align:center;margin-bottom:14px;">';
+    html += '<div style="font-size:14px;color:#aaa;">' + t('streak') + '</div>';
+    html += '<div class="accent" style="font-size:22px;font-family:var(--font-head);">🔥 ' + streak + ' jour' + (streak > 1 ? 's' : '') + '</div>';
+    if (xpMul > 1) {
+        html += '<div style="font-size:13px;color:var(--accent);margin-top:4px;">x' + xpMul.toFixed(1) + ' XP</div>';
+    }
+    html += '</div>';
+    // 3 défis
+    for (const c of challenges) {
+        const val = Math.min(save.dailyProgress[c.stat] || 0, c.target);
+        const claimed = save.dailyClaimed.includes(c.id);
+        const done = val >= c.target;
+        const pct = Math.round((val / c.target) * 100);
+        html += '<div class="daily-card' + (claimed ? ' claimed' : '') + '" style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:10px 12px;margin:8px 0;display:flex;gap:10px;align-items:center;">';
+        html += '<div style="font-size:24px;">' + c.icon + '</div>';
+        html += '<div style="flex:1;">';
+        html += '<div style="font-size:13px;color:#e8f4ff;">' + t(c.descKey) + '</div>';
+        html += '<div style="font-size:11px;color:#888;margin-top:2px;">' + val + ' / ' + c.target + ' — +' + c.xp + ' XP</div>';
+        html += '<div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:4px;overflow:hidden;">';
+        html += '<div style="width:' + pct + '%;height:100%;background:' + (claimed ? '#39ff88' : 'var(--accent)') + ';"></div>';
+        html += '</div>';
+        html += '</div>';
+        if (claimed) html += '<div style="color:#39ff88;font-size:18px;">✓</div>';
+        else if (done) html += '<div style="color:var(--accent);font-size:18px;">⚡</div>';
+        html += '</div>';
+    }
+    html += '<div class="hint" style="text-align:center;margin-top:12px;">' + t('dailyHint') + '</div>';
+    el.innerHTML = html;
+}
+
+
 function addXP(amount) {
     save.xp += amount;
     let up = false;
@@ -2241,6 +2662,7 @@ function addXP(amount) {
         up = true;
         checkAchievement('level_5', save.level >= 5);
         checkAchievement('level_10', save.level >= 10);
+        checkAchievement('level_20', save.level >= 20);
     }
     return up;
 }
@@ -2472,9 +2894,14 @@ class ParticleSystem {
     get room() { return this.particles.length < this.maxParticles; }
     push(p) { if (this.room) this.particles.push(p); }
     emit(x, y, count, opts) {
+        // Reduced-motion : on divise par 4 le nombre de particules (kill effects, auras) pour
+        // reduire le mouvement à l'ecran sans le supprimer totalement. Les particules restent
+        // utiles pour signaler un événement (kill), juste moins envahissantes.
+        if (neonReducedMotion()) count = Math.max(1, Math.floor(count / 4));
         for (let i = 0; i < count; i++) this.push(new Particle(x, y, opts));
     }
     emitSmoke(x, y) {
+        if (neonReducedMotion() && Math.random() > 0.25) return;   // 75% des emissions de fumée coupées
         const a = Math.random() * TAU;
         this.push(new Particle(x, y, {
             vx: Math.cos(a) * 0.5, vy: -Math.random()*0.8 - 0.3,
@@ -2485,6 +2912,7 @@ class ParticleSystem {
         }));
     }
     emitLightning(x, y) {
+        if (neonReducedMotion() && Math.random() > 0.25) return;
         for (let i = 0; i < 2; i++) {
             const a = Math.random()*TAU, s = Math.random()*6+3;
             this.push(new Particle(x, y, {
@@ -2494,6 +2922,7 @@ class ParticleSystem {
         }
     }
     emitFlame(x, y) {
+        if (neonReducedMotion() && Math.random() > 0.25) return;
         const colors = ['#ff0055','#ff3377','#ffcc00','#ff9900'];   // rouge/or du jeu, pas l'orange litteral
         this.push(new Particle(x, y, {
             vx: (Math.random()-0.5)*2, vy: -Math.random()*3-1,
@@ -2503,8 +2932,10 @@ class ParticleSystem {
         }));
     }
     emitDeath(x, y, color) {
-        for (let i = 0; i < 20; i++) {
-            const a = (TAU/20)*i, s = Math.random()*5+2;
+        // Reduced-motion : mort = 5 particules au lieu de 20 (l'événement reste visible).
+        const count = neonReducedMotion() ? 5 : 20;
+        for (let i = 0; i < count; i++) {
+            const a = (TAU/count)*i, s = Math.random()*5+2;
             this.push(new Particle(x, y, {
                 vx: Math.cos(a)*s, vy: Math.sin(a)*s,
                 life: 1, decay: 0.02, size: Math.random()*4+2,
@@ -2552,7 +2983,13 @@ class ParticleSystem {
 // ============================================================
 class ScreenShake {
     constructor() { this.intensity = 0; this.decay = 0.9; }
-    trigger(amount) { this.intensity = Math.min(this.intensity + amount, 15); }
+    trigger(amount) {
+        // Reduced-motion : on desactive l'ecran secoue. La mecanique (mort, kill) reste, seul
+        // l'effet visuel de camera tremblante est coupee — c'est l'extension de prefers-reduced-
+        // motion demandee en Phase 3.2.
+        if (neonReducedMotion()) return;
+        this.intensity = Math.min(this.intensity + amount, 15);
+    }
     update() { this.intensity *= this.decay; if (this.intensity < 0.1) this.intensity = 0; }
     reset() { this.intensity = 0; }
     getOffset() {
@@ -2670,9 +3107,27 @@ class Food {
             this.x = Math.random() * (CONFIG.WORLD_WIDTH - 40) + 20;
             this.y = Math.random() * (CONFIG.WORLD_HEIGHT - 40) + 20;
         }
-        this.radius = 4;
-        this.value = CONFIG.FOOD_GROWTH;
-        this.color = '#ff00ff';
+        // PASTILLES SPÉCIALES : 1 % or (x3 masse, jaune), 1 % poison (-30 % vitesse pendant 3 s,
+        // vert sombre), 98 % normales (rose, valeur FOOD_GROWTH). Le type est tiré au respawn et
+        // fige la couleur / valeur / rayon. Le poison applique un malus de vitesse au serpent qui
+        // le mange (cf. checkCollisions, application sur powerupEnds.speed negatif).
+        const roll = Math.random();
+        if (roll < 0.01) {             // or : 1 %
+            this.type = 'gold';
+            this.radius = 6;           // un peu plus gros pour attirer l'oeil
+            this.value = CONFIG.FOOD_GROWTH * 3;
+            this.color = '#ffd700';
+        } else if (roll < 0.02) {      // poison : 1 % (cumulé)
+            this.type = 'poison';
+            this.radius = 5;
+            this.value = CONFIG.FOOD_GROWTH;   // masse normale quand meme — sinon le joueur l'eviterait
+            this.color = '#7fff00';    // vert acide pour signaler le piege
+        } else {
+            this.type = 'normal';
+            this.radius = 4;
+            this.value = CONFIG.FOOD_GROWTH;
+            this.color = '#ff00ff';
+        }
         this.pulseOffset = Math.random() * TAU;
         this.pulseSpeed = 0.05 + Math.random() * 0.05;
         markFoodDirty(this);
@@ -2682,8 +3137,12 @@ class Food {
         // draw() : sinon le clignotement va deux fois plus vite sur un écran 120 Hz.
         const pulse = this.pulseOffset + (gnow() / STEP_MS) * this.pulseSpeed;
         const r = this.radius + Math.sin(pulse);
+        // Pastille d'or : halo plus large et plus chaud, pour qu'elle se voie de loin. Le poison
+        // a un halo verdâtre plus épais : avertit sans trahir la rareté (la couleur seule suffit
+        // pour le joueur attentif, le halo pour le joueur distrait).
+        const haloMul = this.type === 'gold' ? 3.5 : this.type === 'poison' ? 3.0 : 2.4;
         ctx.globalAlpha = 0.25;
-        ctx.beginPath(); ctx.arc(this.x, this.y, r * 2.4, 0, TAU);
+        ctx.beginPath(); ctx.arc(this.x, this.y, r * haloMul, 0, TAU);
         ctx.fillStyle = this.color; ctx.fill();
         ctx.globalAlpha = 1;
         ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, TAU);
@@ -2772,6 +3231,14 @@ class Snake {
         this.chaseTarget = null;
         this.chaseUntil = 0;
         this.chaseCooldownUntil = 0;
+        // Personnalité du bot (joueur : 'player', ignoree). 4 profils modulent l'IA :
+        //  - 'chasseur'    : engage a 130 % de chaseRange, ne fuit qu'a 70 % de fleeRange (agressif)
+        //  - 'opportuniste': profil standard (equilibre), reference
+        //  - 'fuyant'      : fuit a 130 % de fleeRange, ne chasse qu'a 70 % de chaseRange (prudent)
+        //  - 'embusque'    : profil fuyant + bonus de masse au spawn (gros, lent, defensif)
+        // Tirage au sort a la creation du bot (cf. assignBotPersonality). Pour rendre l'arene
+        // vivante et imprevisible sans toucher au peuplement total ni a la difficulte.
+        this.personality = 'opportuniste';
         this.segments = [];
         this.alive = true;
         this.targetAngle = this.angle;
@@ -2785,7 +3252,9 @@ class Snake {
         // et sa longueur (segments, plafonnee separement par BOT_MAX_LENGTH) en tiennent compte.
         this.maxMass = isPlayer ? Infinity : CONFIG.BOT_MAX_MASS;
         // Fin de bonus exprimée sur l'horloge de simulation : pas de setTimeout, donc pas de fuite ni de bonus qui coule pendant la pause.
-        this.powerupEnds = { speed: 0, magnet: 0, invincible: 0 };
+        // 'poison' n'est pas un power-up mais un malus de pastille poison (-30 % vitesse 3 s) ;
+        // on réutilise le même conteneur pour ne pas multiplier les champs.
+        this.powerupEnds = { speed: 0, magnet: 0, invincible: 0, poison: 0 };
         for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
     }
 
@@ -2826,10 +3295,22 @@ class Snake {
         const t = Math.min(1, Math.max(0, (this.mass - CONFIG.BASE_MASS) / (CONFIG.SPEED_REF_MASS - CONFIG.BASE_MASS)));
         const eased = t * t;
         let base = this.speed * (1 - eased * (1 - CONFIG.MIN_SPEED_RATIO));
+        // Personnalité du bot : un chasseur court +5 %, un embusque -15 %, un fuyant -5 %.
+        // Sans effet sur le joueur (sa personnalité est 'opportuniste', mul = 1).
+        if (!this.isPlayer) {
+            const pers = botPersonalityTuning(this);
+            if (pers.speedMul !== 1) base *= pers.speedMul;
+        }
+        // Pastille poison : -30 % de vitesse pendant 3 s. Appliqué après la personnalité et
+        // avant le bonus speed (qui peut compenser). Stocké sur powerupEnds.poison.
+        if (this.hasPowerUp('poison')) base *= 0.70;
         // Un bot en chasse court MOINS vite que sa proie. Sans ce malus, deux serpents au rayon
         // plafonne vont exactement a la meme vitesse : le poursuivant ne decroche jamais et la
         // fuite devient impossible, quelle que soit la conduite du joueur.
-        if (!this.isPlayer && this.chaseTarget) base *= CONFIG.BOT_CHASE_SPEED;
+        // En Difficile, le malus est reduit (BOT_CHASE_SPEED +0.04) : le bot colle davantage ;
+        // en Facile, il est accentue (-0.05) : le joueur respire. Ajuste via difficultyBotTuning()
+        // car le réglage peut changer en plein jeu (Réglages accessibles depuis Pause).
+        if (!this.isPlayer && this.chaseTarget) base *= difficultyBotTuning().chaseSpeed;
         return this.hasPowerUp('speed') ? base * CONFIG.POWERUPS.speed.speedMultiplier : base;
     }
     addKill() { this.kills++; }
@@ -2900,13 +3381,21 @@ class Snake {
     }
 
     botAI(allSnakes, grid) {
+        // Multiplicateurs de portée selon la personnalité du bot. Cumulés avec ceux de la
+        // difficulté (difficultyBotTuning) — un chasseur en Difficile engagera donc a 1.30 x 1.30
+        // = 1.69x le rayon de reference, ce qui est l'effet cumulatif recherche.
+        const pers = botPersonalityTuning(this);
+        const diff = difficultyBotTuning();
+        const fleeRange = CONFIG.BOT_FLEE_RANGE * pers.fleeRangeMul;
+        const chaseRange = diff.chaseRange * pers.chaseRangeMul;
+
         // Fuite : on s'ecarte de ce qui a la masse superieure, jamais du rayon (plafonne).
         if (!this.hasPowerUp('invincible')) {
             for (const o of allSnakes) {
                 if (o === this || !o.alive) continue;
                 if (o.beats(this)) {
                     const d = Math.hypot(o.x - this.x, o.y - this.y);
-                    if (d < CONFIG.BOT_FLEE_RANGE) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
+                    if (d < fleeRange) { this.targetAngle = Math.atan2(this.y-o.y, this.x-o.x); return; }
                 }
             }
         }
@@ -2930,7 +3419,7 @@ class Snake {
                 if (o === this || !o.alive) continue;
                 if (this.beats(o) && o.canBeEaten()) {
                     const d = Math.hypot(o.x - this.x, o.y - this.y);
-                    if (d < CONFIG.BOT_CHASE_RANGE) {
+                    if (d < chaseRange) {
                         this.chaseTarget = o;
                         this.chaseUntil = gnow() + CONFIG.BOT_CHASE_MAX_MS;
                         break;
@@ -3031,7 +3520,17 @@ class Snake {
         ctx.globalAlpha = menace === 'neutre' ? 0.9 : 0.95;
         ctx.strokeStyle = THREAT_RIM[menace].color;
         ctx.lineWidth = r * 2 + r * THREAT_RIM[menace].width;
+        // Mode daltonien : on ajoute un motif de pointillés distinctif par menace, pour que
+        // l'info de prédation reste lisible sans distinguer les couleurs (rouge vs vert).
+        //  - danger : longs tirets serrés (urgent, continu)
+        //  - proie  : courts tirets espacés (vif, hachuré)
+        //  - neutre : plein (pas d'urgence)
+        // On n'applique le setLineDash que si nécessaire — sinon on garde le rendu plein d'origine.
+        if (save.settings.colorblind && menace !== 'neutre') {
+            ctx.setLineDash(menace === 'danger' ? [r * 1.5, r * 0.6] : [r * 0.5, r * 0.7]);
+        }
         ctx.stroke();
+        if (ctx.setLineDash) ctx.setLineDash([]);   // reset pour les passes suivantes (cœur, bande)
 
         // Cœur du corps : alpha 1 et largeur r*2 non négociables (repère de lisibilité) — un
         // skin ne peut varier ici que la teinte (dégradé), jamais l'opacité ni des pointillés.
@@ -3525,6 +4024,12 @@ class Snake {
         // du plafond, le serpent continue de prendre de la masse sans s'allonger a l'ecran.
         // Meme principe que slither.io, ou le score continue de monter une fois la taille
         // visuelle plafonnee (cf. analyse-concurrence.md §3).
+        //
+        // BONUS UNDERDOG : si le bonus est actif (ecart #1/#2 >= 20 %) et que CE serpent n'est
+        // PAS le leader courant, il gagne +30 % de masse. Le bonus s'applique a TOUT serpent
+        // non-leader (joueur, bots, humains distants en partie privee). Le leader est identifie
+        // par reference (underdogLeader), rafraichi a chaque pas par updateUnderdogBonus().
+        if (underdogBonusActive && this !== underdogLeader) amount *= 1.3;
         this.massValue = Math.min(this.maxMass, this.massValue + amount);
         this.length = Math.min(this.maxLength, this.length + amount);
         this.syncRadius();
@@ -3580,6 +4085,18 @@ let pendingRespawns = [];
 let lastPowerupSpawn = 0;
 let comboCount = 0, lastComboTime = -Infinity, comboMultiplier = 1;
 let uiAccum = 0;
+
+// ----- BONUS UNDERDOG (+30 % de gain de masse hors leader) -----
+// Quand l'ecart de masse entre le #1 et le #2 atteint 20 %, tous les serpents SAUF le leader
+// gagnent +30 % de masse a chaque grow() (pastilles mangees, devoration). Le bonus concerne
+// UNIQUEMENT la masse — il n'y a pas de bonus d'XP. Calcule a chaque pas de simulation
+// cote hote (ou en solo), car cote client d'une partie privee le client ne simule rien :
+// il recoit dans le snapshot la masse deja bumpsee par l'hote, donc le flag n'a pas besoin
+// de voyager sur le reseau. Seuil unique a 20 % : pas d'hysteresis — le bonus s'allume a
+// 20 %, s'eteint dessous, se reallume au retour. Le leader est identifie par masse (meme
+// critere que le classement).
+let underdogBonusActive = false;   // true si ecart #1/#2 >= 20 % (et au moins 2 serpents vivants)
+let underdogLeader = null;         // reference du serpent #1 courant (pour exempter de son propre bonus)
 
 const particles = new ParticleSystem();
 const screenShake = new ScreenShake();
@@ -3892,6 +4409,8 @@ function formatTime(seconds) {
 
 function renderMenu() {
     $('menuLevel').textContent = save.level;
+    const r = rankForLevel(save.level);
+    $('menuRank').textContent = r.icon + ' ' + t('rank_' + r.id);
     const xpNeeded = xpForLevel(save.level);
     $('menuXpBar').style.width = ((save.xp / xpNeeded) * 100) + '%';
     $('menuXpText').textContent = save.xp + ' / ' + xpNeeded + ' XP';
@@ -3901,6 +4420,13 @@ function renderMenu() {
     applySettingsUI();
     $('statGames').textContent = save.games;
     $('statTime').textContent = formatTime(save.totalTime);
+    // Stats carrière étendues : parties gagnees (top1), pastilles d'or mangees, rang actuel.
+    $('statWins').textContent = save.wins || 0;
+    $('statGold').textContent = save.goldEaten || 0;
+    const _r = rankForLevel(save.level);
+    $('statRank').textContent = _r.icon + ' ' + t('rank_' + _r.id);
+    // Rendu de l'onglet Défis du jour : 3 défis + streak + multiplicateur XP.
+    renderDaily();
 
     migrateSkinSave();
     currentSkin();
@@ -3965,6 +4491,25 @@ function updateHUD() {
         combo.textContent = '🔥 Combo x' + comboMultiplier;
     } else {
         combo.style.display = 'none';
+    }
+
+    // Badge UNDERDOG : visible quand le bonus +30 % de masse est actif ET que le joueur n'est
+    // pas le leader courant (sinon c'est lui qui creuse l'écart, le bonus ne le concerne pas).
+    // En partie privée, sousdogLeader est null côté client : on n'affiche pas le badge car le
+    // client ne peut pas savoir s'il est le leader — la mécanique reste silencieuse chez lui.
+    // Côté hôte et en solo, on compare player !== underdogLeader : on évite d'appeler
+    // playerIsFirst() (qui retrie toute la liste) car underdogLeader est déjà à jour.
+    const underdogEl = $('underdogDisplay');
+    const showUnderdog = underdogBonusActive && player && player.alive
+                       && underdogLeader !== null
+                       && player !== underdogLeader;
+    if (showUnderdog) {
+        underdogEl.classList.remove('hidden');
+        underdogEl.style.borderColor = save.settings.uiColor;
+        underdogEl.style.color = save.settings.uiColor;
+        underdogEl.textContent = '⚡ +30 % ' + t('underdogHint');
+    } else {
+        underdogEl.classList.add('hidden');
     }
 }
 
@@ -4154,8 +4699,32 @@ function requestStartGame() {
     if (!save.seenWelcome) {
         gameState = 'WELCOME';
         showScreen('welcome');
+        showWelcomeSlide(1);   // 3 slides : on commence a la 1
     } else {
         startGame();
+    }
+}
+
+// Slide courante du tutoriel de bienvenue (1, 2 ou 3). On la garde en global pour pouvoir
+// avancer/reculer via le clavier (Enter/Espace) sans rederiver l'etat depuis le DOM.
+let welcomeSlide = 1;
+function showWelcomeSlide(n) {
+    welcomeSlide = Math.max(1, Math.min(3, n));
+    for (let i = 1; i <= 3; i++) {
+        $('welcomeSlide' + i).classList.toggle('hidden', i !== welcomeSlide);
+    }
+    // Met a jour les points de progression
+    const dots = document.querySelectorAll('.welcome-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === welcomeSlide - 1));
+    // Boutons : SUIVANT jusqu'a la slide 2, puis C'EST PARTI a la 3
+    $('welcomeNextBtn').classList.toggle('hidden', welcomeSlide >= 3);
+    $('welcomeStartBtn').classList.toggle('hidden', welcomeSlide < 3);
+}
+
+function welcomeNextSlide() {
+    if (welcomeSlide < 3) {
+        audio.play('click');
+        showWelcomeSlide(welcomeSlide + 1);
     }
 }
 
@@ -4183,6 +4752,21 @@ function startGame() {
     killStreak.reset();
     screenShake.reset();
     spectateTarget = null;
+    // Défis quotidiens + streak : on rafraichit la date et on incremente le streak au demarrage
+    // d'une partie (pas à chaque vie — c'est bien par jour, pas par run).
+    refreshDailyIfNeeded();
+    updateDailyStreak();
+    // Reset du bonus underdog : on part d'une arene egalitaire, le bonus s'allumera de lui-meme
+    // des qu'un leader creuse l'ecart a 20 %. Sans ce reset, un bonus actif a la fin de la run
+    // precedente restait actif a l'ecran d'accueil suivant (le HUD l'afficherait a tort).
+    underdogBonusActive = false;
+    underdogLeader = null;
+    // Reset du mini-boss : on reporte le prochain spawn a MINI_BOSS_INTERVAL_MS apres le debut
+    // de la partie, sinon nextMiniBossAt (variable globale) aurait garde la valeur de la run
+    // precedente et le boss pourrait apparaitre immediatement.
+    nextMiniBossAt = MINI_BOSS_INTERVAL_MS;
+    // Reset de l'event de carte : premier event a 60-90 s apres le debut de la partie.
+    nextMapEventAt = rollNextMapEvent();
     showScreen('game');
 
     // Apparition quelque part dans le monde, pas toujours au meme endroit.
@@ -4196,7 +4780,12 @@ function startGame() {
     clampCamera();
 
     bots = [];
-    for (let i = 0; i < CONFIG.BOT_COUNT_SOLO; i++) {
+    // Peuplement ajuste par la difficulte : Facile -30 %, Difficile +25 %. La borne est
+    // recalculee a chaque demarrage de partie, donc le changement en cours de menu s'applique
+    // a la partie suivante. La partie privee n'utilise pas difficultyBotCount() — l'hote
+    // applique sa propre difficulte via hostStartGame() (cf. BOT_COUNT brut).
+    const soloBotCount = difficultyBotCount(CONFIG.BOT_COUNT_SOLO);
+    for (let i = 0; i < soloBotCount; i++) {
         const bot = new Snake(
             Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT,
             false, CONFIG.BOT_NAMES[i % CONFIG.BOT_NAMES.length],
@@ -4204,6 +4793,7 @@ function startGame() {
         );
         if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
         bot.kills = Math.floor(Math.random() * 15);
+        applyBotPersonality(bot);   // Type le bot (chasseur / opportuniste / fuyant / embusque)
         bots.push(bot);
     }
 
@@ -4228,6 +4818,32 @@ let pauseVictory = false;   // la sortie proposee par l'ecran Pause en cours est
 function playerIsFirst() {
     if (!player || !player.alive) return false;
     return aliveSnakes().sort((a, b) => b.mass - a.mass)[0] === player;
+}
+
+// ----- BONUS UNDERDOG : recalcul du leader et du ratio #1/#2 -----
+// Appelé a chaque pas de simulation (cote hote ou en solo) APRES checkCollisions, moment ou
+// les masses viennent de bouger. Cote client prive, ne fait rien : le client ne simule pas
+// grow() (l'hote le fait pour lui), il recoit la masse deja majoree dans le snapshot.
+//
+// Seuil : ecart = (mass#1 - mass#2) / mass#1. Si >= 0,20 le bonus s'allume, sinon il s'eteint.
+// Pas d'hysteresis (seuil unique), conformement a la spec "s'estompe et revient a 20 %".
+// S'il n'y a qu'un seul serpent vivant, le bonus s'eteint (pas de #2 a rattraper).
+function updateUnderdogBonus() {
+    // Cote client d'une partie privee : pas de calcul local. Le bonus de masse est applique
+    // cote hote dans grow(), et le client n'a qu'a recevoir le resultat via le snapshot.
+    if (party.inGame && !party.isHost) return;
+    const all = aliveSnakes();
+    if (all.length < 2) { underdogBonusActive = false; underdogLeader = all[0] || null; return; }
+    // Recherche lineaire des deux plus fortes masses — O(n), n <= ~220, a chaque pas (60 Hz) :
+    // negligible. On evite un sort complet (O(n log n)) pour ne garder que le top-2.
+    let first = null, second = null;
+    for (const s of all) {
+        if (!first || s.mass > first.mass) { second = first; first = s; }
+        else if (!second || s.mass > second.mass) { second = s; }
+    }
+    underdogLeader = first;
+    const gap = (first.mass - second.mass) / first.mass;
+    underdogBonusActive = gap >= 0.20;
 }
 
 // Prepare la sortie proposee par l'ecran Pause. En tete du classement, "Abandonner" devient
@@ -4293,14 +4909,48 @@ function hideAbandonConfirm() {
     $('pauseNormal').classList.remove('hidden');
 }
 
+// Compte à rebours 3-2-1 avant la reprise : purement visuel, le jeu reste PAUSED pendant
+// la décompte (donc figé en solo, serpent sous IA en partie privée — l'état existant).
+// Au terme, on bascule en PLAYING exactement comme avant, mais on a donné au joueur le temps
+// de replacer son doigt / sa souris après l'écran Pause — sur mobile c'est crucial pour éviter
+// le "où j'étais ?" de la reprise abrupte.
+let resumeCountdown = 0;       // ms restants au décompte (0 = pas en décompte)
+const RESUME_COUNTDOWN_MS = 1500;   // 3 chiffres × 500 ms ≈ 1,5 s — assez court pour ne pas ralentir
+
 function resumeGame() {
     if (gameState !== 'PAUSED') return;
+    // En solo, on lance le décompte sans toucher au gameState (reste PAUSED => tout figé).
+    // En partie privée, le serpent est déjà sous IA depuis la pause — le décompte ne change
+    // rien à son comportement, il reste tel quel jusqu'au 0.
+    resumeCountdown = RESUME_COUNTDOWN_MS;
+    showScreen('game');   // retour au canvas, mais gameState est encore PAUSED — le rendu ne tourne pas
+    updateResumeCountdown();
+}
+
+// Termine le décompte et lance réellement la partie. Synchronisé avec la boucle de jeu via
+// advanceGame (où resumeCountdown est décrémenté à pas fixe 60 Hz).
+function finishResumeCountdown() {
+    resumeCountdown = 0;
     gameState = 'PLAYING';
     accumulator = 0;
     lastFrameTs = 0;
     partySetPaused(false);
     audio.resume();
-    showScreen('game');
+    $('resumeCountdown').classList.add('hidden');
+}
+
+// Met à jour l'overlay de décompte (3, 2, 1). Appelé à chaque pas par advanceGame tant que
+// resumeCountdown > 0, et une fois immédiatement à l'entrée dans resumeGame().
+function updateResumeCountdown() {
+    const el = $('resumeCountdown');
+    if (!el || resumeCountdown <= 0) {
+        if (el) el.classList.add('hidden');
+        return;
+    }
+    // Trois paliers de 500 ms : > 1000 => 3, > 500 => 2, > 0 => 1.
+    const n = Math.ceil(resumeCountdown / 500);
+    el.classList.remove('hidden');
+    el.textContent = String(n);
 }
 
 function goToMenu() {
@@ -4312,6 +4962,10 @@ function goToMenu() {
     particles.clear();
     killStreak.reset();
     screenShake.reset();
+    // Le bonus underdog n'a plus de sens hors jeu : on le reteint pour que le HUD ou un
+    // futur indicateur ne l'affiche pas a tort sur l'ecran d'accueil.
+    underdogBonusActive = false;
+    underdogLeader = null;
     showScreen('menu');
     renderMenu();
 }
@@ -4330,15 +4984,29 @@ function endGame(opts) {
     const mass = Math.round(player ? player.mass : 0);
     const duration = Math.floor(gameClock / 1000);
     const xpBase = Math.floor(size * 0.5) + sessionKills * 15;
-    const xpGain = won ? Math.floor(xpBase * CONFIG.WIN_XP_MULTIPLIER) : xpBase;
-    const leveledUp = addXP(xpGain);
+    // Le multiplicateur de difficulte s'applique a l'XP final, APRES le bonus de victoire :
+    // jouer en Difficile ne change pas la masse gagnee (l'arene est deja plus dure), mais
+    // recompense la progression. Facile reduit l'XP de 30 %, Difficile l'augmente de 30 %.
+    const xpAfterWin = won ? Math.floor(xpBase * CONFIG.WIN_XP_MULTIPLIER) : xpBase;
+    // Streak journalier : +10 % par jour consecutif, plafonne a x2. Combine avec la difficulte.
+    const xpAfterDiff = Math.floor(xpAfterWin * difficultyXpMultiplier());
+    const xpGain = Math.floor(xpAfterDiff * streakXpMultiplier());
+    let leveledUp = addXP(xpGain);
 
     save.games++;
     save.totalTime += duration;
     save.kills += sessionKills;
+    if (won) save.wins = (save.wins || 0) + 1;   // compteur de top1 (carrière)
     // Record = la MASSE, pas la taille affichee (celle-ci plafonne a MAX_LENGTH) : sinon deux
     // parties qui depassent le plafond affichent le meme record alors que l'une a mange 5x plus.
     if (mass > save.bestSize) save.bestSize = mass;
+
+    // Défis quotidiens : on met à jour dailyProgress (la valeur max est conservée pour 'size').
+    refreshDailyIfNeeded();
+    save.dailyProgress.games = (save.dailyProgress.games || 0) + 1;
+    save.dailyProgress.kills = (save.dailyProgress.kills || 0) + sessionKills;
+    save.dailyProgress.size = Math.max(save.dailyProgress.size || 0, size);
+    if (checkDailyChallenges()) leveledUp = true;   // distribue l'XP bonus si un défi est complété
 
     save.history.unshift({ size, kills: sessionKills, duration, won, date: new Date().toLocaleDateString('fr-FR') });
     while (save.history.length > CONFIG.MAX_HISTORY) save.history.pop();
@@ -4348,6 +5016,9 @@ function endGame(opts) {
     checkAchievement('five_kills', sessionKills >= 5);
     checkAchievement('ten_kills', sessionKills >= 10);
     checkAchievement('big_snake', size >= 200);
+    checkAchievement('huge_snake', size >= 500);
+    checkAchievement('top1', won);
+    checkAchievement('careers_50', save.games >= 50);
 
     audio.play(won ? 'victory' : 'death');
     showToast((won ? '🏆 Victoire • Taille ' : '💀 Taille ') + size + ' • ' + sessionKills + ' kill(s) • +' + xpGain + ' XP' + (leveledUp ? ' ⬆ NIVEAU ' + save.level + ' !' : ''));
@@ -4359,6 +5030,7 @@ function respawnBot(idx, name, color) {
     const bot = new Snake(Math.random()*CONFIG.WORLD_WIDTH, Math.random()*CONFIG.WORLD_HEIGHT, false, name, color);
     bot.grow(Math.floor(Math.random() * 10));
     bot.netId = 'b' + idx;   // meme identite reseau qu'avant sa mort : le roster reste valable
+    applyBotPersonality(bot);   // Re-tirage : un bot qui meurt peut revenir avec un autre profil
     bots[idx] = bot;
 }
 
@@ -4384,6 +5056,62 @@ function handleInput(e) {
         pointer.x = e.clientX;
         pointer.y = e.clientY;
     }
+}
+
+// ----- BOOST / DASH (double-tap ou double-clic) -----
+// Tactile : le double-tap est l'alternative au clic droit (impossible sur mobile). Le détecteur
+// est séparé de handleInput pour ne pas interférer avec le suivi du doigt : on compte les
+// pointerdown récents dans une fenêtre de 280 ms. Le boost coûte 5 % de la masse courante (qui
+// est convertie en pastilles derrière le serpent, slither.io-style) et dure 1,2 s à x1,8
+// vitesse. Pas de boost si masse < BASE_MASS * 5 (sinon le joueur se suicide en dashant).
+let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+let lastDashEndsAt = 0;   // horloge de simulation (gnow) — distinct de lastTapTime (performance.now(),
+                          // remis a 0 des le double-tap consomme) : sert a detecter un kill PENDANT
+                          // le dash, sans se confondre avec un simple ramassage de bonus vitesse.
+const DOUBLE_TAP_MS = 280;
+const DOUBLE_TAP_DIST_PX = 60;   // les deux taps doivent etre proches (cm ~= un pouce)
+
+// Coeur de l'effet DASH (cout de masse + boost vitesse), partage entre la prediction locale
+// et son application autoritaire cote hote pour un client distant (cf. handleHostMessage,
+// msg.type === 'DASH') : sans ca, un client non-hote qui dashe voit son effet local ecrase des
+// le prochain instantane (netApplyState reecrit massValue/powerupEnds.speed depuis l'hote, qui
+// n'a jamais entendu parler du dash) — le DASH reseau etait gratuit et sans effet.
+function applyDashEffect(snake) {
+    if (snake.mass < CONFIG.BASE_MASS * 5) return false;
+    // Coupe 5 % de masse : on retire directement de massValue et on ampute la longueur
+    // proportionnellement (pour que l'affichage suive). Pas de dispersion en pastilles — on
+    // garde le dash simple (slither.io disperse, ici c'est un coût direct, sans recyclage).
+    const perte = snake.mass * 0.05;
+    snake.massValue = Math.max(CONFIG.BASE_MASS, snake.massValue - perte);
+    snake.length = Math.max(10, snake.length - perte);
+    snake.syncRadius();
+    // Active le bonus speed pendant 1,2 s (POWERUPS.speed.duration = 5000 normalement), via
+    // une variante courte. On reutilise powerupEnds.speed pour rester coherent.
+    snake.powerupEnds.speed = Math.max(snake.powerupEnds.speed, gnow() + 1200);
+    return true;
+}
+
+function tryBoostDash(clientX, clientY) {
+    if (gameState !== 'PLAYING' || !player || !player.alive) return;
+    const now = performance.now();
+    const dt = now - lastTapTime;
+    const dist = Math.hypot(clientX - lastTapX, clientY - lastTapY);
+    lastTapTime = now; lastTapX = clientX; lastTapY = clientY;
+    if (dt > DOUBLE_TAP_MS || dist > DOUBLE_TAP_DIST_PX) return;   // pas un double-tap
+    // Consomme le double-tap
+    lastTapTime = 0;
+    if (!applyDashEffect(player)) {
+        // Trop petit pour dasher : on signalera par un toast discret
+        showToast('💀 Trop petit pour dasher');
+        return;
+    }
+    lastDashEndsAt = gnow() + 1200;
+    audio.play('powerup');
+    // Toast discret pour signaler le dash
+    showToast('⚡ DASH !');
+    // Client non-hote : l'effet local n'est qu'une prediction, ecrasee au prochain instantane
+    // si l'hote ne l'applique pas aussi de son cote (cf. applyDashEffect plus haut).
+    if (party.inGame && !party.isHost) partySendToHost({ type: 'DASH' });
 }
 
 // Réutilise n pastilles EXISTANTES du pool (le tableau `foods` garde une taille constante)
@@ -4449,6 +5177,13 @@ function killSnake(winner, loser, cutFromIndex) {
         checkAchievement('first_kill', true);
         checkAchievement('five_kills', sessionKills >= 5);
         checkAchievement('ten_kills', sessionKills >= 10);
+        // Succès "Foudre de guerre" : tuer pendant un DASH. lastDashEndsAt est pose sur l'horloge
+        // de simulation (gnow) par tryBoostDash — ne pas reutiliser lastTapTime (performance.now(),
+        // remis a 0 des le double-tap consomme) : comparer deux horloges differentes rendait ce
+        // succes quasi inobtenable.
+        if (gnow() < lastDashEndsAt) {
+            checkAchievement('dash_kill', true);
+        }
     }
 
     if (loser.isPlayer) {
@@ -4578,8 +5313,22 @@ function checkCollisions() {
             }
 
             snake.grow(f.value * (snake.isPlayer ? comboMultiplier : 1));
+            // Pastille poison : malus de vitesse pendant 3 s. Pas de masse bonus ni perte, mais
+            // ralentit le serpent de 30 % — un piege qu'on apprend a reconnaitre visuellement
+            // (couleur vert acide, halo epais). Stocke sur powerupEnds.poison (horloge de sim)
+            // pour ne pas ajouter un nouveau champ et rester coherent avec les bonus existants.
+            if (f.type === 'poison') {
+                snake.powerupEnds.poison = gnow() + 3000;
+                if (snake.isPlayer) audio.play('powerup');   // son distinctif (pas de son dedie)
+            }
+            // Pastille d'or : on incremente le compteur carrière pour le succès gold_eater.
+            if (f.type === 'gold' && snake.isPlayer) {
+                save.goldEaten = (save.goldEaten || 0) + 1;
+                checkAchievement('gold_eater', save.goldEaten >= 10);
+                writeSave();   // on persiste tout de suite pour ne pas perdre en cas de fermeture
+            }
             particles.emitFoodEat(f.x, f.y);
-            if (snake.isPlayer) audio.play('eat');
+            if (snake.isPlayer && f.type !== 'poison') audio.play('eat');
             f.respawn();   // la pastille reapparait ailleurs : le tableau garde une taille constante
         });
 
@@ -4704,6 +5453,85 @@ function spawnPowerups() {
     }
 }
 
+// ----- MINI-BOSS -----
+// Toutes les 5 minutes (300 000 ms de gameClock), un bot 2x plus gros que la moyenne spawn au
+// centre du monde, avec une couleur vive (rouge vif, distincte des bots standard). Il prend la
+// personnalite 'chasseur' (agressif) et conserve la mecanique de respawn standard a sa mort.
+// Solo et partie privee : ne s'applique que cote hote (le client ne simule pas les bots).
+let nextMiniBossAt = 0;
+const MINI_BOSS_INTERVAL_MS = 5 * 60 * 1000;   // 5 minutes
+const MINI_BOSS_MASS = 200;                     // masse de depart (vs BASE_MASS=10 pour les bots std)
+
+// ----- EVENT DE CARTE (Phase 4.3) -----
+// Toutes les 60-90 secondes (interval aléatoire), un event se déclenche. Le seul event pour
+// l'instant : "pluie d'or" — 20 pastilles normales choisies aléatoirement deviennent dorées
+// (valeur x3, couleur jaune) pendant la durée de l'event. Pas de reset auto : les pastilles
+// redeviennent normales à leur prochain respawn (après avoir été mangées).
+let nextMapEventAt = 0;
+const MAP_EVENT_MIN_MS = 60 * 1000;   // 60 s
+const MAP_EVENT_MAX_MS = 90 * 1000;  // 90 s
+const MAP_EVENT_GOLD_COUNT = 20;     // nombre de pastilles touchées par l'event
+
+function rollNextMapEvent() {
+    return gameClock + MAP_EVENT_MIN_MS + Math.random() * (MAP_EVENT_MAX_MS - MAP_EVENT_MIN_MS);
+}
+
+function spawnMapEvent() {
+    // Pas d'event cote client prive : seul l'hote simule les pastilles.
+    if (party.inGame && !party.isHost) return;
+    if (gameClock < nextMapEventAt) return;
+    nextMapEventAt = rollNextMapEvent();
+    // Pluie d'or : on choisit 20 pastilles aléatoires et on les passe en type 'gold'.
+    // On tire avec remise (pas grave si 2 fois la meme), et on ne touche que des pastilles
+    // 'normal' (ne pas override un poison existant — c'est un bonus, pas un malus transforme).
+    let transformed = 0;
+    for (let i = 0; i < MAP_EVENT_GOLD_COUNT * 2 && transformed < MAP_EVENT_GOLD_COUNT; i++) {
+        if (foods.length === 0) break;
+        const f = foods[Math.floor(Math.random() * foods.length)];
+        if (f.type === 'normal') {
+            f.type = 'gold';
+            f.radius = 6;
+            f.value = CONFIG.FOOD_GROWTH * 3;
+            f.color = '#ffd700';
+            markFoodDirty(f);
+            transformed++;
+        }
+    }
+    if (transformed > 0) showToast('✨ Pluie de pastilles d\'or !');
+}
+
+function spawnMiniBoss() {
+    // Pas de mini-boss cote client prive : seul l'hote simule les bots, le client ne ferait que
+    // dupliquer le spawn hors de la simulation de reference.
+    if (party.inGame && !party.isHost) return;
+    if (gameClock < nextMiniBossAt) return;
+    nextMiniBossAt = gameClock + MINI_BOSS_INTERVAL_MS;
+    // Position : centre du monde, legerement aleatoire pour eviter un spawn sur un mur exact.
+    const cx = CONFIG.WORLD_WIDTH / 2 + (Math.random() - 0.5) * 200;
+    const cy = CONFIG.WORLD_HEIGHT / 2 + (Math.random() - 0.5) * 200;
+    const boss = new Snake(cx, cy, false, 'BOSS', '#ff2020');
+    boss.grow(MINI_BOSS_MASS - CONFIG.BASE_MASS);   // atteint la masse cible
+    boss.personality = 'chasseur';   // agressif
+    boss.kills = 5;   // a un historique de kills pour demarrer avec le kill effect visible
+    // Trouve un slot libre dans bots[] (ou pousse). Le boss reste dans le meme tableau que les
+    // autres bots : il beneficie de tout le pipeline (IA, collisions, rendu, reseau).
+    // On evite en priorite un slot avec un respawn deja programme (pendingRespawns) : sinon
+    // processRespawns() ecraserait silencieusement le boss des que ce respawn arrive a echeance.
+    let idx = bots.findIndex((b, i) => (!b || !b.alive) && !pendingRespawns.some(r => r.idx === i));
+    if (idx < 0) idx = bots.findIndex(b => !b || !b.alive);
+    if (idx < 0) { idx = bots.length; bots.push(boss); }
+    else {
+        bots[idx] = boss;
+        pendingRespawns = pendingRespawns.filter(r => r.idx !== idx);
+    }
+    boss.netId = 'b' + idx;
+    netRegisterId(boss.netId);   // slot au-dela du roster initial : sans ca l'index reseau reste
+                                  // non assigne et l'instantane le confond avec l'hote (index 0)
+    // Toast d'alerte : le joueur doit savoir qu'un boss est apparu (pas de mini-map marker pour
+    // l'instant — laisse simple).
+    showToast("⚠️ Un BOSS surgit au centre de l'arene !");
+}
+
 function emitSnakeEffects(snake) {
     if (!snake.alive || snake.segments.length === 0) return;
     const effects = snake.getActiveEffects();
@@ -4737,6 +5565,10 @@ function emitSnakeEffects(snake) {
 
 function drawAuras(snake) {
     if (!snake.alive || snake.segments.length === 0) return;
+    // Reduced-motion : les auras (flamme, foudre, fumée) sont des silhouettes vivantes qui
+    // debordent et se deforment — on les supprime en reduced-motion pour eliminer ce mouvement
+    // peripherique. Le serpent reste parfaitement lisible sans elles.
+    if (neonReducedMotion()) return;
     const head = snake.segments[0];
     const segs = snake.segments;
     const n = segs.length;
@@ -4873,11 +5705,18 @@ function simulate() {
     updateCamera();
     processRespawns();
     spawnPowerups();
+    spawnMiniBoss();   // Mini-boss : toutes les 5 min, un bot 2x plus gros spawn au centre
+    spawnMapEvent();   // Event de carte : pluie d'or toutes les 60-90 s
     // Le magnet a pu déplacer des pastilles pendant les update() ci-dessus : la grille
     // construite en haut de fonction leur est d'un pas périmée.
     foodGrid.build(foods);
     checkCollisions();
     if (!simActive()) return;
+
+    // Bonus underdog : on recalcule APRES checkCollisions — c'est la que les masses viennent
+    // de bouger (pastilles mangees, devoration, decoupe). Le leader et l'ecart #1/#2 sont a
+    // jour pour le pas suivant. Negligeable en cout (O(n), n <= ~220).
+    updateUnderdogBonus();
 
     particles.update();
     screenShake.update();
@@ -4916,7 +5755,27 @@ function render() {
         for (const f of foods) if (inView(f.x, f.y, 20, v)) f.draw(ctx);
         // Tous les adversaires d'abord (bots ET humains distants en partie privee), le joueur
         // en dernier pour qu'il reste au-dessus du tas.
-        for (const s of aliveSnakes()) if (s !== player && snakeVisible(s, v)) { s.draw(ctx); drawAuras(s); }
+        // LOD perf (Phase 4.4) : si le serpent est très loin (rayon affiché ≤ 2 px après zoom
+        // camera), on dessine juste un cercle plein — pas de segments, pas de liseré, pas d'aura.
+        // Cela suffit pour repérer un serpent à très grande distance (sur dézoom max) et divise
+        // le coût de rendu d'un facteur 10-50 (segments + écailles + liseré = ~50 opérations).
+        const zoom = cam.zoom;
+        for (const s of aliveSnakes()) {
+            if (s === player) continue;
+            if (!snakeVisible(s, v)) continue;
+            const screenR = s.radius * zoom;
+            if (screenR <= 2) {
+                // LOD : simple point coloré
+                ctx.fillStyle = s.color;
+                ctx.globalAlpha = 0.85;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius, 0, TAU);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            } else {
+                s.draw(ctx); drawAuras(s);
+            }
+        }
         if (player && player.alive) { player.draw(ctx); drawAuras(player); }
         particles.draw(ctx);
     }
@@ -4931,6 +5790,16 @@ function render() {
 // FPS : moyenne glissante sur une seconde d'horloge d'affichage reelle, pas sur le pas de
 // simulation — c'est le confort percu qu'on veut montrer, pas la cadence de la physique.
 let fpsFrames = 0, fpsSince = 0, fpsValue = 0;
+
+// Économie batterie (Phase 4.5) : détection mobile pour limiter à 30 fps (cf. gameLoop).
+// On garde une seule variable de skip, pour sauter une frame sur deux en mode batterie.
+let batterySaverSkip = false;
+function isMobileDevice() {
+    try {
+        const ua = navigator.userAgent || '';
+        return /Mobi|Android|iPhone|iPod|Tablet|iPad/i.test(ua);
+    } catch(e) { return false; }
+}
 
 // PING : le jeu est SOLO et HORS-LIGNE, il n'existe aucun serveur de jeu. Afficher un ping
 // invente serait un chiffre faux. On mesure donc un aller-retour reel vers l'hebergeur (itch.io
@@ -4962,6 +5831,17 @@ function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
     lastRafAt = rnow();
 
+    // Économie batterie (Phase 4.5) : sur mobile en partie, on limite à 30 fps en sautant une
+    // frame sur deux. Cela réduit la consommation sans impacter la simulation (toujours à 60 Hz
+    // en interne via le pas fixe). Le rendu est alors à 30 fps, mais le gameplay reste fluide.
+    // Détection mobile : userAgent contient 'Mobi' (Android/iPhone) ou 'Tablet' (iPad).
+    if (gameState === 'PLAYING' && isMobileDevice() && save.settings.quality !== 'LOW') {
+        if (batterySaverSkip) { batterySaverSkip = false; return; }
+        batterySaverSkip = true;
+    } else {
+        batterySaverSkip = false;
+    }
+
     // La télémétrie reste ICI, et non dans advanceGame : elle compte les IMAGES. advanceGame est
     // aussi appelée par l'horloge de secours de l'hôte quand le navigateur suspend
     // requestAnimationFrame — y placer ce compteur ferait afficher des « images par seconde »
@@ -4988,6 +5868,15 @@ function advanceGame(ts) {
     let dt = ts - lastFrameTs;
     lastFrameTs = ts;
     if (dt > 250) dt = 250;   // onglet réveillé : on ne rattrape pas 10 minutes de simulation
+
+    // Compte à rebours 3-2-1 avant reprise : on le décrémente au pas fixe (60 Hz) même si
+    // simActive() est faux (en solo PAUSED), car il doit avancer pendant que le jeu est figé.
+    // On utilise le dt brut plafonné à 250 ms (pas de rattrapage massif si l'onglet fut caché).
+    if (resumeCountdown > 0) {
+        resumeCountdown -= dt;
+        updateResumeCountdown();
+        if (resumeCountdown <= 0) finishResumeCountdown();
+    }
 
     if (simActive()) {
         accumulator += dt;
@@ -5085,11 +5974,33 @@ function neonSpawn(x, y, color) {
 
 function neonFrame(ts) {
     requestAnimationFrame(neonFrame);
-    if (!neonBursts.length) return;
+    // ----- Écran d'accueil vivant : points flottants en arrière-plan du menu -----
+    // On anime quelques points colorés qui dérivent lentement, visibles seulement sur l'écran
+    // d'accueil (MENU) — donne vie sans surcharger. Respecte reduced-motion (fige les points).
+    if (gameState === 'MENU' && !neonReducedMotion()) {
+        neonBgStep(ts);
+    } else if (menuBgDots.length) {
+        // Quand on quitte le menu, on efface les points residuels pour qu'ils ne restent pas
+        // figes sur l'ecran de jeu / pause / etc.
+        neonCtx.setTransform(neonDPR, 0, 0, neonDPR, 0, 0);
+        neonCtx.clearRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+        menuBgDots = [];
+    }
+    if (!neonBursts.length && menuBgDots.length === 0) {
+        neonLast = ts;
+        return;
+    }
     const dt = Math.min(34, neonLast ? ts - neonLast : 16);
     neonLast = ts;
     neonCtx.setTransform(neonDPR, 0, 0, neonDPR, 0, 0);
-    neonCtx.clearRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+    // On ne clear PAS si on est sur le menu avec des points : on efface avec un voile semi-
+    // transparent pour laisser une légère trainee (effet "particules qui derivent").
+    if (menuBgDots.length && gameState === 'MENU') {
+        neonCtx.fillStyle = 'rgba(15, 15, 19, 0.35)';
+        neonCtx.fillRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+    } else {
+        neonCtx.clearRect(0, 0, neonCanvas.width / neonDPR, neonCanvas.height / neonDPR);
+    }
     neonCtx.globalCompositeOperation = 'lighter';
     const now = rnow();
     for (const b of neonBursts) {
@@ -5137,7 +6048,45 @@ function neonFrame(ts) {
         }
     }
     neonBursts = neonBursts.filter(b => now - b.t0 < b.throwMs + b.dur);
+    // ----- Rendu des points flottants (menu) -----
+    // On les dessine APRES les bursts pour qu'ils restent visibles sous les éclats de clic.
+    if (menuBgDots.length && gameState === 'MENU') {
+        const w = neonCanvas.width / neonDPR, h = neonCanvas.height / neonDPR;
+        for (const d of menuBgDots) {
+            // Deplacement lent et deterministe (pas de random par frame — deterministe = stable).
+            d.x += d.vx * dt / 1000;
+            d.y += d.vy * dt / 1000;
+            // Rebond sur les bords de l'ecran
+            if (d.x < 0) { d.x = 0; d.vx = Math.abs(d.vx); }
+            else if (d.x > w) { d.x = w; d.vx = -Math.abs(d.vx); }
+            if (d.y < 0) { d.y = 0; d.vy = Math.abs(d.vy); }
+            else if (d.y > h) { d.y = h; d.vy = -Math.abs(d.vy); }
+            // Halo de la couleur d'interface, alpha faible ( discreet, envahissant sinon)
+            neonBlob(neonCtx, d.x, d.y, d.size, d.color, d.alpha);
+        }
+    }
     neonCtx.globalCompositeOperation = 'source-over';
+}
+
+// Points flottants en arrière-plan du menu. Initialises paresseusement a la premiere frame
+// MENU, reset quand on quitte. 12 points, vitesses lentes (10-30 px/s), tailles 2-6 px.
+let menuBgDots = [];
+function neonBgStep(ts) {
+    if (menuBgDots.length === 0) {
+        const w = neonCanvas.width / neonDPR, h = neonCanvas.height / neonDPR;
+        const color = save.settings.uiColor;
+        for (let i = 0; i < 12; i++) {
+            menuBgDots.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 30,
+                vy: (Math.random() - 0.5) * 30,
+                size: 2 + Math.random() * 4,
+                color,
+                alpha: 0.15 + Math.random() * 0.15,
+            });
+        }
+    }
 }
 requestAnimationFrame(neonFrame);
 
@@ -5240,6 +6189,12 @@ function applySettingsUI() {
     document.querySelectorAll('#qualityRow .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.quality === save.settings.quality);
     });
+    document.querySelectorAll('#difficultyRow .tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.difficulty === (save.settings.difficulty || 'normal'));
+    });
+    document.querySelectorAll('#colorblindRow .tab-btn').forEach(b => {
+        b.classList.toggle('active', (b.dataset.colorblind === 'on') === !!save.settings.colorblind);
+    });
     document.querySelectorAll('.swatch').forEach(b => {
         b.classList.toggle('active', b.dataset.color === save.settings.uiColor);
     });
@@ -5302,6 +6257,7 @@ function bindBtn(id, fn) {
 }
 bindBtn('playBtn', requestStartGame);
 bindBtn('welcomeStartBtn', dismissWelcomeAndStart);
+bindBtn('welcomeNextBtn', welcomeNextSlide);
 bindBtn('pauseBtn', pauseGame);
 bindBtn('resumeBtn', resumeGame);
 bindBtn('abandonBtn', showAbandonConfirm);
@@ -5337,6 +6293,29 @@ document.querySelectorAll('#qualityRow .tab-btn').forEach(btn => {
         resizeCanvas();
     });
 });
+// Sélecteur de difficulté (Réglages). 3 paliers : Facile (x0,7 XP, moins de bots, bots moins
+// agressifs), Normal (référence), Difficile (x1,3 XP, plus de bots, bots plus agressifs). Le
+// changement s'applique à la partie suivante pour le peuplement (startGame), et immédiatement
+// pour l'IA (recalculé à chaque pas via difficultyBotTuning()) et l'XP final (endGame).
+document.querySelectorAll('#difficultyRow .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        audio.init(); audio.play('click');
+        save.settings.difficulty = btn.dataset.difficulty;
+        writeSave();
+        applySettingsUI();
+    });
+});
+// Toggle daltonien (Réglages). Active le motif de pointillés sur le liseré de menace — l'info
+// de prédation reste lisible sans distinguer les couleurs (rouge vs vert). Stocke un booléen
+// dans save.settings.colorblind, lu à chaque rendu de liseré (cf. drawSnakeBody).
+document.querySelectorAll('#colorblindRow .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        audio.init(); audio.play('click');
+        save.settings.colorblind = (btn.dataset.colorblind === 'on');
+        writeSave();
+        applySettingsUI();
+    });
+});
 bindBtn('openLangBtn', () => {
     $('settingsRoot').classList.add('hidden');
     $('settingsLang').classList.remove('hidden');
@@ -5359,6 +6338,16 @@ canvas.addEventListener('mousemove', handleInput);
 canvas.addEventListener('touchmove', handleInput, { passive: false });
 canvas.addEventListener('touchstart', handleInput, { passive: false });
 
+// Boost/Dash par double-tap (tactile) ou double-clic (souris). On garde un seul listener
+// pointerdown pour couvrir les deux cas : pointerType 'touch' = double-tap, 'mouse' = double-clic.
+// On évite de consommer l'event : handleInput (séparé) continue de suivre le doigt/souris.
+let _lastPointerDown = 0;
+canvas.addEventListener('pointerdown', (e) => {
+    if (gameState !== 'PLAYING') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;   // clic droit réservé
+    tryBoostDash(e.clientX, e.clientY);
+});
+
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         if (gameState === 'PLAYING') { e.preventDefault(); pauseGame(); }
@@ -5368,7 +6357,12 @@ window.addEventListener('keydown', (e) => {
         // preventDefault : sinon un bouton focus (Jouer, Reprendre) reçoit AUSSI le clic natif
         // du clavier et l'action se déclenche deux fois.
         if (gameState === 'MENU' || gameState === 'END') { e.preventDefault(); audio.init(); requestStartGame(); }
-        else if (gameState === 'WELCOME') { e.preventDefault(); audio.init(); dismissWelcomeAndStart(); }
+        else if (gameState === 'WELCOME') {
+            // En tuto : Enter/Espace avance d'une slide, et lance le jeu a la derniere.
+            e.preventDefault(); audio.init();
+            if (welcomeSlide < 3) welcomeNextSlide();
+            else dismissWelcomeAndStart();
+        }
         else if (gameState === 'PAUSED') { e.preventDefault(); resumeGame(); }
         else if (gameState === 'SPECTATING') { e.preventDefault(); finishSpectate(); }
     }
@@ -5656,6 +6650,11 @@ function handleHostMessage(conn, msg) {
     if (msg.type === 'I') {
         const s = remotes.get(conn.peer);
         if (s && s.alive && typeof msg.a === 'number') s.targetAngle = msg.a;
+    } else if (msg.type === 'DASH') {
+        // Applique l'effet cote hote, seule verite transmise ensuite via hostSendSnapshot.
+        // Revalide sur SA copie de la masse (pas celle, potentiellement perimee, du client).
+        const s = remotes.get(conn.peer);
+        if (s && s.alive) applyDashEffect(s);
     } else if (msg.type === 'RESPAWN') {
         hostSpawnRemote(conn.peer);
     } else if (msg.type === 'PAUSE' || msg.type === 'RESUME') {
@@ -6134,6 +7133,7 @@ function launchPrivateGame() {
         if (Math.random() > 0.7) bot.grow(Math.floor(Math.random() * 20) + 5);
         bot.kills = Math.floor(Math.random() * 15);
         bot.netId = 'b' + i;
+        applyBotPersonality(bot);   // Personnalité côté hôte (cf. solo)
         netRegisterId(bot.netId);
         bots.push(bot);
     }
