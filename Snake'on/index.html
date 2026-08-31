@@ -5791,16 +5791,6 @@ function render() {
 // simulation — c'est le confort percu qu'on veut montrer, pas la cadence de la physique.
 let fpsFrames = 0, fpsSince = 0, fpsValue = 0;
 
-// Économie batterie (Phase 4.5) : détection mobile pour limiter à 30 fps (cf. gameLoop).
-// On garde une seule variable de skip, pour sauter une frame sur deux en mode batterie.
-let batterySaverSkip = false;
-function isMobileDevice() {
-    try {
-        const ua = navigator.userAgent || '';
-        return /Mobi|Android|iPhone|iPod|Tablet|iPad/i.test(ua);
-    } catch(e) { return false; }
-}
-
 // PING : le jeu est SOLO et HORS-LIGNE, il n'existe aucun serveur de jeu. Afficher un ping
 // invente serait un chiffre faux. On mesure donc un aller-retour reel vers l'hebergeur (itch.io
 // ou autre), ce qui renseigne bien la connexion du joueur, et on affiche "—" quand il n'y en a
@@ -5830,17 +5820,6 @@ function updateNetDisplay() {
 function gameLoop(ts) {
     requestAnimationFrame(gameLoop);
     lastRafAt = rnow();
-
-    // Économie batterie (Phase 4.5) : sur mobile en partie, on limite à 30 fps en sautant une
-    // frame sur deux. Cela réduit la consommation sans impacter la simulation (toujours à 60 Hz
-    // en interne via le pas fixe). Le rendu est alors à 30 fps, mais le gameplay reste fluide.
-    // Détection mobile : userAgent contient 'Mobi' (Android/iPhone) ou 'Tablet' (iPad).
-    if (gameState === 'PLAYING' && isMobileDevice() && save.settings.quality !== 'LOW') {
-        if (batterySaverSkip) { batterySaverSkip = false; return; }
-        batterySaverSkip = true;
-    } else {
-        batterySaverSkip = false;
-    }
 
     // La télémétrie reste ICI, et non dans advanceGame : elle compte les IMAGES. advanceGame est
     // aussi appelée par l'horloge de secours de l'hôte quand le navigateur suspend
