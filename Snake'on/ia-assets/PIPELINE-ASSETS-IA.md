@@ -1,5 +1,13 @@
 # Pipeline de génération d'assets IA pour les skins
 
+> **Ce document décrit l'installation Windows / DirectML.** Après la bascule vers
+> Kubuntu 26.04, les chemins `C:\ComfyUI` et le backend `--directml` ne s'appliquent plus :
+> voir la fiche **F1** de `docs/migration-linux/rapport-snakeon-2026-09-05.html` pour la
+> reconstruction en **ROCm**, qui supporte officiellement la RX 7900 GRE. Le figeage sur
+> le tag `v0.7.0` tombe avec DirectML : il venait d'une incompatibilité propre à
+> `torch-directml`. Le dossier d'entrée se déclare désormais par la variable
+> `COMFYUI_INPUT_DIR` (voir `build_style_sheet.py` et son contrôle `verifie-chemins.py`).
+
 **Portée :** cette note documente une infrastructure installée le 2026-08-23 pour générer
 des morceaux de skin (tête, segment de corps, décoration type aile/corne) en pièces
 isolées et stylistiquement cohérentes, en vue de leur tamponnage sur la colonne
