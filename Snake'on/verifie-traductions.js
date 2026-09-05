@@ -41,6 +41,13 @@ for (const m of html.matchAll(/\bt\('([^']+)'\)/g)) used.add(m[1]);
 // lobbySetStatus() traduit son argument ; cle() choisit entre deux clés selon la victoire.
 for (const m of html.matchAll(/lobbySetStatus\('([^']+)'\)/g)) used.add(m[1]);
 for (const m of html.matchAll(/\bcle\(g,\s*'([^']+)',\s*'([^']+)'\)/g)) { used.add(m[1]); used.add(m[2]); }
+// Clés CONCATÉNÉES : t('rank_' + r.id) cite toute la famille rank_*, sans qu'aucun
+// littéral complet n'apparaisse dans le source. On déclare vivante toute clé portant
+// un préfixe ainsi concaténé — sinon le contrôle enterre six rangs bien affichés.
+const prefixes = [...html.matchAll(/\bt\('([A-Za-z_]+)'\s*\+/g)].map(m => m[1]);
+for (const k of Object.keys(fr)) if (prefixes.some(p => k !== p && k.startsWith(p))) used.add(k);
+// Clés passées par une propriété avant traduction : descKey: 'dailyGames', lu par t(c.descKey).
+for (const m of html.matchAll(/descKey:\s*'([^']+)'/g)) used.add(m[1]);
 const unknown = Array.from(used).filter(k => fr[k] === undefined);
 if (unknown.length) { console.error(`${unknown.length} clé(s) citée(s) mais absente(s) du français : ${unknown.join(', ')}`); failures++; }
 
