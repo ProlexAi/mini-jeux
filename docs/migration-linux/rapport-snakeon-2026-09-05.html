@@ -37,10 +37,11 @@
   .meta dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0;font-size:13.5px}
   .meta dt{color:var(--doux)}
   .meta dd{margin:0;word-break:break-word}
-  .enc{border-left:3px solid var(--corr);background:var(--carte);padding:10px 14px;
-    margin:0 0 16px;border-radius:0 6px 6px 0;font-size:14px}
-  .enc.grave{border-left-color:var(--bloq)}
-  .enc.bien{border-left-color:var(--ok)}
+  .enc{border:1px solid var(--trait);background:var(--carte);padding:12px 16px;
+    margin:0 0 16px;border-radius:8px;font-size:14px}
+  .enc{border-color:rgba(180,83,9,.35);background:rgba(180,83,9,.05)}
+  .enc.grave{border-color:rgba(185,28,28,.35);background:rgba(185,28,28,.05)}
+  .enc.bien{border-color:rgba(21,128,61,.35);background:rgba(21,128,61,.05)}
   .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
     text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
   .t-bloq{color:var(--bloq)} .t-corr{color:var(--corr)} .t-ok{color:var(--ok)} .t-info{color:var(--doux)}
@@ -57,9 +58,11 @@
     background:var(--fond);position:sticky;top:0}
   tbody tr:last-child td{border-bottom:none}
   .compte{font-size:12.5px;color:var(--doux);margin:0 0 24px}
-  .fiche{background:var(--carte);border:1px solid var(--trait);border-left:4px solid var(--corr);
-    border-radius:0 8px 8px 0;padding:16px 18px;margin:0 0 18px}
-  .fiche.bloq{border-left-color:var(--bloq)}
+  /* La criticité est déjà portée par le tag dans le titre de chaque fiche :
+     inutile de la redire par une barre latérale colorée. */
+  .fiche{background:var(--carte);border:1px solid var(--trait);
+    border-radius:8px;padding:16px 18px;margin:0 0 18px}
+  .fiche.bloq{background:rgba(185,28,28,.04);border-color:rgba(185,28,28,.28)}
   .fiche h3{margin-top:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
   .fiche dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:10px 0 0;font-size:14px}
   .fiche dt{color:var(--doux);font-weight:600}
