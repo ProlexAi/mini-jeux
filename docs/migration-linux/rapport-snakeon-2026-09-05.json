@@ -261,13 +261,14 @@
       "statut": "TRANCHE le 2026-09-05 : MEME PAIRE que ssh_hermes_vps.ppk"
     },
     {
-      "element": "C:\\Secret\\.env (version du 3 septembre)",
-      "taille": "12259 o",
+      "element": "C:\\Secret\\.env et CLE-SSH-LINUX.md",
+      "taille": "12259 o + 4664 o",
       "remplacable": false,
-      "note": "D:\\Secret est reste au 24 aout (12044 o) et CLE-SSH-LINUX.md n'y figure pas",
+      "note": "copies sur le support amovible et verifies par empreinte SHA-256 APRES ecriture : 173 et 129 lignes, identiques aux sources. Ecriture prudente par fichier temporaire verifie avant bascule. Aucune valeur n'a transite par une sortie.",
       "recuperation": "relancer rapatrier-sauvegardes.ps1 puis verifier la cle USB majBios",
-      "statut": "RESTE A FAIRE",
-      "correction": "rapatrier-sauvegardes.ps1 NE CONVIENT PAS : lecture faite le 2026-09-05, il rapatrie le VPS vers C:\\Secret et n'ecrit rien sur le support amovible. La recommandation precedente etait fausse."
+      "statut": "FAIT le 2026-09-05 a 15h20",
+      "correction": "rapatrier-sauvegardes.ps1 NE FAIT PAS ce travail : lecture du script faite, il rapatrie le VPS vers C:\\Secret et n'ecrit rien sur un volume amovible. La copie reste manuelle, delibérément : elle duplique des secrets.",
+      "ecart_restant": "ProlexMultiAppSave\rapatriement.log plus ancien sur le support ; journal de telemetrie, reecrit au prochain passage du script"
     },
     {
       "element": "Memoire Claude Code du projet",
