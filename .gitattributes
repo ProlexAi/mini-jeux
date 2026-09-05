@@ -1,0 +1,27 @@
+# Fins de ligne : LF dans le depot, quelle que soit la machine qui ecrit.
+#
+# Avant ce fichier, le comportement dependait entierement de core.autocrlf,
+# pose a true par l'installeur Git for Windows au niveau systeme
+# (C:/Program Files/Git/etc/gitconfig) -- un reglage de MACHINE, qui disparait
+# au formatage et qu'aucun contributeur n'a declare.
+#
+# Mesure du 2026-09-05 avant ajout : `git ls-files --eol` rendait i/lf sur tous
+# les fichiers texte, y compris index.html. Les blobs etaient donc DEJA en LF.
+# Ce fichier fige cet etat, il ne le change pas -- verifie par un
+# `git add --renormalize .` qui n'a modifie aucun fichier.
+* text=auto eol=lf
+
+# Scripts shell : LF obligatoire. Un .sh en CRLF echoue sous Linux avec un
+# message trompeur (`bad interpreter: /usr/bin/env bash^M`) qui accuse
+# l'interpreteur au lieu du fichier.
+*.sh text eol=lf
+
+# Binaires : aucune conversion de fins de ligne, aucun diff textuel.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
