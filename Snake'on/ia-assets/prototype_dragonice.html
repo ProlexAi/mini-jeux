@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Snake'on — skin Dragon de glace (rendu procedural)</title>
+<style>
+  html, body {
+    margin: 0; height: 100%;
+    background: #070b0f;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #4d7a8c;
+  }
+  canvas { max-width: 94vmin; max-height: 88vmin; display: block; }
+  p { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin: 14px 0 0; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1024" height="1024"></canvas>
+<p>Dragon de glace — rendu 100 % procedural (canvas 2D)</p>
+<script>
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+// Palette : corps sombre + fissures lumineuses + anneaux blancs cristallins,
+// d'apres la reference SkinsTest/Snakedragonice.png.
+const COL = {
+  bg:        '#070b0f',
+  scaleDark: '#173a4d',
+  scaleLite: '#4f9ab5',
+  crack:     '#5ff0ff',
+  crackCore: '#e8ffff',
+  glow:      '#3fe0ff'
+};
+
+// PRNG graine : le rendu doit etre identique a chaque chargement.
+let _seed = 20260824;
+function rnd() { _seed = (_seed * 1664525 + 1013904223) >>> 0; return _seed / 4294967296; }
+
+// ---------------------------------------------------------------- colonne
+// Forme en S : tete en haut a droite, ventre au centre, queue enroulee
+// en bas a gauche.
+const SEGS = [
+  [{x:760,y:260},{x:640,y:130},{x:410,y:130},{x:340,y:255}],
+  [{x:340,y:255},{x:285,y:400},{x:550,y:432},{x:578,y:570}],
+  [{x:578,y:570},{x:606,y:706},{x:492,y:790},{x:356,y:772}],
+  [{x:356,y:772},{x:232,y:756},{x:214,y:618},{x:334,y:606}]
+];
+
+function cubicAt(seg, t) {
+  const [p0, p1, p2, p3] = seg, mt = 1 - t;
+  const a = mt*mt*mt, b = 3*mt*mt*t, c = 3*mt*t*t, d = t*t*t;
+  return { x: a*p0.x + b*p1.x + c*p2.x + d*p3.x,
+           y: a*p0.y + b*p1.y + c*p2.y + d*p3.y };
+}
+
+const SPINE = [];
+for (let si = 0; si < SEGS.length; si++) {
+  const steps = 160;
+  for (let i = (si ? 1 : 0); i <= steps; i++) SPINE.push(cubicAt(SEGS[si], i / steps));
+}
+
+// Abscisse curviligne : les anneaux doivent etre equidistants le long du
+// corps, pas equidistants en parametre de Bezier.
+let total = 0;
+SPINE[0].s = 0;
+for (let i = 1; i < SPINE.length; i++) {
+  total += Math.hypot(SPINE[i].x - SPINE[i-1].x, SPINE[i].y - SPINE[i-1].y);
+  SPINE[i].s = total;
+}
+
+const R0 = 46;
+for (let i = 0; i < SPINE.length; i++) {
+  const a = SPINE[Math.max(0, i-1)], b = SPINE[Math.min(SPINE.length-1, i+1)];
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+  const q = SPINE[i];
+  q.tx = dx/L;  q.ty = dy/L;      // tangente, orientee tete -> queue
+  q.nx = -dy/L; q.ny = dx/L;      // normale
+  q.u  = q.s / total;
+  const swell = 1 + 0.06 * Math.sin(Math.PI * Math.min(1, q.u * 3));
+  q.r  = R0 * swell * (1 - 0.5 * Math.pow(q.u, 1.6));
+}
+
+let _idx = 0;
+function atS(s) {
+  s = Math.max(0, Math.min(total, s));
+  if (SPINE[_idx].s > s) _idx = 0;
+  while (_idx < SPINE.length - 1 && SPINE[_idx+1].s < s) _idx++;
+  return SPINE[_idx];
+}
+
+// Contour du corps : cote gauche tete->queue, calotte de queue, cote droit
+// queue->tete, calotte de tete. `scale` sert a fabriquer les couches
+// interieures qui simulent un degrade dans la largeur.
+function bodyPath(scale) {
+  const P = new Path2D();
+  const A = SPINE[0], B = SPINE[SPINE.length-1];
+  const ra = A.r * scale, rb = B.r * scale;
+  P.moveTo(A.x - A.nx*ra, A.y - A.ny*ra);
+  for (let k = 1; k <= 20; k++) {                      // calotte tete, bombee vers -t
+    const th = Math.PI * k / 20, c = -Math.cos(th), s = Math.sin(th);
+    P.lineTo(A.x + ra*(c*A.nx - s*A.tx), A.y + ra*(c*A.ny - s*A.ty));
+  }
+  for (let i = 1; i < SPINE.length; i++) {
+    const q = SPINE[i], r = q.r * scale;
+    P.lineTo(q.x + q.nx*r, q.y + q.ny*r);
+  }
+  for (let k = 1; k <= 20; k++) {                      // calotte queue, bombee vers +t
+    const th = Math.PI * k / 20, c = Math.cos(th), s = Math.sin(th);
+    P.lineTo(B.x + rb*(c*B.nx + s*B.tx), B.y + rb*(c*B.ny + s*B.ty));
+  }
+  for (let i = SPINE.length - 2; i >= 0; i--) {
+    const q = SPINE[i], r = q.r * scale;
+    P.lineTo(q.x - q.nx*r, q.y - q.ny*r);
+  }
+  P.closePath();
+  return P;
+}
+
+// ------------------------------------------------------------ pieces glace
+function crystalSpike(bx, by, dx, dy, len, halfBase, bright) {
+  const px = -dy, py = dx;
+  const ax = bx + dx*len, ay = by + dy*len;
+  const g = ctx.createLinearGradient(bx, by, ax, ay);
+  if (bright) {
+    g.addColorStop(0, '#6fc9e4'); g.addColorStop(0.55, '#d8f7ff'); g.addColorStop(1, '#ffffff');
+  } else {
+    g.addColorStop(0, '#2c5f74'); g.addColorStop(0.6, '#4d8ba3'); g.addColorStop(1, '#7fb4c8');
+  }
+  ctx.beginPath();
+  ctx.moveTo(bx + px*halfBase, by + py*halfBase);
+  ctx.lineTo(ax, ay);
+  ctx.lineTo(bx - px*halfBase, by - py*halfBase);
+  ctx.closePath();
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.beginPath();                                     // facette centrale
+  ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+  ctx.strokeStyle = 'rgba(46,110,138,0.5)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+}
+
+// Anneau d'armure : bande suivant la courbure, legerement plus large que le
+// corps pour lire comme une piece rapportee.
+function armourBand(s, halfW) {
+  const P = new Path2D();
+  let first = true;
+  for (let ss = s - halfW; ss <= s + halfW; ss += 3) {
+    const q = atS(ss), r = q.r * 1.07;
+    const x = q.x + q.nx*r, y = q.y + q.ny*r;
+    if (first) { P.moveTo(x, y); first = false; } else P.lineTo(x, y);
+  }
+  for (let ss = s + halfW; ss >= s - halfW; ss -= 3) {
+    const q = atS(ss), r = q.r * 1.07;
+    P.lineTo(q.x - q.nx*r, q.y - q.ny*r);
+  }
+  P.closePath();
+
+  const q = atS(s), r = q.r * 1.07;
+  const g = ctx.createLinearGradient(q.x - q.nx*r, q.y - q.ny*r, q.x + q.nx*r, q.y + q.ny*r);
+  g.addColorStop(0,    '#8fb8c9');
+  g.addColorStop(0.34, '#ffffff');
+  g.addColorStop(0.62, '#eaf8ff');
+  g.addColorStop(1,    '#8fb8c9');
+  ctx.fillStyle = g;
+  ctx.fill(P);
+  ctx.strokeStyle = 'rgba(30,80,102,0.45)';
+  ctx.lineWidth = 1.4;
+  ctx.stroke(P);
+}
+
+// Piques symetriques de part et d'autre de l'anneau : meme longueur, meme
+// espacement des deux cotes (defaut de symetrie constate cote IA).
+function bandSpikes(s) {
+  const q = atS(s), r = q.r;
+  const cluster = [{ o: -17, f: 0.60 }, { o: 0, f: 1 }, { o: 17, f: 0.60 }];
+  ctx.save();
+  ctx.shadowColor = COL.glow;
+  ctx.shadowBlur = 18;
+  for (const side of [1, -1]) {
+    for (const c of cluster) {
+      const px = q.x + q.tx*c.o, py = q.y + q.ty*c.o;
+      const bx = px + q.nx*side*r*0.94, by = py + q.ny*side*r*0.94;
+      crystalSpike(bx, by, q.nx*side, q.ny*side, r*0.95*c.f, 13*c.f, true);
+    }
+  }
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ tete
+// Museau allonge, gueule fermee, crete de piques ramenee vers l'arriere
+// (repere local : +x vers l'avant du museau, -y vers le sommet du crane).
+function drawHead(r) {
+  const crest = [
+    { x: -26, len: 34, a: -1.95 }, { x: -8, len: 52, a: -1.78 },
+    { x:  10, len: 62, a: -1.62 }, { x: 28, len: 54, a: -1.46 },
+    { x:  46, len: 38, a: -1.30 }
+  ];
+
+  // Couche arriere de la crete : meme eventail, decale, teinte eteinte —
+  // c'est ce qui donne la symetrie gauche/droite en vue de profil.
+  for (const c of crest) {
+    crystalSpike(c.x + 5, -r*0.80 + 7, Math.cos(c.a + 0.16), Math.sin(c.a + 0.16),
+                 c.len * 0.82, 8.5, false);
+  }
+
+  const P = new Path2D();
+  P.moveTo(-32, -r*0.94);
+  P.bezierCurveTo(-6, -r*1.10, 34, -r*1.02, 58, -r*0.82);
+  P.bezierCurveTo(84, -r*0.62, 104, -r*0.40, 128, -r*0.12);
+  P.bezierCurveTo(133, -r*0.02, 130, r*0.10, 120, r*0.17);
+  P.bezierCurveTo(96, r*0.34, 74, r*0.46, 52, r*0.56);
+  P.bezierCurveTo(28, r*0.72, 0, r*0.90, -32, r*0.92);
+  P.closePath();
+
+  ctx.save();
+  ctx.shadowColor = COL.glow;
+  ctx.shadowBlur = 26;
+  ctx.fillStyle = COL.scaleDark;
+  ctx.fill(P);
+  ctx.restore();
+
+  ctx.fillStyle = COL.scaleDark;
+  ctx.fill(P);
+  ctx.save();
+  ctx.clip(P);
+  const hg = ctx.createLinearGradient(0, -r, 0, r*0.9);
+  hg.addColorStop(0,    'rgba(96,176,204,0.55)');
+  hg.addColorStop(0.45, 'rgba(56,124,152,0.30)');
+  hg.addColorStop(1,    'rgba(10,38,52,0.55)');
+  ctx.fillStyle = hg;
+  ctx.fill(P);
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(120,205,232,0.30)';           // liseré du profil
+  ctx.lineWidth = 2;
+  ctx.stroke(P);
+
+  ctx.beginPath();                                      // gueule fermee
+  ctx.moveTo(48, r*0.20);
+  ctx.bezierCurveTo(78, r*0.20, 104, r*0.12, 124, r*0.04);
+  ctx.strokeStyle = 'rgba(8,30,42,0.75)';
+  ctx.lineWidth = 2.6;
+  ctx.stroke();
+
+  ctx.beginPath();                                      // naseau
+  ctx.ellipse(112, -r*0.16, 3.6, 2.4, -0.3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(8,30,42,0.8)';
+  ctx.fill();
+
+  for (const c of crest) {                              // crete, couche avant
+    ctx.save();
+    ctx.shadowColor = COL.glow;
+    ctx.shadowBlur = 20;
+    crystalSpike(c.x, -r*0.86, Math.cos(c.a), Math.sin(c.a), c.len, 10, true);
+    ctx.restore();
+  }
+
+  ctx.save();                                           // oeil cyan lumineux
+  ctx.shadowColor = COL.crack;
+  ctx.shadowBlur = 22;
+  ctx.beginPath();
+  ctx.ellipse(52, -r*0.34, 12, 9.5, -0.22, 0, Math.PI*2);
+  ctx.fillStyle = '#6ff0ff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(54, -r*0.36, 5.4, 4.2, -0.22, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.restore();
+}
+
+// ----------------------------------------------------------------- rendu
+ctx.fillStyle = COL.bg;
+ctx.fillRect(0, 0, W, H);
+const vg = ctx.createRadialGradient(W*0.5, H*0.45, 80, W*0.5, H*0.5, W*0.72);
+vg.addColorStop(0, 'rgba(30,70,90,0.22)');
+vg.addColorStop(1, 'rgba(0,0,0,0)');
+ctx.fillStyle = vg;
+ctx.fillRect(0, 0, W, H);
+
+ctx.save();                                             // halo exterieur
+ctx.shadowColor = COL.glow;
+ctx.shadowBlur = 46;
+ctx.fillStyle = 'rgba(38,116,146,0.9)';
+const outline = bodyPath(1);
+for (let i = 0; i < 3; i++) ctx.fill(outline);
+ctx.restore();
+
+ctx.fillStyle = COL.scaleDark;                          // corps sombre
+ctx.fill(bodyPath(1));
+for (let k = 0; k < 8; k++) {                           // coeur plus clair
+  ctx.fillStyle = 'rgba(79,154,181,' + (0.09 + 0.021*k).toFixed(3) + ')';
+  ctx.fill(bodyPath(0.88 - k*0.1));
+}
+
+ctx.save();                                             // ecailles
+ctx.clip(bodyPath(1));
+ctx.strokeStyle = 'rgba(10,40,55,0.45)';
+ctx.lineWidth = 1.6;
+for (let s = 10; s < total; s += 15) {
+  const q = atS(s), r = q.r, a = Math.atan2(q.ty, q.tx);
+  for (let j = -2; j <= 2; j++) {
+    ctx.beginPath();
+    ctx.arc(q.x + q.nx*(j*r*0.38), q.y + q.ny*(j*r*0.38), r*0.24, a - 1.15, a + 1.15);
+    ctx.stroke();
+  }
+}
+ctx.restore();
+
+ctx.save();                                             // fissures lumineuses
+ctx.clip(bodyPath(0.99));
+ctx.lineCap = 'round';
+for (let k = 0; k < 16; k++) {
+  const s0 = rnd() * total * 0.95;
+  const len = 60 + rnd() * 150;
+  let lat = (rnd() * 2 - 1) * 0.5;
+  const pts = [];
+  for (let s = s0; s < Math.min(total, s0 + len); s += 10) {
+    const q = atS(s);
+    lat = Math.max(-0.72, Math.min(0.72, lat + (rnd() * 2 - 1) * 0.24));
+    pts.push({ x: q.x + q.nx*lat*q.r, y: q.y + q.ny*lat*q.r });
+  }
+  if (pts.length < 2) continue;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.shadowColor = COL.crack; ctx.shadowBlur = 16;
+  ctx.strokeStyle = COL.crack; ctx.lineWidth = 2.6; ctx.stroke();
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = COL.crackCore; ctx.lineWidth = 1.1; ctx.stroke();
+}
+ctx.restore();
+
+const BAND_STEP = 140, BAND_HALF_W = 17;
+for (let s = BAND_STEP * 0.62; s < total - 26; s += BAND_STEP) {
+  bandSpikes(s);                                        // piques d'abord :
+  armourBand(s, BAND_HALF_W);                           // l'anneau masque leur base
+}
+
+const A = SPINE[0];
+ctx.save();
+ctx.translate(A.x, A.y);
+ctx.rotate(Math.atan2(-A.ty, -A.tx));                   // -t = direction du museau
+drawHead(A.r);
+ctx.restore();
+</script>
+</body>
+</html>
