@@ -54,82 +54,446 @@
     "Avertissement WSL recurrent 'Failed to start the systemd user session for root' : aucune unite systemd de ce rapport n'a ete testee."
   ],
   "constats": [
-    {"id":"A1","axe":"chemins","constat":"runtimeExecutable 'python' : binaire absent d'Ubuntu","ou":".claude/launch.json:6,12","criticite":"bloquant","categorie":"patche","preuve":"python -m http.server -> exit 127 sous Ubuntu-26.04","commit":"52527c3"},
-    {"id":"A2","axe":"chemins","constat":"OUT_DIR = r\"C:\\ComfyUI\\input\" : copie sautee en silence sous Linux (garde os.path.isdir)","ou":"Snake'on/ia-assets/build_style_sheet.py:17","criticite":"a corriger","categorie":"patche","preuve":"verifie-chemins.py, deux branches exercees separement","commit":"7b250a8"},
-    {"id":"D1","axe":"encodage","constat":"Aucun .gitattributes : coherence LF suspendue a core.autocrlf, reglage de machine","ou":"racine","criticite":"a corriger","categorie":"patche","preuve":"0 blob sur 28 reecrit, temoin joue sur l'instrument","commit":"0c41deb"},
-    {"id":"P1","axe":"prealable","constat":"secKillEffects et secShopEffects citees mais absentes du dictionnaire","ou":"Snake'on/index.html:1044,1047","criticite":"a corriger","categorie":"patche","preuve":"suite 2 anomalies -> 1","commit":"feb7a27","introduit_par":"16d8647 (2026-08-23 17:09)"},
-    {"id":"P2","axe":"prealable","constat":"Le controle i18n declarait mortes 9 cles vivantes citees par concatenation ou indirection","ou":"Snake'on/verifie-traductions.js","criticite":"a corriger","categorie":"patche","preuve":"temoin joue apres elargissement : une vraie cle morte est toujours detectee","commit":"792b8b6"},
-    {"id":"P3","axe":"prealable","constat":"__pycache__/ non ignore, aucun .gitignore dans le depot","ou":"racine","criticite":"a corriger","categorie":"patche","preuve":"git status propre","commit":"63fd6b4"},
-    {"id":"E1","axe":"systeme","constat":"ComfyUI fige sur v0.7.0, backend DirectML, AMD RX 7900 GRE, 31 Go de modeles","ou":"C:\\ComfyUI (hors depot)","criticite":"bloquant","categorie":"non migrable","fiche":"F1"},
-    {"id":"C1","axe":"dependances","constat":"pwsh absent des depots Ubuntu 26.04","ou":"depots","criticite":"a corriger","categorie":"non migrable","preuve":"apt-cache policy powershell rend une sortie vide","fiche":"F2"},
-    {"id":"F1","axe":"secrets","constat":"Identifiants GitHub proteges par DPAPI, non exportables en clair","ou":"Credential Manager Windows","criticite":"a corriger","categorie":"non migrable","fiche":"F3"},
-    {"id":"E2","axe":"systeme","constat":"Memoire Claude Code indexee sur le chemin du projet","ou":"~/.claude/projects/C--JeuRapide/","criticite":"a corriger","categorie":"non migrable","fiche":"F4"},
-    {"id":"E3","axe":"systeme","constat":"Trois worktrees a chemins Windows absolus","ou":"C:\\JeuRapide\\.claude\\worktrees\\","criticite":"faible","categorie":"non migrable","fiche":"F5","consequence":"nulle si clone frais"},
-    {"id":"A3","axe":"chemins","constat":"Aucune collision de casse","ou":"92 fichiers","criticite":"aucune","categorie":"deja portable","preuve":"clone ext4 : 92 index = 92 disque, git status vide, volume prouve sensible a la casse"},
-    {"id":"A4","axe":"chemins","constat":"Aucune reference mal capitalisee ; les 12 ressources du service worker repondent","ou":"sw.js, manifeste, index.html","criticite":"aucune","categorie":"deja portable","preuve":"0 echec HTTP sous Linux"},
-    {"id":"D2","axe":"encodage","constat":"UTF-8 ou ASCII partout, aucun BOM, aucun mojibake, 1336 accents valides","ou":"28 fichiers texte","criticite":"aucune","categorie":"deja portable","preuve":"file --mime-encoding, temoins cp1252 et BOM joues"},
-    {"id":"D3","axe":"encodage","constat":"Defis quotidiens et dates calcules cote navigateur, insensibles au serveur","ou":"Snake'on/index.html:2540","criticite":"aucune","categorie":"deja portable"},
-    {"id":"E4","axe":"systeme","constat":"Zero tache planifiee, service, entree Run, regle de pare-feu, entree hosts","ou":"systeme","criticite":"aucune","categorie":"deja portable","preuve":"temoin joue sur chaque filtre (Defender, Spooler, port RDP)"},
-    {"id":"E5","axe":"systeme","constat":"Aucune variable d'environnement lue par le projet","ou":"tout l'arbre","criticite":"aucune","categorie":"deja portable","preuve":"deux recherches independantes apres correction d'un instrument defaillant"},
-    {"id":"C2","axe":"dependances","constat":"Aucune chaine de construction, aucun lockfile","ou":"depot","criticite":"aucune","categorie":"deja portable"},
-    {"id":"C3","axe":"dependances","constat":"PeerJS charge depuis unpkg.com a l'ouverture d'un salon prive","ou":"Snake'on/index.html:6511","criticite":"information","categorie":"deja portable","note":"sans effet sur la portabilite, reel sur le hors-ligne"}
+    {
+      "id": "A1",
+      "axe": "chemins",
+      "constat": "runtimeExecutable 'python' : binaire absent d'Ubuntu",
+      "ou": ".claude/launch.json:6,12",
+      "criticite": "bloquant",
+      "categorie": "patche",
+      "preuve": "python -m http.server -> exit 127 sous Ubuntu-26.04",
+      "commit": "52527c3"
+    },
+    {
+      "id": "A2",
+      "axe": "chemins",
+      "constat": "OUT_DIR = r\"C:\\ComfyUI\\input\" : copie sautee en silence sous Linux (garde os.path.isdir)",
+      "ou": "Snake'on/ia-assets/build_style_sheet.py:17",
+      "criticite": "a corriger",
+      "categorie": "patche",
+      "preuve": "verifie-chemins.py, deux branches exercees separement",
+      "commit": "7b250a8"
+    },
+    {
+      "id": "D1",
+      "axe": "encodage",
+      "constat": "Aucun .gitattributes : coherence LF suspendue a core.autocrlf, reglage de machine",
+      "ou": "racine",
+      "criticite": "a corriger",
+      "categorie": "patche",
+      "preuve": "0 blob sur 28 reecrit, temoin joue sur l'instrument",
+      "commit": "0c41deb"
+    },
+    {
+      "id": "P1",
+      "axe": "prealable",
+      "constat": "secKillEffects et secShopEffects citees mais absentes du dictionnaire",
+      "ou": "Snake'on/index.html:1044,1047",
+      "criticite": "a corriger",
+      "categorie": "patche",
+      "preuve": "suite 2 anomalies -> 1",
+      "commit": "feb7a27",
+      "introduit_par": "16d8647 (2026-08-23 17:09)"
+    },
+    {
+      "id": "P2",
+      "axe": "prealable",
+      "constat": "Le controle i18n declarait mortes 9 cles vivantes citees par concatenation ou indirection",
+      "ou": "Snake'on/verifie-traductions.js",
+      "criticite": "a corriger",
+      "categorie": "patche",
+      "preuve": "temoin joue apres elargissement : une vraie cle morte est toujours detectee",
+      "commit": "792b8b6"
+    },
+    {
+      "id": "P3",
+      "axe": "prealable",
+      "constat": "__pycache__/ non ignore, aucun .gitignore dans le depot",
+      "ou": "racine",
+      "criticite": "a corriger",
+      "categorie": "patche",
+      "preuve": "git status propre",
+      "commit": "63fd6b4"
+    },
+    {
+      "id": "E1",
+      "axe": "systeme",
+      "constat": "ComfyUI fige sur v0.7.0, backend DirectML, AMD RX 7900 GRE, 31 Go de modeles",
+      "ou": "C:\\ComfyUI (hors depot)",
+      "criticite": "bloquant",
+      "categorie": "non migrable",
+      "fiche": "F1"
+    },
+    {
+      "id": "C1",
+      "axe": "dependances",
+      "constat": "pwsh absent des depots Ubuntu 26.04",
+      "ou": "depots",
+      "criticite": "a corriger",
+      "categorie": "non migrable",
+      "preuve": "apt-cache policy powershell rend une sortie vide",
+      "fiche": "F2"
+    },
+    {
+      "id": "F1",
+      "axe": "secrets",
+      "constat": "Identifiants GitHub proteges par DPAPI, non exportables en clair",
+      "ou": "Credential Manager Windows",
+      "criticite": "a corriger",
+      "categorie": "non migrable",
+      "fiche": "F3"
+    },
+    {
+      "id": "E2",
+      "axe": "systeme",
+      "constat": "Memoire Claude Code indexee sur le chemin du projet",
+      "ou": "~/.claude/projects/C--JeuRapide/",
+      "criticite": "a corriger",
+      "categorie": "non migrable",
+      "fiche": "F4"
+    },
+    {
+      "id": "E3",
+      "axe": "systeme",
+      "constat": "Trois worktrees a chemins Windows absolus",
+      "ou": "C:\\JeuRapide\\.claude\\worktrees\\",
+      "criticite": "faible",
+      "categorie": "non migrable",
+      "fiche": "F5",
+      "consequence": "nulle si clone frais"
+    },
+    {
+      "id": "A3",
+      "axe": "chemins",
+      "constat": "Aucune collision de casse",
+      "ou": "92 fichiers",
+      "criticite": "aucune",
+      "categorie": "deja portable",
+      "preuve": "clone ext4 : 92 index = 92 disque, git status vide, volume prouve sensible a la casse"
+    },
+    {
+      "id": "A4",
+      "axe": "chemins",
+      "constat": "Aucune reference mal capitalisee ; les 12 ressources du service worker repondent",
+      "ou": "sw.js, manifeste, index.html",
+      "criticite": "aucune",
+      "categorie": "deja portable",
+      "preuve": "0 echec HTTP sous Linux"
+    },
+    {
+      "id": "D2",
+      "axe": "encodage",
+      "constat": "UTF-8 ou ASCII partout, aucun BOM, aucun mojibake, 1336 accents valides",
+      "ou": "28 fichiers texte",
+      "criticite": "aucune",
+      "categorie": "deja portable",
+      "preuve": "file --mime-encoding, temoins cp1252 et BOM joues"
+    },
+    {
+      "id": "D3",
+      "axe": "encodage",
+      "constat": "Defis quotidiens et dates calcules cote navigateur, insensibles au serveur",
+      "ou": "Snake'on/index.html:2540",
+      "criticite": "aucune",
+      "categorie": "deja portable"
+    },
+    {
+      "id": "E4",
+      "axe": "systeme",
+      "constat": "Zero tache planifiee, service, entree Run, regle de pare-feu, entree hosts",
+      "ou": "systeme",
+      "criticite": "aucune",
+      "categorie": "deja portable",
+      "preuve": "temoin joue sur chaque filtre (Defender, Spooler, port RDP)"
+    },
+    {
+      "id": "E5",
+      "axe": "systeme",
+      "constat": "Aucune variable d'environnement lue par le projet",
+      "ou": "tout l'arbre",
+      "criticite": "aucune",
+      "categorie": "deja portable",
+      "preuve": "deux recherches independantes apres correction d'un instrument defaillant"
+    },
+    {
+      "id": "C2",
+      "axe": "dependances",
+      "constat": "Aucune chaine de construction, aucun lockfile",
+      "ou": "depot",
+      "criticite": "aucune",
+      "categorie": "deja portable"
+    },
+    {
+      "id": "C3",
+      "axe": "dependances",
+      "constat": "PeerJS charge depuis unpkg.com a l'ouverture d'un salon prive",
+      "ou": "Snake'on/index.html:6511",
+      "criticite": "information",
+      "categorie": "deja portable",
+      "note": "sans effet sur la portabilite, reel sur le hors-ligne"
+    }
   ],
   "a_sauvegarder": [
-    {"element":"localStorage Chrome, cle neonSnakeUltimate_v1, origine prolexai.github.io","taille":"quelques ko utiles","remplacable":false,"contenu":"niveau 10, 800 XP, meilleure taille 28864, 42 kills, 12 parties, pseudo Prolex, historique","recuperation":"DevTools > Application > Local Storage, copier la valeur dans un fichier","urgence":"avant formatage"},
-    {"element":"stash 8aefbeb : skins Noir Fulgurant et Blanc Demoniaque","taille":"53891 o de diff, 740 insertions","remplacable":false,"statut":"DEJA SAUVEGARDE","recuperation":"origin/sauvegarde/stash-skins-speciaux ; git checkout sauvegarde/stash-skins-speciaux -- \"Snake'on/index.html\""},
-    {"element":"~/.ssh/id_ed25519 et .pub","taille":"411 o + 101 o","remplacable":"incertain","note":"aucune copie trouvee dans C:\\Secret ni D:\\Secret ; sert hermes-vps, PAS le push GitHub qui est en https","recuperation":"verifier d'abord si ssh_hermes_vps.ppk est la meme paire, sinon regenerer et mettre a jour authorized_keys"},
-    {"element":"C:\\Secret\\.env (version du 3 septembre)","taille":"12259 o","remplacable":false,"note":"D:\\Secret est reste au 24 aout (12044 o) et CLE-SSH-LINUX.md n'y figure pas","recuperation":"relancer rapatrier-sauvegardes.ps1 puis verifier la cle USB majBios"},
-    {"element":"Memoire Claude Code du projet","taille":"4 fichiers","remplacable":false,"recuperation":"copier ~/.claude/projects/C--JeuRapide/memory/ sur la cle USB"},
-    {"element":"C:\\ComfyUI\\models\\","taille":"31 Go","remplacable":true,"cout":"bande passante et temps de re-test","recuperation":"sources citees nommement dans Snake'on/ia-assets/PIPELINE-ASSETS-IA.md (versionne)"}
+    {
+      "element": "localStorage Chrome, cle neonSnakeUltimate_v1, origine prolexai.github.io",
+      "taille": "1926 o, 19 champs",
+      "remplacable": false,
+      "contenu": "niveau 10, 800 XP, meilleure taille 28864, 42 kills, 12 parties, pseudo Prolex, historique",
+      "recuperation": "DevTools > Application > Local Storage > cle neonSnakeUltimate_v1 ; controle : JSON.parse(localStorage.getItem('neonSnakeUltimate_v1')).bestSize == 28864",
+      "urgence": "avant formatage",
+      "statut": "FAIT le 2026-09-05",
+      "emplacement": "D:\\secrets-et-hors-git-20260905\\jeurapide\\localstorage-snakeon.json",
+      "note": "extrait du magasin leveldb de Chrome ; le bloc etait compresse en Snappy, un grep rendait un JSON tronque. Decompression validee en verifiant que le debut correspond au fragment lisible en clair. Pas dans git : le depot mini-jeux est PUBLIC et ce fichier porte une donnee personnelle."
+    },
+    {
+      "element": "stash 8aefbeb : skins Noir Fulgurant et Blanc Demoniaque",
+      "taille": "53891 o de diff, 740 insertions",
+      "remplacable": false,
+      "statut": "DEJA SAUVEGARDE",
+      "recuperation": "origin/sauvegarde/stash-skins-speciaux ; git checkout sauvegarde/stash-skins-speciaux -- \"Snake'on/index.html\""
+    },
+    {
+      "element": "~/.ssh/id_ed25519 et .pub",
+      "taille": "411 o + 101 o",
+      "remplacable": "deja sauvegardee",
+      "note": "empreintes SHA-256 identiques entre id_ed25519.pub et la partie publique du .ppk (lue en clair, arret net avant les Private-Lines). Temoin joue : une paire jetable rend une empreinte differente. Rien a regenerer, rien a faire sur le VPS.",
+      "recuperation": "aucune action : la cle est deja sur le support de sauvegarde, au format PuTTY",
+      "statut": "TRANCHE le 2026-09-05 : MEME PAIRE que ssh_hermes_vps.ppk"
+    },
+    {
+      "element": "C:\\Secret\\.env (version du 3 septembre)",
+      "taille": "12259 o",
+      "remplacable": false,
+      "note": "D:\\Secret est reste au 24 aout (12044 o) et CLE-SSH-LINUX.md n'y figure pas",
+      "recuperation": "relancer rapatrier-sauvegardes.ps1 puis verifier la cle USB majBios",
+      "statut": "RESTE A FAIRE",
+      "correction": "rapatrier-sauvegardes.ps1 NE CONVIENT PAS : lecture faite le 2026-09-05, il rapatrie le VPS vers C:\\Secret et n'ecrit rien sur le support amovible. La recommandation precedente etait fausse."
+    },
+    {
+      "element": "Memoire Claude Code du projet",
+      "taille": "4 fichiers",
+      "remplacable": false,
+      "recuperation": "copier ~/.claude/projects/C--JeuRapide/memory/ sur la cle USB"
+    },
+    {
+      "element": "C:\\ComfyUI\\models\\",
+      "taille": "31 Go",
+      "remplacable": true,
+      "cout": "bande passante et temps de re-test",
+      "recuperation": "sources citees nommement dans Snake'on/ia-assets/PIPELINE-ASSETS-IA.md (versionne)"
+    }
   ],
   "jetables_verifies": [
-    {"element":"Snake'on/snake-on-modifications.zip","motif":"son index.html ne differe de b945e46 que de 108 lignes sur ~7500, et toujours en defaveur du zip : la version commitee corrige le tracking de leveledUp, la synchro reseau du DASH et l'evitement des slots de respawn"},
-    {"element":"Snake'on/Snake'on.json","motif":"projet GDevelop 5.6.279 entierement vide : objects [], layouts [], packageName reste a com.example.gamename"},
-    {"element":"les trois worktrees","motif":"git status vide, aucun commit non pousse, tous ancetres de origin/main"}
+    {
+      "element": "Snake'on/snake-on-modifications.zip",
+      "motif": "son index.html ne differe de b945e46 que de 108 lignes sur ~7500, et toujours en defaveur du zip : la version commitee corrige le tracking de leveledUp, la synchro reseau du DASH et l'evitement des slots de respawn"
+    },
+    {
+      "element": "Snake'on/Snake'on.json",
+      "motif": "projet GDevelop 5.6.279 entierement vide : objects [], layouts [], packageName reste a com.example.gamename"
+    },
+    {
+      "element": "les trois worktrees",
+      "motif": "git status vide, aucun commit non pousse, tous ancetres de origin/main"
+    }
   ],
   "paquets_kubuntu": [
-    {"besoin":"faire tourner le jeu en local","paquet":"python3","candidat":"3.14.3-0ubuntu2","depot":"main","indispensable":true},
-    {"besoin":"controle des traductions","paquet":"nodejs","candidat":"22.22.1","depot":"universe","indispensable":true},
-    {"besoin":"cloner et pousser","paquet":"git, gh","candidat":"present","indispensable":true},
-    {"besoin":"planche de style d'assets","paquet":"python3-pil","candidat":"12.1.1-2ubuntu1.3","depot":"main","indispensable":false},
-    {"besoin":"scripts .ps1","paquet":"powershell","candidat":"ABSENT DES DEPOTS UBUNTU","note":"depot Microsoft requis","indispensable":false},
-    {"besoin":"alias python (rendu inutile par le patch)","paquet":"python-is-python3","candidat":"3.13.3-1+build1","indispensable":false}
+    {
+      "besoin": "faire tourner le jeu en local",
+      "paquet": "python3",
+      "candidat": "3.14.3-0ubuntu2",
+      "depot": "main",
+      "indispensable": true
+    },
+    {
+      "besoin": "controle des traductions",
+      "paquet": "nodejs",
+      "candidat": "22.22.1",
+      "depot": "universe",
+      "indispensable": true
+    },
+    {
+      "besoin": "cloner et pousser",
+      "paquet": "git, gh",
+      "candidat": "present",
+      "indispensable": true
+    },
+    {
+      "besoin": "planche de style d'assets",
+      "paquet": "python3-pil",
+      "candidat": "12.1.1-2ubuntu1.3",
+      "depot": "main",
+      "indispensable": false
+    },
+    {
+      "besoin": "scripts .ps1",
+      "paquet": "powershell",
+      "candidat": "ABSENT DES DEPOTS UBUNTU",
+      "note": "depot Microsoft requis",
+      "indispensable": false
+    },
+    {
+      "besoin": "alias python (rendu inutile par le patch)",
+      "paquet": "python-is-python3",
+      "candidat": "3.13.3-1+build1",
+      "indispensable": false
+    }
   ],
   "commits_portage": [
-    {"sha":"52527c3","objet":"launch.json appelle python3, pas python","motif":"seul defaut reellement bloquant sur la cible"},
-    {"sha":"7b250a8","objet":"le dossier d'entree ComfyUI se declare","motif":"chemin Windows en dur, saute en silence ; ajoute un controle rejouable"},
-    {"sha":"feb7a27","objet":"deux titres de boutique traduits","motif":"defaut prealable : restaient en francais dans cinq langues"},
-    {"sha":"792b8b6","objet":"le controle i18n ne tue plus six cles vivantes","motif":"angle mort de l'instrument sur les cles concatenees"},
-    {"sha":"0c41deb","objet":".gitattributes","motif":"la coherence LF ne depend plus d'un reglage de machine"},
-    {"sha":"63fd6b4","objet":".gitignore minimal","motif":"cache d'octets Python genere des deux cotes"}
+    {
+      "sha": "52527c3",
+      "objet": "launch.json appelle python3, pas python",
+      "motif": "seul defaut reellement bloquant sur la cible"
+    },
+    {
+      "sha": "7b250a8",
+      "objet": "le dossier d'entree ComfyUI se declare",
+      "motif": "chemin Windows en dur, saute en silence ; ajoute un controle rejouable"
+    },
+    {
+      "sha": "feb7a27",
+      "objet": "deux titres de boutique traduits",
+      "motif": "defaut prealable : restaient en francais dans cinq langues"
+    },
+    {
+      "sha": "792b8b6",
+      "objet": "le controle i18n ne tue plus six cles vivantes",
+      "motif": "angle mort de l'instrument sur les cles concatenees"
+    },
+    {
+      "sha": "0c41deb",
+      "objet": ".gitattributes",
+      "motif": "la coherence LF ne depend plus d'un reglage de machine"
+    },
+    {
+      "sha": "63fd6b4",
+      "objet": ".gitignore minimal",
+      "motif": "cache d'octets Python genere des deux cotes"
+    }
   ],
   "tests": [
-    {"test":"node verifie-traductions.js","env":"Windows","avant":"EXIT=1, 2 anomalies (3 executions)","apres":"EXIT=0, 130 cles (3 executions)"},
-    {"test":"node verifie-traductions.js","env":"WSL ext4","avant":"EXIT=1, sortie identique a Windows","apres":"EXIT=0"},
-    {"test":"temoin de la suite (cle reelle sabotee)","env":"WSL ext4","resultat":"2 -> 12 anomalies, tabSkins nomme ; apres elargissement, une vraie cle morte reste detectee"},
-    {"test":"python3 verifie-chemins.py","env":"Windows","apres":"EXIT=0, defaut C:\\ComfyUI\\input distinct de la variable"},
-    {"test":"python3 verifie-chemins.py","env":"WSL ext4","apres":"EXIT=0, defaut /root/ComfyUI/input"},
-    {"test":"temoin chemins (defaut remis en dur, fichier reste du Python valide)","env":"les deux","resultat":"EXIT=1, defauts nommes"},
-    {"test":"clone ext4 : index vs disque","env":"WSL ext4","avant":"89 = 89","apres":"92 = 92, git status vide"},
-    {"test":"volume sensible a la casse ? (temoin)","env":"WSL ext4","resultat":"oui, touch Temoin.casse temoin.casse cree 2 fichiers"},
-    {"test":"demarrage avec la commande exacte de launch.json","env":"WSL ext4","avant":"exit 127, python: command not found","apres":"HTTP 200 sur tous les points d'entree"},
-    {"test":"12 ressources du service worker","env":"WSL ext4","apres":"0 echec"},
-    {"test":"casse fausse Icons/Icon-192.png","env":"Windows / ext4","resultat":"HTTP 200 / HTTP 404 : le piege demontre des deux cotes"},
-    {"test":"CR restants dans les fichiers texte","env":"WSL ext4","apres":"0"},
-    {"test":"suite sous LANG=fr_FR.UTF-8","env":"WSL ext4","apres":"EXIT=0"}
+    {
+      "test": "node verifie-traductions.js",
+      "env": "Windows",
+      "avant": "EXIT=1, 2 anomalies (3 executions)",
+      "apres": "EXIT=0, 130 cles (3 executions)"
+    },
+    {
+      "test": "node verifie-traductions.js",
+      "env": "WSL ext4",
+      "avant": "EXIT=1, sortie identique a Windows",
+      "apres": "EXIT=0"
+    },
+    {
+      "test": "temoin de la suite (cle reelle sabotee)",
+      "env": "WSL ext4",
+      "resultat": "2 -> 12 anomalies, tabSkins nomme ; apres elargissement, une vraie cle morte reste detectee"
+    },
+    {
+      "test": "python3 verifie-chemins.py",
+      "env": "Windows",
+      "apres": "EXIT=0, defaut C:\\ComfyUI\\input distinct de la variable"
+    },
+    {
+      "test": "python3 verifie-chemins.py",
+      "env": "WSL ext4",
+      "apres": "EXIT=0, defaut /root/ComfyUI/input"
+    },
+    {
+      "test": "temoin chemins (defaut remis en dur, fichier reste du Python valide)",
+      "env": "les deux",
+      "resultat": "EXIT=1, defauts nommes"
+    },
+    {
+      "test": "clone ext4 : index vs disque",
+      "env": "WSL ext4",
+      "avant": "89 = 89",
+      "apres": "92 = 92, git status vide"
+    },
+    {
+      "test": "volume sensible a la casse ? (temoin)",
+      "env": "WSL ext4",
+      "resultat": "oui, touch Temoin.casse temoin.casse cree 2 fichiers"
+    },
+    {
+      "test": "demarrage avec la commande exacte de launch.json",
+      "env": "WSL ext4",
+      "avant": "exit 127, python: command not found",
+      "apres": "HTTP 200 sur tous les points d'entree"
+    },
+    {
+      "test": "12 ressources du service worker",
+      "env": "WSL ext4",
+      "apres": "0 echec"
+    },
+    {
+      "test": "casse fausse Icons/Icon-192.png",
+      "env": "Windows / ext4",
+      "resultat": "HTTP 200 / HTTP 404 : le piege demontre des deux cotes"
+    },
+    {
+      "test": "CR restants dans les fichiers texte",
+      "env": "WSL ext4",
+      "apres": "0"
+    },
+    {
+      "test": "suite sous LANG=fr_FR.UTF-8",
+      "env": "WSL ext4",
+      "apres": "EXIT=0"
+    }
   ],
   "angles_morts": [
-    {"sujet":"Kubuntu jamais testee","tranche":"rejouer docs/migration-linux/restauration-linux.sh sur la machine cible"},
-    {"sujet":"identite de la cle SSH","tranche":"puttygen -O public-openssh ssh_hermes_vps.ppk puis comparaison au .pub"},
-    {"sujet":"mode multijoueur non exerce","tranche":"ouvrir un salon prive depuis deux navigateurs apres la bascule"},
-    {"sujet":"scripts .ps1 jamais executes, verdict issu d'une lecture de leurs cmdlets","tranche":"pwsh generate_piece.ps1 une fois ComfyUI remonte"},
-    {"sujet":"python3-pil non installe (distribution WSL partagee)","tranche":"python3 -c \"import PIL; print(PIL.__version__)\""},
-    {"sujet":"paquet powershell pour 26.04 chez Microsoft non verifie","tranche":"curl -sI https://packages.microsoft.com/config/ubuntu/26.04/packages-microsoft-prod.deb"},
-    {"sujet":"aucune unite systemd testee (systemd non fonctionnel sous WSL)","tranche":"systemctl --user status sur la machine cible"},
-    {"sujet":"temoin de shellcheck NON JOUE : le vert de restauration-linux.sh est a prendre avec reserve","detail":"shellcheck -S warning 0.11.0 a rendu EXIT=0 sur le script reel sous Ubuntu-26.04, mais la faute injectee pour prouver que l'outil sait echouer (SC2164, cd sans garde) n'est pas signalee quand le script porte set -e : le temoin etait muet par construction. Avant de pouvoir le rejouer avec une faute de niveau warning, Ubuntu-26.04 a cesse de demarrer (HCS_E_CONNECTION_TIMEOUT, 3 tentatives) et shellcheck n'existe ni dans Ubuntu-24.04 ni ailleurs sur la machine.","fait_a_la_place":"relecture ciblee, chaque recherche avec son temoin : 0 occurrence de 'A && B || C' (SC2015), 0 variable non quotee dans un test, 0 rm -rf, 0 cd hors sous-shell, set -euo pipefail present, bash -n valide","tranche":"sudo apt-get install -y shellcheck ; shellcheck -S warning docs/migration-linux/restauration-linux.sh ; puis injecter SC2034 (variable assignee jamais lue) dans une copie et verifier un code de retour non nul"},
-    {"sujet":"restauration-linux.sh jamais execute","note":"il ne pouvait pas l'etre : aucune Kubuntu n'existait pour l'accueillir. Avertissement porte en tete du fichier."},
-    {"sujet":"Ubuntu-26.04 ne demarre plus depuis 2026-09-05 vers 06h15 (HCS_E_CONNECTION_TIMEOUT)","note":"tous les tests de portage avaient deja ete joues et sont valides ; seul le temoin shellcheck restait a faire","tranche":"wsl --shutdown puis wsl -d Ubuntu-26.04 -- true"},
-    {"sujet":"ecriture concurrente pendant l'audit (commit 76f24eb a 05:16:51)","note":"les quatre elements listes comme hors git etaient deja versionnes quand les agents ont mesure ; constats de contenu valides, statut git change"},
-    {"sujet":"registre Windows : recherche par mot-cle limitee aux valeurs texte REG_SZ","tranche":"inspection ciblee des types binaires si un doute apparait"}
+    {
+      "sujet": "Kubuntu jamais testee",
+      "tranche": "rejouer docs/migration-linux/restauration-linux.sh sur la machine cible"
+    },
+    {
+      "sujet": "mode multijoueur non exerce",
+      "tranche": "ouvrir un salon prive depuis deux navigateurs apres la bascule"
+    },
+    {
+      "sujet": "scripts .ps1 jamais executes, verdict issu d'une lecture de leurs cmdlets",
+      "tranche": "pwsh generate_piece.ps1 une fois ComfyUI remonte"
+    },
+    {
+      "sujet": "python3-pil non installe (distribution WSL partagee)",
+      "tranche": "python3 -c \"import PIL; print(PIL.__version__)\""
+    },
+    {
+      "sujet": "paquet powershell pour 26.04 chez Microsoft non verifie",
+      "tranche": "curl -sI https://packages.microsoft.com/config/ubuntu/26.04/packages-microsoft-prod.deb"
+    },
+    {
+      "sujet": "aucune unite systemd testee (systemd non fonctionnel sous WSL)",
+      "tranche": "systemctl --user status sur la machine cible"
+    },
+    {
+      "sujet": "temoin de shellcheck NON JOUE : le vert de restauration-linux.sh est a prendre avec reserve",
+      "detail": "shellcheck -S warning 0.11.0 a rendu EXIT=0 sur le script reel sous Ubuntu-26.04, mais la faute injectee pour prouver que l'outil sait echouer (SC2164, cd sans garde) n'est pas signalee quand le script porte set -e : le temoin etait muet par construction. Avant de pouvoir le rejouer avec une faute de niveau warning, Ubuntu-26.04 a cesse de demarrer (HCS_E_CONNECTION_TIMEOUT, 3 tentatives) et shellcheck n'existe ni dans Ubuntu-24.04 ni ailleurs sur la machine.",
+      "fait_a_la_place": "relecture ciblee, chaque recherche avec son temoin : 0 occurrence de 'A && B || C' (SC2015), 0 variable non quotee dans un test, 0 rm -rf, 0 cd hors sous-shell, set -euo pipefail present, bash -n valide",
+      "tranche": "sudo apt-get install -y shellcheck ; shellcheck -S warning docs/migration-linux/restauration-linux.sh ; puis injecter SC2034 (variable assignee jamais lue) dans une copie et verifier un code de retour non nul"
+    },
+    {
+      "sujet": "restauration-linux.sh jamais execute",
+      "note": "il ne pouvait pas l'etre : aucune Kubuntu n'existait pour l'accueillir. Avertissement porte en tete du fichier."
+    },
+    {
+      "sujet": "Ubuntu-26.04 ne demarre plus depuis 2026-09-05 vers 06h15 (HCS_E_CONNECTION_TIMEOUT)",
+      "note": "tous les tests de portage avaient deja ete joues et sont valides ; seul le temoin shellcheck restait a faire",
+      "tranche": "wsl --shutdown puis wsl -d Ubuntu-26.04 -- true"
+    },
+    {
+      "sujet": "ecriture concurrente pendant l'audit (commit 76f24eb a 05:16:51)",
+      "note": "les quatre elements listes comme hors git etaient deja versionnes quand les agents ont mesure ; constats de contenu valides, statut git change"
+    },
+    {
+      "sujet": "registre Windows : recherche par mot-cle limitee aux valeurs texte REG_SZ",
+      "tranche": "inspection ciblee des types binaires si un doute apparait"
+    },
+    {
+      "sujet": "le support de sauvegarde est conteste entre deux sources",
+      "detail": "roadmap-kubuntu-2604.md (2026-09-04) dit que D: est une cle de flashage BIOS 'qu'il ne faut pas toucher'. L'etat reel du support le contredit : il porte deja sauvegarde-migration-20260904-1924, complement-20260905 et secrets-et-hors-git-20260905, ce dernier ecrit le jour meme. La pratique a depasse la consigne.",
+      "tranche": "decider lequel fait foi : corriger le document, ou deplacer les sauvegardes vers un autre support"
+    }
   ]
 }

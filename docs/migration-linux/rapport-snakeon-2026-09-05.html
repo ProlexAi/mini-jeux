@@ -110,14 +110,26 @@
   reconstruit en ROCm, et <strong>deux données irremplaçables</strong> que git ne réplique pas.
 </div>
 
-<div class="enc grave">
-  <strong>Les deux choses à ne pas oublier avant de formater.</strong>
-  <strong>(1)</strong> Le <code>localStorage</code> de Chrome pour <code>prolexai.github.io</code> —
-  ta progression de jeu, que rien ne synchronise.
-  <strong>(2)</strong> Vérifier que la clé USB <em>majBios</em> porte bien la version du
-  <strong>3 septembre</strong> de <code>C:\Secret\.env</code> : le coffre de secours <code>D:\Secret</code>
-  est resté au 24 août, et <code>CLE-SSH-LINUX.md</code> n'y est pas.
-  Le stash, lui, est déjà sauvé (voir §5).
+<div class="enc bien">
+  <strong>Mise à jour du 2026-09-05, après vérification sur la machine.</strong>
+  Deux des trois points ouverts sont <strong>traités</strong>, le troisième est <strong>précisé</strong>.
+  <ul style="margin:8px 0 0">
+    <li><strong>Progression de jeu : récupérée.</strong> Les 19 champs du <code>localStorage</code>
+      (dont l'historique des 10 parties et les 8 succès) sont extraits et déposés dans
+      <code>D:\secrets-et-hors-git-20260905\jeurapide\</code>, à côté des sauvegardes déjà
+      organisées du projet, avec un <code>LISEZ-MOI</code> de restauration. Copie vérifiée par
+      empreinte SHA-256, JSON relu depuis le support.
+      <em>Pas dans git : le dépôt <code>mini-jeux</code> est public et ce fichier porte une
+      donnée personnelle.</em></li>
+    <li><strong>Clé SSH : aucun risque.</strong> <code>~/.ssh/id_ed25519</code> et
+      <code>ssh_hermes_vps.ppk</code> sont <strong>la même paire</strong> — empreintes identiques.
+      La clé est donc déjà sauvegardée, au format PuTTY. Rien à régénérer, rien à faire sur le VPS.</li>
+    <li><strong>Reste ouvert : la clé USB est en retard.</strong> <code>.env</code> y date du
+      <strong>24 août</strong> contre le 3 septembre sur <code>C:</code>, et
+      <code>CLE-SSH-LINUX.md</code> — créé le 4 septembre pour cette migration — <strong>n'y est
+      pas du tout</strong>. C'est le seul point qui reste à traiter, et il demande une décision
+      sur des secrets : voir §5.</li>
+  </ul>
 </div>
 
 <h2>Réserves de mesure qui s'appliquent à tout ce document</h2>
@@ -335,10 +347,10 @@ Aucun fichier de secret n'a été dupliqué : une copie double la surface d'expo
 <table>
 <thead><tr><th>Élément</th><th>Taille</th><th>Remplaçable</th><th>Comment le récupérer</th></tr></thead>
 <tbody>
-<tr><td><strong>localStorage Chrome</strong> — clé <code>neonSnakeUltimate_v1</code>, origine <code>prolexai.github.io</code> : niveau 10, 800 XP, meilleure taille 28 864, 42 kills, 12 parties, pseudo « Prolex », historique</td><td>quelques ko utiles</td><td><strong>NON</strong> — Chrome Sync ne réplique pas le localStorage d'un site</td><td>Ouvrir le jeu, DevTools → Application → Local Storage, copier la valeur dans un fichier sur la clé USB. <strong>À faire avant de formater.</strong></td></tr>
+<tr><td><strong>localStorage Chrome</strong> — clé <code>neonSnakeUltimate_v1</code>, origine <code>prolexai.github.io</code> : niveau 10, 800 XP, meilleure taille 28 864, 42 kills, 12 parties, pseudo « Prolex », historique des 10 dernières parties, 8 succès, réglages</td><td>1 926 o (19 champs)</td><td><strong>NON</strong> — Chrome Sync ne réplique pas le localStorage d'un site</td><td><strong>FAIT le 2026-09-05</strong> → <code>D:\secrets-et-hors-git-20260905\jeurapide\localstorage-snakeon.json</code> (+ son <code>LISEZ-MOI</code>), empreinte vérifiée. Restauration : ouvrir le jeu, DevTools → Application → Local Storage, recoller le contenu sous la clé <code>neonSnakeUltimate_v1</code> ; contrôle : <code>JSON.parse(localStorage.getItem('neonSnakeUltimate_v1')).bestSize</code> doit rendre <code>28864</code>.</td></tr>
 <tr><td><strong>stash <code>8aefbeb</code></strong> — skins « Noir Fulgurant » et « Blanc Démoniaque », 740 lignes commentées avec les mesures qui les ont fait converger</td><td>53 891 o de diff</td><td><strong>déjà traité</strong></td><td>Poussé sur <code>origin/sauvegarde/stash-skins-speciaux</code>. Récupération : <code>git checkout sauvegarde/stash-skins-speciaux -- "Snake'on/index.html"</code></td></tr>
-<tr><td><code>~/.ssh/id_ed25519</code> (+ <code>.pub</code>) — accès <code>hermes-vps</code>. <strong>Aucune copie trouvée</strong> dans <code>C:\Secret</code> ni <code>D:\Secret</code></td><td>411 o</td><td>incertain</td><td>Vérifier d'abord si <code>ssh_hermes_vps.ppk</code> est la même paire (voir §7), sinon régénérer et mettre à jour <code>authorized_keys</code> sur le VPS.</td></tr>
-<tr><td><code>C:\Secret\.env</code> — version du <strong>3 septembre</strong>. <code>D:\Secret</code> est resté au 24 août, et <code>CLE-SSH-LINUX.md</code> n'y figure pas</td><td>12 259 o</td><td>non</td><td>Relancer <code>rapatrier-sauvegardes.ps1</code>, puis vérifier que la clé <em>majBios</em> porte bien la version du 3 septembre.</td></tr>
+<tr><td><code>~/.ssh/id_ed25519</code> (+ <code>.pub</code>) — accès <code>hermes-vps</code></td><td>411 o</td><td><strong>déjà sauvegardée</strong></td><td><strong>TRANCHÉ le 2026-09-05 : même paire.</strong> Les empreintes SHA-256 de <code>id_ed25519.pub</code> et de la partie publique de <code>ssh_hermes_vps.ppk</code> sont identiques. La clé est sur la clé USB au format PuTTY. Rien à régénérer, rien à faire sur le VPS.</td></tr>
+<tr><td><code>C:\Secret\.env</code> — version du <strong>3 septembre</strong>. Sur la clé USB, il date du 24 août, et <code>CLE-SSH-LINUX.md</code> n'y figure pas du tout</td><td>12 259 o</td><td>non</td><td><strong>Reste à faire</strong>, et c'est une décision sur des secrets, donc pas automatisable ici. ⚠️ <code>rapatrier-sauvegardes.ps1</code> ne convient pas : lecture faite, il rapatrie le VPS vers <code>C:\Secret</code> et n'écrit <strong>rien</strong> sur la clé. Voir l'encadré ci-dessous.</td></tr>
 <tr><td>Mémoire Claude Code du projet</td><td>4 fichiers</td><td>non</td><td>Copier <code>~/.claude/projects/C--JeuRapide/memory/</code> sur la clé USB (fiche F4).</td></tr>
 <tr><td><code>C:\ComfyUI\models\</code></td><td><strong>31 Go</strong></td><td>oui, à un coût</td><td>Chaque source est citée nommément dans <code>Snake'on/ia-assets/PIPELINE-ASSETS-IA.md</code> (versionné). Sauvegarder sur disque externe évite le retéléchargement ; ce n'est pas indispensable.</td></tr>
 </tbody>
@@ -399,10 +411,20 @@ d'inventaire sur les fins de ligne.</p>
   qui partage les dépôts mais pas le bureau ni le noyau. Ce qui reste non prouvé : le comportement
   sous KDE Plasma 6, l'accès GPU réel, les permissions hors root.
   <em>Tranche :</em> rejouer <code>docs/migration-linux/restauration-linux.sh</code> sur la machine cible.</li>
-<li><strong>La clé SSH.</strong> Impossible de savoir si <code>~/.ssh/id_ed25519</code> et
-  <code>C:\Secret\SSH\WinSCP\ssh_hermes_vps.ppk</code> sont la même paire sans exposer la clé privée.
-  <em>Tranche :</em> <code>puttygen -O public-openssh ssh_hermes_vps.ppk</code> puis comparaison au
-  <code>.pub</code> — clés publiques uniquement.</li>
+<li><s><strong>La clé SSH.</strong></s> <strong>Tranché le 2026-09-05 : même paire.</strong>
+  <code>puttygen</code> n'étant pas installé, la partie publique du <code>.ppk</code> a été lue
+  directement — elle est en clair dans le fichier, la lecture s'arrête net avant les
+  <code>Private-Lines</code>. Les deux empreintes SHA-256 sont identiques. La clé est donc déjà
+  sauvegardée au format PuTTY ; rien à régénérer, rien à faire sur le VPS. Témoin joué avant le
+  verdict : une paire jetable rend bien une empreinte différente.</li>
+<li><strong>Le support de sauvegarde est contesté entre deux sources.</strong>
+  <code>C:\Prolex_Core\docs\migration-linux\roadmap-kubuntu-2604.md</code> (2026-09-04) écrit que
+  <code>D:</code> est une clé de flashage BIOS <em>« qu'il ne faut pas toucher »</em> et
+  recommande d'acheter un disque externe. Mais l'état réel du support le contredit : il porte
+  déjà <code>sauvegarde-migration-20260904-1924</code>, <code>complement-20260905</code> et
+  <code>secrets-et-hors-git-20260905</code>, ce dernier écrit le jour même. La pratique a dépassé
+  la consigne. <em>Tranche :</em> décider lequel fait foi — soit corriger le document, soit
+  déplacer les sauvegardes vers un autre support. Ce rapport a suivi l'état réel du support.</li>
 <li><strong>Le mode multijoueur n'a pas été exercé.</strong> PeerJS est chargé depuis
   <code>unpkg.com</code> et signale via le serveur public PeerJS ; aucune partie privée n'a été ouverte.
   <em>Tranche :</em> ouvrir un salon depuis deux navigateurs après la bascule.</li>
