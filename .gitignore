@@ -1,0 +1,4 @@
+# Cache d octets Python, genere des deux cotes des que build_style_sheet.py
+# ou verifie-chemins.py tourne. Jamais un livrable.
+__pycache__/
+*.pyc
