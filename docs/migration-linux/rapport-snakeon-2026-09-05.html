@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migration Linux — Snake'on — 2026-09-05</title>
+<style>
+  :root{
+    --fond:#fbfbfa; --encre:#1a1a18; --doux:#5c5c56; --trait:#dcdcd6;
+    --carte:#fff; --accent:#1d4ed8; --bloq:#b91c1c; --corr:#b45309; --ok:#15803d;
+    --code:#f4f4f0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --fond:#151517; --encre:#e9e9e4; --doux:#a0a099; --trait:#33333a;
+      --carte:#1d1d20; --accent:#7ea6ff; --bloq:#f87171; --corr:#fbbf24; --ok:#4ade80;
+      --code:#232328;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fond);color:var(--encre);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .page{max-width:960px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 4px}
+  h2{font-size:19px;margin:40px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--trait)}
+  h3{font-size:16px;margin:24px 0 8px}
+  p{margin:0 0 12px}
+  code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;
+    background:var(--code);padding:1px 5px;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--trait);border-radius:6px;
+    padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.5;margin:0 0 14px}
+  pre code{background:none;padding:0}
+  a{color:var(--accent)}
+  .sous{color:var(--doux);font-size:14px;margin:0 0 20px}
+  .meta{background:var(--carte);border:1px solid var(--trait);border-radius:8px;
+    padding:14px 16px;margin:0 0 18px}
+  .meta dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0;font-size:13.5px}
+  .meta dt{color:var(--doux)}
+  .meta dd{margin:0;word-break:break-word}
+  .enc{border-left:3px solid var(--corr);background:var(--carte);padding:10px 14px;
+    margin:0 0 16px;border-radius:0 6px 6px 0;font-size:14px}
+  .enc.grave{border-left-color:var(--bloq)}
+  .enc.bien{border-left-color:var(--ok)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
+  .t-bloq{color:var(--bloq)} .t-corr{color:var(--corr)} .t-ok{color:var(--ok)} .t-info{color:var(--doux)}
+  .filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;font-size:13px}
+  .filtres button{font:inherit;cursor:pointer;padding:5px 11px;border-radius:6px;
+    border:1px solid var(--trait);background:var(--carte);color:var(--encre)}
+  .filtres button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .filtres input{font:inherit;padding:5px 9px;border-radius:6px;border:1px solid var(--trait);
+    background:var(--carte);color:var(--encre);min-width:180px}
+  .enveloppe{overflow-x:auto;border:1px solid var(--trait);border-radius:8px;margin:0 0 10px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--carte)}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--trait);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--doux);
+    background:var(--fond);position:sticky;top:0}
+  tbody tr:last-child td{border-bottom:none}
+  .compte{font-size:12.5px;color:var(--doux);margin:0 0 24px}
+  .fiche{background:var(--carte);border:1px solid var(--trait);border-left:4px solid var(--corr);
+    border-radius:0 8px 8px 0;padding:16px 18px;margin:0 0 18px}
+  .fiche.bloq{border-left-color:var(--bloq)}
+  .fiche h3{margin-top:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .fiche dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:10px 0 0;font-size:14px}
+  .fiche dt{color:var(--doux);font-weight:600}
+  .fiche dd{margin:0}
+  ul,ol{margin:0 0 12px;padding-left:22px}
+  li{margin-bottom:4px}
+  .note{font-size:13px;color:var(--doux)}
+  footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--trait);
+    font-size:12.5px;color:var(--doux)}
+  @media print{
+    body{background:#fff;color:#000}
+    .filtres{display:none}
+    .fiche,.meta,.enc{break-inside:avoid}
+    a{color:#000;text-decoration:underline}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Migration Windows → Kubuntu : projet Snake'on</h1>
+<p class="sous">Audit de portabilité, portage appliqué, et ce qu'il faut sauver avant de formater.</p>
+
+<div class="meta">
+  <dl>
+    <dt>Projet</dt><dd>Snake'on — jeu web statique (PWA), <strong>100 % HTML/JS/CSS, sans build</strong></dd>
+    <dt>Chemin Windows</dt><dd><code>C:\JeuRapide</code></dd>
+    <dt>Dépôt</dt><dd><code>https://github.com/ProlexAi/mini-jeux.git</code></dd>
+    <dt>Site publié</dt><dd><code>prolexai.github.io/mini-jeux/</code> — hébergé par GitHub Pages, <strong>pas par cette machine</strong></dd>
+    <dt>Commit audité</dt><dd><code>76f24eb16b25f3df4c24a79c3b3290403f16814f</code></dd>
+    <dt>Branche produite</dt><dd><code>migration-linux</code>, 6 commits, poussée</dd>
+    <dt>Rédigé le</dt><dd>2026-09-05 à 05:58:18 +0200 <span class="note">(heure système réelle)</span></dd>
+    <dt>Hôte mesuré</dt><dd>Windows 11 Pro 10.0.26200 — Python 3.14.0, python3 3.13.14 (Store), Node v25.2.1, Git 2.52.0.windows.1</dd>
+    <dt>Cible testée</dt><dd>WSL <code>Ubuntu-26.04</code> « resolute » — python3 3.14.4, Node natif, Git 2.53.0</dd>
+    <dt>Cible réelle</dt><dd><strong>Kubuntu 26.04 LTS, KDE Plasma 6</strong> — mêmes dépôts qu'Ubuntu 26.04</dd>
+  </dl>
+</div>
+
+<div class="enc bien">
+  <strong>Verdict.</strong> Le jeu lui-même était <strong>déjà portable</strong> : aucune collision de casse,
+  aucune référence mal capitalisée, tout en UTF-8, aucune attache système Windows.
+  Un seul défaut <em>bloquait</em> réellement la cible — la commande <code>python</code> dans le
+  serveur de prévisualisation. Il est corrigé, et la suite de tests passe désormais des deux côtés.
+  Le vrai chantier n'est pas le code : c'est <strong>ComfyUI / DirectML</strong>, qui doit être
+  reconstruit en ROCm, et <strong>deux données irremplaçables</strong> que git ne réplique pas.
+</div>
+
+<div class="enc grave">
+  <strong>Les deux choses à ne pas oublier avant de formater.</strong>
+  <strong>(1)</strong> Le <code>localStorage</code> de Chrome pour <code>prolexai.github.io</code> —
+  ta progression de jeu, que rien ne synchronise.
+  <strong>(2)</strong> Vérifier que la clé USB <em>majBios</em> porte bien la version du
+  <strong>3 septembre</strong> de <code>C:\Secret\.env</code> : le coffre de secours <code>D:\Secret</code>
+  est resté au 24 août, et <code>CLE-SSH-LINUX.md</code> n'y est pas.
+  Le stash, lui, est déjà sauvé (voir §5).
+</div>
+
+<h2>Réserves de mesure qui s'appliquent à tout ce document</h2>
+<p>Les tests ont tourné dans WSL <code>Ubuntu-26.04</code>, dont la userland est exactement celle de la
+cible. Trois écarts subsistent et bornent ce qui est prouvé :</p>
+<ul>
+  <li><strong>Noyau WSL</strong> — <code>6.6.87.2-microsoft-standard-WSL2</code>, pas un noyau Ubuntu.
+    Rien de ce qui touche <code>systemd</code>, <code>udev</code>, l'audio, le GPU ou le réseau bas
+    niveau n'est prouvé ici. Les versions de paquets, elles, sont valides.</li>
+  <li><strong>Utilisateur <code>root</code></strong> (uid 0). Aucun test ne dit rien des permissions
+    de fichiers ni de ce qui exigera une élévation sur ta machine.</li>
+  <li><strong>Locale <code>C.UTF-8</code></strong>, quand la cible sera française. La suite a été
+    rejouée avec <code>LANG=fr_FR.UTF-8</code> (verte), mais aucun test n'a exercé un tri ou un
+    format de date sous locale française réelle.</li>
+</ul>
+<p>S'y ajoute que <strong>Kubuntu n'est pas Ubuntu quant au bureau</strong> : les paquets sont
+identiques, mais l'environnement est KDE Plasma 6. Les procédures ci-dessous sont écrites pour
+KDE (autostart XDG, <code>systemd --user</code>), pas pour GNOME.</p>
+<p class="note">Chaque test WSL a été précédé d'un contrôle de provenance des binaires
+(<code>command -v</code>) : aucun chemin en <code>/mnt/</code>, donc aucune mesure Windows déguisée
+en mesure Linux.</p>
+
+<h2>1. Récapitulatif des constats</h2>
+<div class="filtres">
+  <span class="note">Criticité :</span>
+  <button data-f="crit" data-v="tout" aria-pressed="true">Toutes</button>
+  <button data-f="crit" data-v="bloquant" aria-pressed="false">Bloquant</button>
+  <button data-f="crit" data-v="corriger" aria-pressed="false">À corriger</button>
+  <button data-f="crit" data-v="aucune" aria-pressed="false">Aucune</button>
+  <span class="note">Catégorie :</span>
+  <button data-f="cat" data-v="tout" aria-pressed="true">Toutes</button>
+  <button data-f="cat" data-v="portable" aria-pressed="false">Déjà portable</button>
+  <button data-f="cat" data-v="patche" aria-pressed="false">Patché</button>
+  <button data-f="cat" data-v="nonmig" aria-pressed="false">Non migrable</button>
+  <button data-f="cat" data-v="sauver" aria-pressed="false">À sauvegarder</button>
+  <input id="q" type="search" placeholder="Filtrer le texte…" aria-label="Filtrer">
+</div>
+<div class="enveloppe">
+<table id="tbl">
+<thead><tr><th>Constat</th><th>Où</th><th>Criticité</th><th>Catégorie</th><th>Preuve</th></tr></thead>
+<tbody>
+<tr data-crit="bloquant" data-cat="patche"><td><code>runtimeExecutable: "python"</code> — binaire absent d'Ubuntu</td><td><code>.claude/launch.json</code> l.6, l.12</td><td><span class="tag t-bloq">bloquant</span></td><td>Patché</td><td><code>python -m http.server</code> → exit 127</td></tr>
+<tr data-crit="corriger" data-cat="patche"><td><code>OUT_DIR = r"C:\ComfyUI\input"</code> — copie sautée en silence sous Linux</td><td><code>ia-assets/build_style_sheet.py</code> l.17</td><td><span class="tag t-corr">à corriger</span></td><td>Patché</td><td><code>verifie-chemins.py</code>, 2 branches</td></tr>
+<tr data-crit="corriger" data-cat="patche"><td>Aucun <code>.gitattributes</code> : cohérence LF suspendue à un réglage machine</td><td>racine</td><td><span class="tag t-corr">à corriger</span></td><td>Patché</td><td>0 blob sur 28 réécrit</td></tr>
+<tr data-crit="corriger" data-cat="patche"><td>2 clés i18n citées, absentes du dictionnaire (défaut préexistant)</td><td><code>Snake'on/index.html</code> l.1044, l.1047</td><td><span class="tag t-corr">à corriger</span></td><td>Patché</td><td>suite 2 anomalies → 0</td></tr>
+<tr data-crit="corriger" data-cat="patche"><td>Le contrôle i18n déclarait mortes 9 clés vivantes (indirections)</td><td><code>verifie-traductions.js</code></td><td><span class="tag t-corr">à corriger</span></td><td>Patché</td><td>témoin : clé morte réelle toujours vue</td></tr>
+<tr data-crit="corriger" data-cat="patche"><td><code>__pycache__/</code> non ignoré (aucun <code>.gitignore</code>)</td><td>racine</td><td><span class="tag t-corr">à corriger</span></td><td>Patché</td><td><code>git status</code> propre</td></tr>
+<tr data-crit="bloquant" data-cat="nonmig"><td>ComfyUI figé sur v0.7.0, backend DirectML, RX 7900 GRE</td><td><code>C:\ComfyUI</code> (hors dépôt)</td><td><span class="tag t-bloq">bloquant</span></td><td>Non migrable</td><td><code>PIPELINE-ASSETS-IA.md</code></td></tr>
+<tr data-crit="corriger" data-cat="nonmig"><td><code>pwsh</code> absent des dépôts Ubuntu 26.04</td><td>dépôts</td><td><span class="tag t-corr">à corriger</span></td><td>Non migrable</td><td><code>apt-cache policy powershell</code> vide</td></tr>
+<tr data-crit="corriger" data-cat="nonmig"><td>Identifiants GitHub en DPAPI — non exportables en clair</td><td>Credential Manager</td><td><span class="tag t-corr">à corriger</span></td><td>Non migrable</td><td><code>cmdkey /list</code></td></tr>
+<tr data-crit="corriger" data-cat="nonmig"><td>Mémoire Claude Code indexée sur le chemin du projet</td><td><code>~/.claude/projects/C--JeuRapide/</code></td><td><span class="tag t-corr">à corriger</span></td><td>Non migrable</td><td>identifiant dérivé du chemin</td></tr>
+<tr data-crit="bloquant" data-cat="sauver"><td><strong>localStorage Chrome</strong> — progression de jeu, niveau 10, 800 XP</td><td>profil Chrome Default</td><td><span class="tag t-bloq">bloquant</span></td><td>À sauvegarder</td><td>clé <code>neonSnakeUltimate_v1</code></td></tr>
+<tr data-crit="corriger" data-cat="sauver"><td><strong>stash</strong> — 2 skins jamais livrés, 740 lignes — <em>déjà sauvé</em></td><td><code>stash@{0}</code></td><td><span class="tag t-ok">traité</span></td><td>À sauvegarder</td><td>branche <code>sauvegarde/stash-skins-speciaux</code></td></tr>
+<tr data-crit="corriger" data-cat="sauver"><td><code>~/.ssh/id_ed25519</code> — aucune copie trouvée dans les coffres</td><td>profil</td><td><span class="tag t-corr">à corriger</span></td><td>À sauvegarder</td><td>comparaison d'empreintes</td></tr>
+<tr data-crit="corriger" data-cat="sauver"><td><code>D:\Secret</code> désynchronisé du 24 août ; <code>CLE-SSH-LINUX.md</code> absent</td><td><code>C:\Secret</code> / <code>D:\Secret</code></td><td><span class="tag t-corr">à corriger</span></td><td>À sauvegarder</td><td>horodatages et tailles</td></tr>
+<tr data-crit="corriger" data-cat="sauver"><td><code>C:\ComfyUI\models\</code> — 31 Go, retéléchargeables</td><td>hors dépôt</td><td><span class="tag t-corr">à corriger</span></td><td>À sauvegarder</td><td><code>du</code> par sous-dossier</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Aucune collision de casse — <em>vérifié sur volume sensible à la casse</em></td><td>92 fichiers</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td>clone ext4 : 92 index = 92 disque</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Aucune référence mal capitalisée ; les 12 ressources du service worker répondent</td><td><code>sw.js</code>, manifeste, HTML</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td>0 échec HTTP sous Linux</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Encodage UTF-8/ASCII partout, aucun BOM, aucun mojibake</td><td>28 fichiers texte</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td><code>file --mime-encoding</code></td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Défis quotidiens et dates : 100 % côté navigateur, insensibles au serveur</td><td><code>index.html</code> l.2540</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td>lecture de <code>todayISO()</code></td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Zéro tâche planifiée, service, entrée Run, règle pare-feu, entrée hosts</td><td>système</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td>témoins joués sur chaque filtre</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Aucune variable d'environnement lue par le projet</td><td>tout l'arbre</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td>double recherche indépendante</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>Aucune chaîne de construction, aucun lockfile à régénérer</td><td>dépôt</td><td><span class="tag t-ok">aucune</span></td><td>Déjà portable</td><td><code>find</code> vide</td></tr>
+<tr data-crit="aucune" data-cat="portable"><td>PeerJS chargé depuis <code>unpkg.com</code> — sans effet sur la portabilité, réel hors ligne</td><td><code>index.html</code> l.6511</td><td><span class="tag t-info">info</span></td><td>Déjà portable</td><td>lecture du source</td></tr>
+</tbody>
+</table>
+</div>
+<p class="compte" id="compte"></p>
+
+<h2>2. Fiches — ce qui ne migre pas</h2>
+
+<div class="fiche bloq">
+<h3>F1 — Pipeline d'assets IA : ComfyUI sous DirectML <span class="tag t-bloq">bloquant</span></h3>
+<dl>
+<dt>Quoi</dt><dd>Installation ComfyUI complète en <code>C:\ComfyUI</code> (avec <code>.venv</code>), figée sur le tag <strong>v0.7.0</strong>, backend <code>--directml</code>, plus ~31 Go de modèles dans <code>C:\ComfyUI\models\</code> (checkpoints 13 Go, clip_vision 2,4 Go, ipadapter 809 Mo, loras 28 Mo).</dd>
+<dt>Où</dt><dd>Hors dépôt, au niveau machine. Révélé par <code>Test-Path C:\ComfyUI</code> et la lecture de <code>Snake'on/ia-assets/PIPELINE-ASSETS-IA.md</code>.</dd>
+<dt>Rôle</dt><dd>Génère des morceaux de skins (SDXL + IPAdapter) pilotés par les deux scripts <code>generate_piece*.ps1</code>, qui postent un workflow JSON sur <code>http://127.0.0.1:8188</code> et sondent <code>/history</code>. <strong>Outil d'exploration : aucun asset généré n'est intégré au jeu</strong>, qui reste 100 % procédural.</dd>
+<dt>Déclenchement</dt><dd>Manuel, à la demande, compte utilisateur, sans privilèges particuliers.</dd>
+<dt>Pourquoi ça ne migre pas</dt><dd>Ce n'est pas une question de fichiers mais de <em>backend de calcul</em>. DirectML est une couche Windows ; sous Linux la RX 7900 GRE passe par <strong>ROCm</strong>. Les roues PyTorch sont différentes, et la contrainte qui force ComfyUI à rester en v0.7.0 (incompatibilité avec <code>torch-directml</code>) <strong>disparaît</strong> avec DirectML. Copier le dossier ne produirait qu'une installation morte.</dd>
+<dt>Équivalent recommandé</dt><dd><strong>ComfyUI + PyTorch ROCm 7.2</strong>, qui supporte officiellement la RX 7900 GRE (gfx1100) — c'est la voie que ta propre documentation identifie, et elle débloque en prime l'entraînement LoRA, impraticable sous DirectML.<br>
+<strong>Alternative sérieuse : le paquet Vulkan / llama-style</strong> (ComfyUI sur backend Vulkan), qui évite l'installation ROCm et ses ~20 Go de dépendances. <em>Ce qui les départage</em> : ROCm offre les performances et l'écosystème PyTorch complet (donc l'entraînement) au prix d'une installation lourde et d'un couplage fort à la version du noyau ; Vulkan s'installe en quelques minutes et survit aux mises à jour, mais reste plus lent et ne permet pas l'entraînement. <strong>Pour ton usage — entraînement LoRA visé — ROCm est le bon choix</strong>, Vulkan étant le repli si l'installation ROCm résiste.</dd>
+<dt>Vérification</dt><dd><pre><code>python3 -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+# attendu : une version +rocm, True, et "Radeon RX 7900 GRE"
+curl -s http://127.0.0.1:8188/system_stats | head -c 400</code></pre></dd>
+<dt>Ordre</dt><dd>Après les pilotes GPU. Ne dépend de rien d'autre du projet.</dd>
+</dl>
+</div>
+
+<div class="fiche">
+<h3>F2 — <code>pwsh</code> absent des dépôts Ubuntu <span class="tag t-corr">à corriger</span></h3>
+<dl>
+<dt>Quoi</dt><dd>Les deux scripts <code>generate_piece.ps1</code> et <code>generate_piece_flux.ps1</code> exigent PowerShell 7.</dd>
+<dt>Où</dt><dd><code>Snake'on/ia-assets/</code>, versionnés depuis <code>76f24eb</code>.</dd>
+<dt>Rôle</dt><dd>Construire le workflow JSON ComfyUI, le poster, sonder le résultat.</dd>
+<dt>Pourquoi ça ne migre pas</dt><dd>Pas à cause de leur code — ils n'utilisent que des cmdlets multi-plateformes (<code>Invoke-RestMethod</code>, <code>ConvertTo-Json</code>, <code>Stopwatch</code>), aucun COM ni WMI. Le problème est l'<em>interpréteur</em> : <code>apt-cache policy powershell</code> rend une sortie vide sur Ubuntu 26.04, et aucun dépôt Microsoft n'est configuré par défaut.</dd>
+<dt>Équivalent recommandé</dt><dd><strong>Installer <code>pwsh</code> depuis le dépôt Microsoft</strong> et garder les scripts tels quels (~15 min).<br>
+<strong>Alternative sérieuse : les réécrire en Python</strong> (~60 lignes chacun, <code>requests</code> + boucle de sonde, ~1 h).<br>
+<em>Ce qui les départage</em> : la réécriture supprime une dépendance hors dépôts et une source de divergence entre deux versions du même script, mais coûte du temps et introduit un risque de régression sur un outil qui marche. <strong>Je recommande <code>pwsh</code></strong> — et surtout de ne trancher qu'<em>après</em> avoir remonté ComfyUI (F1) : si l'API change au passage à ROCm, le script changera de toute façon, et réécrire maintenant serait outiller le rattrapage avant d'avoir traité la cause.</dd>
+<dt>Procédure</dt><dd><pre><code>sudo apt-get -o DPkg::Lock::Timeout=120 install -y wget apt-transport-https
+source /etc/os-release
+wget -q "https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb"
+sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+sudo apt-get update && sudo apt-get install -y powershell</code></pre>
+<span class="note">Si le paquet pour 26.04 n'existe pas encore chez Microsoft au moment de la bascule, retomber sur la version 24.04 du dépôt, ou choisir la réécriture Python.</span></dd>
+<dt>Vérification</dt><dd><code>pwsh -NoProfile -Command '$PSVersionTable.PSVersion'</code></dd>
+<dt>Ordre</dt><dd>Après F1 — inutile sans ComfyUI.</dd>
+</dl>
+</div>
+
+<div class="fiche">
+<h3>F3 — Identifiants GitHub protégés par DPAPI <span class="tag t-corr">à corriger</span></h3>
+<dl>
+<dt>Quoi</dt><dd>Trois entrées du Gestionnaire d'identification Windows : <code>git:https://github.com</code> (compte ProlexAi), <code>gh:github.com:ProlexAi</code>, <code>GitHub for Visual Studio</code>.</dd>
+<dt>Où</dt><dd>Credential Manager. Révélé par <code>cmdkey /list</code> — <strong>aucune valeur n'a été lue ni recopiée</strong>.</dd>
+<dt>Rôle</dt><dd>Authentifier les <code>git push</code> vers <code>mini-jeux</code>. Le remote est en <code>https://</code>, <strong>pas en SSH</strong> : la clé <code>id_ed25519</code> ne sert pas à ça.</dd>
+<dt>Pourquoi ça ne migre pas</dt><dd>DPAPI chiffre ces secrets avec des clés dérivées du compte Windows et du matériel. Ils <strong>ne sont pas exportables en clair</strong>. C'est une recréation, jamais une copie — et c'est une bonne chose.</dd>
+<dt>Équivalent recommandé</dt><dd><strong><code>gh auth login</code></strong> (GitHub CLI), qui configure aussi le credential helper git.<br>
+<strong>Alternative : <code>git-credential-libsecret</code></strong> adossé au trousseau KDE (KWallet via l'API Secret Service). <em>Ce qui les départage</em> : <code>gh</code> couvre en une commande l'authentification git <em>et</em> l'API GitHub, et gère le renouvellement du jeton ; libsecret est plus générique mais demande de créer et coller un jeton à la main. <strong>Sur Kubuntu, <code>gh</code> est le bon choix</strong>, KWallet servant de coffre en dessous.</dd>
+<dt>Procédure</dt><dd><pre><code>sudo apt-get install -y gh git
+gh auth login          # HTTPS, authentification par navigateur
+gh auth setup-git</code></pre></dd>
+<dt>Vérification</dt><dd><pre><code>gh auth status
+git -C ~/mini-jeux ls-remote origin >/dev/null && echo "push authentifie OK"</code></pre></dd>
+<dt>Ordre</dt><dd><strong>En premier</strong> — sans lui, impossible de récupérer le dépôt.</dd>
+</dl>
+</div>
+
+<div class="fiche">
+<h3>F4 — Mémoire Claude Code indexée sur le chemin <span class="tag t-corr">à corriger</span></h3>
+<dl>
+<dt>Quoi</dt><dd>Trois notes dans <code>C:\Users\Matth\.claude\projects\C--JeuRapide\memory\</code> plus son <code>MEMORY.md</code>.</dd>
+<dt>Où</dt><dd>Profil utilisateur, hors dépôt.</dd>
+<dt>Rôle</dt><dd>Contexte de travail accumulé sur ce projet (lecture des maquettes Claude Design, VRAM et LoRAs ComfyUI, attentes de vérification avant merge).</dd>
+<dt>Pourquoi ça ne migre pas</dt><dd>Le nom du dossier <code>C--JeuRapide</code> est <strong>dérivé du chemin Windows</strong>. Sur Kubuntu le projet vivra ailleurs (<code>/home/matt/mini-jeux</code>), Claude Code créera donc un identifiant différent et ne trouvera pas ces notes.</dd>
+<dt>Équivalent recommandé</dt><dd>Copier le dossier <code>memory/</code> vers le nouvel identifiant, <strong>après</strong> le premier lancement de Claude Code dans le projet (c'est lui qui crée le dossier cible).<br>
+<strong>Alternative</strong> : verser ces notes au dépôt. <em>Ce qui les départage</em> : le dépôt les rend durables et partagées, mais elles contiennent des préférences de travail personnelles qui n'ont rien à faire dans un dépôt public. <strong>Copie manuelle recommandée.</strong></dd>
+<dt>Procédure</dt><dd><pre><code># 1. lancer Claude Code une fois dans ~/mini-jeux pour qu'il cree son dossier
+# 2. reperer l'identifiant genere :
+ls ~/.claude/projects/
+# 3. copier depuis la sauvegarde (cle USB) :
+cp -r /media/$USER/majBios/claude-memory/* ~/.claude/projects/-home-<user>-mini-jeux/memory/</code></pre></dd>
+<dt>Vérification</dt><dd><code>ls ~/.claude/projects/*/memory/MEMORY.md</code></dd>
+<dt>Ordre</dt><dd>Après F3 et le clone du dépôt.</dd>
+</dl>
+</div>
+
+<div class="fiche">
+<h3>F5 — Worktrees git à chemins Windows absolus <span class="tag t-info">faible</span></h3>
+<dl>
+<dt>Quoi</dt><dd>Trois worktrees sous <code>C:\JeuRapide\.claude\worktrees\</code> : <code>bots-mass-limit-fba82a</code>, <code>gifted-hellman-e085de</code>, <code>shop-layout-categories-2feac9</code>.</dd>
+<dt>Où</dt><dd>Révélés par <code>git worktree list</code>. Non suivis par git (exclus via <code>.git/info/exclude</code>).</dd>
+<dt>Rôle</dt><dd>Espaces de travail de branches de fonctionnalité passées.</dd>
+<dt>Pourquoi ça ne migre pas</dt><dd><code>.git/worktrees/&lt;nom&gt;/gitdir</code> et le fichier <code>.git</code> de chaque worktree se référencent mutuellement par <strong>chemins absolus Windows</strong>.</dd>
+<dt>Conséquence réelle</dt><dd><strong>Aucune, si tu fais un clone frais</strong> — ces répertoires ne sont pas versionnés, ils ne seront simplement pas recréés. Le problème n'existe que si tu recopies <code>.git</code> tel quel.</dd>
+<dt>Vérification</dt><dd>Les trois ont été contrôlés : <code>git status --porcelain</code> vide, aucun commit non poussé, tous ancêtres de <code>origin/main</code>. <strong>Rien à sauver.</strong></dd>
+<dt>Procédure si copie brute</dt><dd><code>git worktree prune</code> immédiatement après.</dd>
+<dt>Ordre</dt><dd>Sans objet en clone frais.</dd>
+</dl>
+</div>
+
+<h2>3. Paquets et services à installer sur Kubuntu</h2>
+<p>Tout est mesuré par <code>apt-cache policy</code> sur les dépôts d'Ubuntu 26.04, que Kubuntu partage.
+<strong>Rien n'a été installé pendant l'audit.</strong></p>
+<div class="enveloppe">
+<table>
+<thead><tr><th>Besoin</th><th>Paquet</th><th>Version candidate mesurée</th><th>Indispensable ?</th></tr></thead>
+<tbody>
+<tr><td>Faire tourner le jeu en local</td><td><code>python3</code></td><td>3.14.3-0ubuntu2 (<code>main</code>)</td><td><strong>oui</strong> — souvent déjà présent</td></tr>
+<tr><td>Contrôle des traductions</td><td><code>nodejs</code></td><td>22.22.1 (<code>universe</code>)</td><td><strong>oui</strong></td></tr>
+<tr><td>Cloner et pousser</td><td><code>git</code>, <code>gh</code></td><td>présents dans les dépôts</td><td><strong>oui</strong></td></tr>
+<tr><td>Planche de style d'assets</td><td><code>python3-pil</code></td><td>12.1.1-2ubuntu1.3 (<code>main</code>)</td><td>seulement pour <code>ia-assets/</code></td></tr>
+<tr><td>Scripts <code>.ps1</code></td><td><code>powershell</code></td><td><strong>absent des dépôts</strong> — dépôt Microsoft requis (F2)</td><td>seulement pour <code>ia-assets/</code></td></tr>
+<tr><td>Confort : <code>python</code> comme alias</td><td><code>python-is-python3</code></td><td>3.13.3-1+build1</td><td>non — le patch rend inutile</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code># Le strict necessaire pour que le jeu tourne et que son controle passe :
+sudo apt-get -o DPkg::Lock::Timeout=120 update
+sudo apt-get -o DPkg::Lock::Timeout=120 install -y python3 nodejs git gh
+
+# Ajouter seulement si tu reprends le pipeline d'assets :
+sudo apt-get install -y python3-pil</code></pre>
+<p class="note">Aucun service à créer : le projet n'a ni tâche planifiée, ni démon, ni unité
+<code>systemd</code>, ni port privilégié. Le serveur local se lance à la demande.</p>
+
+<h2>4. Ce qui a été modifié dans le dépôt</h2>
+<p>Branche <code>migration-linux</code>, six commits partant de <code>76f24eb</code>. Chacun désigne un
+objet immuable, correctement cité :</p>
+<div class="enveloppe">
+<table>
+<thead><tr><th>Commit</th><th>Objet</th><th>Pourquoi</th></tr></thead>
+<tbody>
+<tr><td><code>52527c3</code></td><td>launch.json appelle python3</td><td>Le seul défaut réellement bloquant : <code>python</code> n'existe pas sur la cible.</td></tr>
+<tr><td><code>7b250a8</code></td><td>Le dossier ComfyUI se déclare</td><td>Chemin Windows en dur qui se sautait en silence ; + un contrôle rejouable des deux branches.</td></tr>
+<tr><td><code>feb7a27</code></td><td>Deux titres de boutique traduits</td><td>Défaut préexistant : ils restaient en français dans cinq langues.</td></tr>
+<tr><td><code>792b8b6</code></td><td>Le contrôle ne tue plus six clés vivantes</td><td>Angle mort de l'instrument sur les clés construites par concaténation.</td></tr>
+<tr><td><code>0c41deb</code></td><td><code>.gitattributes</code></td><td>La cohérence LF ne dépend plus d'un réglage de machine qui disparaît au formatage.</td></tr>
+<tr><td><code>63fd6b4</code></td><td><code>.gitignore</code> minimal</td><td>Le cache d'octets Python, généré des deux côtés.</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Aucun script Windows n'a été supprimé.</strong> La bascule n'a pas eu lieu, le projet doit
+rester utilisable sous Windows jusque-là — et il l'est : la suite y passe après patch.</p>
+<p>Pour l'état courant, les commandes plutôt que des valeurs qui périment :</p>
+<pre><code>git rev-parse --short HEAD
+git log --oneline 76f24eb..HEAD
+git log --branches --not --remotes --oneline | wc -l   # doit rendre 0</code></pre>
+
+<h2>5. À sauvegarder avant le formatage</h2>
+<p>Trié : irremplaçable d'abord. <strong>Rien n'a été copié</strong> — la décision t'appartient.
+Aucun fichier de secret n'a été dupliqué : une copie double la surface d'exposition et survit
+à la rotation de la valeur.</p>
+<div class="enveloppe">
+<table>
+<thead><tr><th>Élément</th><th>Taille</th><th>Remplaçable</th><th>Comment le récupérer</th></tr></thead>
+<tbody>
+<tr><td><strong>localStorage Chrome</strong> — clé <code>neonSnakeUltimate_v1</code>, origine <code>prolexai.github.io</code> : niveau 10, 800 XP, meilleure taille 28 864, 42 kills, 12 parties, pseudo « Prolex », historique</td><td>quelques ko utiles</td><td><strong>NON</strong> — Chrome Sync ne réplique pas le localStorage d'un site</td><td>Ouvrir le jeu, DevTools → Application → Local Storage, copier la valeur dans un fichier sur la clé USB. <strong>À faire avant de formater.</strong></td></tr>
+<tr><td><strong>stash <code>8aefbeb</code></strong> — skins « Noir Fulgurant » et « Blanc Démoniaque », 740 lignes commentées avec les mesures qui les ont fait converger</td><td>53 891 o de diff</td><td><strong>déjà traité</strong></td><td>Poussé sur <code>origin/sauvegarde/stash-skins-speciaux</code>. Récupération : <code>git checkout sauvegarde/stash-skins-speciaux -- "Snake'on/index.html"</code></td></tr>
+<tr><td><code>~/.ssh/id_ed25519</code> (+ <code>.pub</code>) — accès <code>hermes-vps</code>. <strong>Aucune copie trouvée</strong> dans <code>C:\Secret</code> ni <code>D:\Secret</code></td><td>411 o</td><td>incertain</td><td>Vérifier d'abord si <code>ssh_hermes_vps.ppk</code> est la même paire (voir §7), sinon régénérer et mettre à jour <code>authorized_keys</code> sur le VPS.</td></tr>
+<tr><td><code>C:\Secret\.env</code> — version du <strong>3 septembre</strong>. <code>D:\Secret</code> est resté au 24 août, et <code>CLE-SSH-LINUX.md</code> n'y figure pas</td><td>12 259 o</td><td>non</td><td>Relancer <code>rapatrier-sauvegardes.ps1</code>, puis vérifier que la clé <em>majBios</em> porte bien la version du 3 septembre.</td></tr>
+<tr><td>Mémoire Claude Code du projet</td><td>4 fichiers</td><td>non</td><td>Copier <code>~/.claude/projects/C--JeuRapide/memory/</code> sur la clé USB (fiche F4).</td></tr>
+<tr><td><code>C:\ComfyUI\models\</code></td><td><strong>31 Go</strong></td><td>oui, à un coût</td><td>Chaque source est citée nommément dans <code>Snake'on/ia-assets/PIPELINE-ASSETS-IA.md</code> (versionné). Sauvegarder sur disque externe évite le retéléchargement ; ce n'est pas indispensable.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="enc bien">
+<strong>Ce qui n'a PAS besoin d'être sauvé, et pourquoi.</strong>
+<code>snake-on-modifications.zip</code> : son <code>index.html</code> ne diffère de <code>b945e46</code> que de
+108 lignes sur ~7 500, <em>et toujours en défaveur du zip</em> — la version commitée corrige le
+tracking de <code>leveledUp</code>, la synchro réseau du DASH et l'évitement des slots de respawn.
+Contenu absorbé et dépassé.
+<code>Snake'on.json</code> : projet GDevelop <strong>entièrement vide</strong> (<code>objects: []</code>,
+<code>layouts: []</code>, <code>packageName</code> resté à <code>com.example.gamename</code>).
+Les trois worktrees : <code>git status</code> vide, aucun commit non poussé.
+</div>
+
+<h2>6. Tests exécutés</h2>
+<p>Aucune sortie n'est reconstituée : chaque ligne vient d'une exécution réelle.
+Chaque test WSL a été précédé du contrôle de provenance des binaires.</p>
+<div class="enveloppe">
+<table>
+<thead><tr><th>Test</th><th>Environnement</th><th>Avant patch</th><th>Après patch</th></tr></thead>
+<tbody>
+<tr><td><code>node verifie-traductions.js</code></td><td>Windows</td><td><strong>EXIT=1</strong> — 2 anomalies (×3 exéc.)</td><td><strong>EXIT=0</strong> — 130 clés (×3 exéc.)</td></tr>
+<tr><td><code>node verifie-traductions.js</code></td><td>WSL ext4</td><td><strong>EXIT=1</strong> — sortie identique</td><td><strong>EXIT=0</strong></td></tr>
+<tr><td>Témoin de la suite (clé réelle sabotée)</td><td>WSL ext4</td><td>2 → <strong>12 anomalies</strong>, <code>tabSkins</code> nommé</td><td>idem + clé morte réelle toujours détectée</td></tr>
+<tr><td><code>python3 verifie-chemins.py</code></td><td>Windows</td><td>—</td><td><strong>EXIT=0</strong> — <code>C:\ComfyUI\input</code> ≠ variable</td></tr>
+<tr><td><code>python3 verifie-chemins.py</code></td><td>WSL ext4</td><td>—</td><td><strong>EXIT=0</strong> — <code>/root/ComfyUI/input</code></td></tr>
+<tr><td>Témoin (défaut remis en dur, fichier resté valide)</td><td>les deux</td><td>—</td><td><strong>EXIT=1</strong>, défauts nommés</td></tr>
+<tr><td>Clone ext4 : index vs disque</td><td>WSL ext4</td><td>89 = 89</td><td><strong>92 = 92</strong>, <code>git status</code> vide</td></tr>
+<tr><td>Volume sensible à la casse ? (témoin)</td><td>WSL ext4</td><td colspan="2"><strong>oui</strong> — <code>touch Temoin.casse temoin.casse</code> crée 2 fichiers</td></tr>
+<tr><td>Démarrage <code>launch.json</code> tel quel</td><td>WSL ext4</td><td><strong>exit 127</strong> — <code>python: command not found</code></td><td><strong>HTTP 200</strong> sur tous les points d'entrée</td></tr>
+<tr><td>Ressources du service worker (12)</td><td>WSL ext4</td><td>—</td><td><strong>0 échec</strong></td></tr>
+<tr><td>Casse fausse <code>Icons/Icon-192.png</code></td><td>Windows / ext4</td><td colspan="2"><strong>200 / 404</strong> — le piège, démontré des deux côtés</td></tr>
+<tr><td>CR restants dans les fichiers texte</td><td>WSL ext4</td><td>—</td><td><strong>0</strong></td></tr>
+<tr><td>Suite sous <code>LANG=fr_FR.UTF-8</code></td><td>WSL ext4</td><td>—</td><td><strong>EXIT=0</strong></td></tr>
+</tbody>
+</table>
+</div>
+<div class="enc">
+<strong>La mesure la plus instructive de l'audit.</strong> La même requête, <code>Icons/Icon-192.png</code>
+au lieu de <code>icons/icon-192.png</code>, rend <strong>HTTP 200 sous Windows</strong> et
+<strong>HTTP 404 sous Linux</strong>. Une seule référence mal capitalisée passerait donc tous les tests
+Windows et casserait en silence sur Kubuntu. C'est le défaut n°1 de ce genre de migration — ici il
+n'y en avait aucun, mais le contrôle ne pouvait être <em>prouvé</em> que sur le clone ext4 : sur NTFS
+le cas fautif n'est pas représentable.
+</div>
+<p class="note">Confirmation croisée obtenue sans la chercher : l'écart de taille entre les fichiers
+servis sous Windows et sous Linux (<code>index.html</code> 415 609 → 408 034 octets, <code>sw.js</code>
+2 235 → 2 166) <strong>égale exactement</strong> le nombre de retours chariot comptés (7 575 et 69),
+et les binaires sont identiques à l'octet. Cela a tranché une divergence entre deux rapports
+d'inventaire sur les fins de ligne.</p>
+
+<h2>7. Réserves et angles morts</h2>
+<p>Ce qui n'a pas pu être vérifié, et la commande qui le trancherait.</p>
+<ul>
+<li><strong>Kubuntu n'a jamais été testé.</strong> Toutes les mesures viennent d'Ubuntu 26.04 sous WSL,
+  qui partage les dépôts mais pas le bureau ni le noyau. Ce qui reste non prouvé : le comportement
+  sous KDE Plasma 6, l'accès GPU réel, les permissions hors root.
+  <em>Tranche :</em> rejouer <code>docs/migration-linux/restauration-linux.sh</code> sur la machine cible.</li>
+<li><strong>La clé SSH.</strong> Impossible de savoir si <code>~/.ssh/id_ed25519</code> et
+  <code>C:\Secret\SSH\WinSCP\ssh_hermes_vps.ppk</code> sont la même paire sans exposer la clé privée.
+  <em>Tranche :</em> <code>puttygen -O public-openssh ssh_hermes_vps.ppk</code> puis comparaison au
+  <code>.pub</code> — clés publiques uniquement.</li>
+<li><strong>Le mode multijoueur n'a pas été exercé.</strong> PeerJS est chargé depuis
+  <code>unpkg.com</code> et signale via le serveur public PeerJS ; aucune partie privée n'a été ouverte.
+  <em>Tranche :</em> ouvrir un salon depuis deux navigateurs après la bascule.</li>
+<li><strong>Les scripts <code>.ps1</code> n'ont jamais été exécutés</strong>, ni sous Windows ni sous
+  Linux — ils appellent un service de génération d'images. Le verdict « portable sans réécriture »
+  est une <em>lecture</em> de leurs cmdlets, pas une mesure.
+  <em>Tranche :</em> <code>pwsh generate_piece.ps1</code> une fois ComfyUI remonté.</li>
+<li><strong><code>python3-pil</code> n'a pas été installé</strong> (interdit pendant l'audit : la
+  distribution WSL est partagée). La disponibilité vient de <code>apt-cache policy</code>, pas d'une
+  installation jouée. <em>Tranche :</em> <code>python3 -c "import PIL; print(PIL.__version__)"</code>
+  après installation.</li>
+<li><strong>Le paquet <code>powershell</code> pour 26.04 chez Microsoft</strong> n'a pas été vérifié :
+  seuls les dépôts Ubuntu l'ont été (absent). <em>Tranche :</em>
+  <code>curl -sI https://packages.microsoft.com/config/ubuntu/26.04/packages-microsoft-prod.deb</code>.</li>
+<li><strong>Un avertissement WSL récurrent</strong> — <code>Failed to start the systemd user session
+  for 'root'</code> — accompagne chaque invocation. Sans effet observé sur les tests, mais il rappelle
+  que <code>systemd</code> n'est pas fonctionnel dans cet environnement : <strong>aucune unité
+  <code>systemd</code> de ce rapport n'a été testée</strong>.</li>
+<li><strong>Le témoin de shellcheck n'a pas pu être joué — le verdict vert de
+  <code>restauration-linux.sh</code> est donc à prendre avec réserve.</strong>
+  <code>shellcheck -S warning</code> (version 0.11.0, sous Ubuntu-26.04) a bien rendu
+  <strong>EXIT=0</strong> sur le script réel. Mais la faute que j'y ai injectée pour vérifier que
+  l'outil sait échouer — SC2164, un <code>cd</code> sans garde — <strong>n'est pas signalée quand le
+  script porte <code>set -e</code></strong>, puisque l'échec du <code>cd</code> arrête déjà le script.
+  Le témoin était donc muet par construction. Avant de pouvoir le rejouer avec une faute réellement
+  signalable, <code>Ubuntu-26.04</code> a cessé de démarrer
+  (<code>HCS_E_CONNECTION_TIMEOUT</code>, trois tentatives), et shellcheck n'existe ni dans
+  <code>Ubuntu-24.04</code> ni ailleurs sur la machine.
+  <em>Ce qui a pu être fait à la place</em>, chaque recherche avec son propre témoin joué :
+  aucune occurrence de <code>A &amp;&amp; B || C</code> (SC2015, le piège que ce genre de script
+  attrape le plus souvent), aucune variable non quotée dans un test, aucun <code>rm -rf</code>,
+  aucun <code>cd</code> hors sous-shell, <code>set -euo pipefail</code> présent, et
+  <code>bash -n</code> valide la syntaxe.
+  <em>Tranche :</em>
+  <pre><code>sudo apt-get install -y shellcheck
+shellcheck -S warning docs/migration-linux/restauration-linux.sh
+# puis prouver que l'outil mord, avec une faute de NIVEAU warning et non info :
+cp docs/migration-linux/restauration-linux.sh /tmp/s.sh
+printf '\nVARIABLE_JAMAIS_LUE="morte"\n' >> /tmp/s.sh   # SC2034
+shellcheck -S warning /tmp/s.sh   # doit rendre un code non nul</code></pre></li>
+<li><strong>Le script de restauration n'a jamais été exécuté</strong>, et ne pouvait pas l'être :
+  il n'existait pas encore de Kubuntu pour l'accueillir. C'est écrit en tête du fichier.</li>
+<li><strong>Une session concurrente a écrit sur <code>main</code> pendant l'audit</strong> (commit
+  <code>76f24eb</code>, 05:16:51, poussé). L'inventaire a donc porté sur un dépôt qui a changé sous
+  lui : les quatre éléments listés au départ comme « hors git » étaient déjà versionnés quand les
+  agents ont mesuré. Les constats de contenu restent valides, seul leur statut git avait changé.</li>
+<li><strong>Registre Windows :</strong> la recherche par mot-clé couvre les valeurs texte
+  (<code>REG_SZ</code>), pas les types binaires où un chemin pourrait être encodé autrement.</li>
+</ul>
+
+<footer>
+Rapport produit le 2026-09-05 à 05:58:18 +0200 (heure système) — projet Snake'on,
+commit audité <code>76f24eb</code>, branche <code>migration-linux</code>.<br>
+Fichier autonome : aucune ressource externe, lisible hors ligne.
+Données structurées équivalentes dans <code>rapport-snakeon-2026-09-05.json</code>,
+procédures exécutables dans <code>restauration-linux.sh</code>.
+</footer>
+
+</div>
+<script>
+(function(){
+  var etat = {crit:"tout", cat:"tout", q:""};
+  var lignes = Array.prototype.slice.call(document.querySelectorAll("#tbl tbody tr"));
+  var compte = document.getElementById("compte");
+
+  function applique(){
+    var vus = 0;
+    lignes.forEach(function(tr){
+      var okC = etat.crit === "tout" || tr.dataset.crit === etat.crit;
+      var okG = etat.cat  === "tout" || tr.dataset.cat  === etat.cat;
+      var okQ = etat.q === "" || tr.textContent.toLowerCase().indexOf(etat.q) !== -1;
+      var voir = okC && okG && okQ;
+      tr.hidden = !voir;
+      if (voir) vus++;
+    });
+    compte.textContent = vus + " constat(s) affiché(s) sur " + lignes.length + ".";
+  }
+
+  document.querySelectorAll(".filtres button").forEach(function(b){
+    b.addEventListener("click", function(){
+      var f = b.dataset.f;
+      etat[f] = b.dataset.v;
+      document.querySelectorAll('.filtres button[data-f="'+f+'"]').forEach(function(o){
+        o.setAttribute("aria-pressed", String(o === b));
+      });
+      applique();
+    });
+  });
+  document.getElementById("q").addEventListener("input", function(e){
+    etat.q = e.target.value.toLowerCase().trim();
+    applique();
+  });
+  applique();
+})();
+</script>
+</body>
+</html>
