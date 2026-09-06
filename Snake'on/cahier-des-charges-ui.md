@@ -1,11 +1,10 @@
 # Cahier des charges — UI de Snake'on
 
 **Portée : UI uniquement.** Ce document définit les interfaces du jeu, leur rôle, leur contenu
-et leurs actions — pas d'implémentation, pas de code. Version 0.6 : ajoute la **partie privée**
-(écran de Salon, bouton `A06`, pause qui ne fige plus le monde des autres) et **renverse la
-punition de l'abandon** — quitter une partie compte désormais la vie en cours, où qu'on parte
-(§5.23). Les V0.3 à V0.5 (éclat néon, skins, auras) restent décrites telles quelles ; le §7
-consigne les arbitrages de la V0.3 et le §8 ce qui reste ouvert.
+et leurs actions — pas d'implémentation, pas de code. Version 0.7 : la boutique se scinde en
+trois catégories indépendantes (Couleurs / Skins / Effets, §5.31) et les deux premières formes
+spéciales sont livrées (§5.35). Les V0.3 à V0.6 (éclat néon, skins, auras, partie privée) restent
+décrites telles quelles ; le §7 consigne les arbitrages de la V0.3 et le §8 ce qui reste ouvert.
 
 ---
 
@@ -73,6 +72,12 @@ plus garantie par la distance mais par l'**ordre de dessin** — l'aura passe so
 par-dessus à opacité pleine, et une seule passe repasse devant lui, plafonnée à 0,25 d'alpha.
 Le débordement est borné à 2,2 fois le rayon. L'aura est une composante permanente : seule sa
 déformation s'anime, elle demeure donc sous `prefers-reduced-motion`.
+
+### Formes à teinte imposée *(nouveau, v0.7)*
+
+Une forme spéciale peut fixer sa propre couleur (`fixedColor`) : le joueur ne peut alors plus la
+recolorer depuis la catégorie Couleurs — seule exception au principe de la décision 16. Ses
+paliers de déblocage suivent le même principe que les formes ordinaires (§5.15).
 
 ### Typographie *(nouveau, v0.3)*
 
@@ -305,6 +310,29 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     secondes sur quatre accords, trois voix, sans percussion. Elle accompagne une partie qui dure,
     elle ne doit ni réclamer l'attention ni fatiguer. À zéro, le curseur ARRÊTE réellement les
     oscillateurs au lieu de jouer un silence ; un onglet caché suspend le contexte audio.
+
+### V0.7 — addendum « Boutique à trois catégories et formes spéciales »
+31. **La boutique se scinde en trois catégories indépendantes et cumulables : Couleurs, Skins,
+    Effets** — révise la décision 15. Les neuf skins de la v0.4 (pointillé, dégradé, pulsation,
+    traînée, tête spéciale...) n'étaient pas des formes mais des effets de rendu : ils rejoignent
+    EFFECTS ; la teinte devient un axe propre (COLORS) ; SKINS reste réservée aux formes à teinte
+    imposée (32).
+    *Motif :* un pointillé ou une pulsation n'est pas une forme de serpent — c'est un rendu qui se
+    pose sur n'importe quelle forme. Les séparer permet 40 puis 400 combinaisons au lieu de 13
+    choix exclusifs.
+32. **`fixedColor` : une forme spéciale impose sa propre teinte**, indépendante de la couleur
+    choisie en boutique — seule exception au découplage de 31. Ce sont les seules entrées qui
+    peuplent SKINS ; en leur absence, la catégorie affiche un état vide explicite plutôt qu'une
+    grille blanche.
+33. **Les formes spéciales remplacent le catalogue, elles ne s'y ajoutent pas — pas de quatrième
+    catégorie.** Un onglet « Spéciaux » séparé a été écarté : une forme spéciale EST une forme,
+    au même titre que les futures formes ordinaires.
+34. **Les catégories de la boutique sont des sous-pages (codes B01-B03), pas des onglets
+    déployés.** Aucune sous-page n'est ouverte par défaut ; quitter puis rouvrir la Boutique
+    retrouve ses trois entrées.
+35. **Deux premières formes spéciales livrées : Noir Fulgurant (25) et Blanc Démoniaque (28)**
+    — veine électrique interne pour l'une, ailes et tête de dragon en tracés vectoriels pour
+    l'autre. Complète les décisions 31-32 : SKINS n'est plus vide.
 
 ---
 
