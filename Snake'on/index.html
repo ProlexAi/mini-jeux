@@ -2923,9 +2923,8 @@ function migrateSkinSave() {
     save.shopVersion = SHOP_VERSION;
 }
 
-// La forme portee, ou null quand aucune ne l'est — ce qui est le cas de tous les joueurs tant que
-// le lot de speciaux n'est pas livre. Tout appelant doit donc gerer le null, jamais supposer
-// qu'une forme existe.
+// La forme portee, ou null quand aucune ne l'est (aucune choisie, ou niveau insuffisant pour
+// celle enregistree). Tout appelant doit donc gerer le null, jamais supposer qu'une forme existe.
 function currentSkin() {
     const skin = CONFIG.SKINS[save.selectedSkin];
     if (!skin || save.level < skin.unlockLevel) { save.selectedSkin = -1; return null; }
@@ -5047,10 +5046,9 @@ function renderEffectsGrid() {
     });
 }
 
-// Grille de la categorie "Skins". La liste est VIDE tant que le lot de serpents speciaux n'est
-// pas livre : on affiche alors un etat vide explicite plutot qu'une grille blanche, qui se lirait
-// comme un defaut d'affichage. Le code de rendu des cartes est deja la, il ne demande que des
-// entrees dans CONFIG.SKINS.
+// Grille de la categorie "Skins". Si CONFIG.SKINS est vide (aucun serpent special livre), on
+// affiche un etat vide explicite plutot qu'une grille blanche, qui se lirait comme un defaut
+// d'affichage.
 function renderSkinsGrid() {
     const grid = $('skinsRow');
     if (!grid) return;

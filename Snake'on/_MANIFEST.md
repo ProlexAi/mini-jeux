@@ -4,7 +4,7 @@
 > Il dit **quoi lire et dans quel ordre**. Il ne duplique aucun contenu et ne porte aucun chiffre.
 > En cas de divergence entre ce fichier et la source qu'il désigne, **c'est la source qui fait foi**.
 >
-> Dernière révision : 2026-08-23.
+> Dernière révision : 2026-09-07.
 
 ---
 
