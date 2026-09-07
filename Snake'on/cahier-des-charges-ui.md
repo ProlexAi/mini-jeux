@@ -334,6 +334,27 @@ Pour mémoire, ce qui a motivé les décisions du §5 (toutes résolues) :
     — veine électrique interne pour l'une, ailes et tête de dragon en tracés vectoriels pour
     l'autre. Complète les décisions 31-32 : SKINS n'est plus vide.
 
+### V0.7 — addendum du 2026-09-07 : l'apparence sur le réseau
+
+36. **L'apparence voyage par son identité, jamais par son index — ni par le style composé.**
+    Referme le point que le §8 gardait ouvert. Le §8 le décrivait de travers : il annonçait
+    qu'« un joueur se voit avec son skin, les autres le voient uni ». La mesure a montré qu'en
+    partie privée **personne** ne portait de forme, pas même soi-même — l'hôte créait son propre
+    serpent sans lui passer son style, et le serpent d'un client passait par le même chemin que
+    celui des autres. Le protocole transporte désormais la forme et l'effet, joints au `HELLO` et
+    au roster de `GAME_START`, envoyés **une seule fois** : l'apparence ne change pas en cours de
+    partie, elle n'entre donc jamais dans les instantanés.
+37. **Écart assumé avec ce que le §8 prescrivait : le nom, pas l'index.** Le §8 demandait « les
+    deux index ». Ce sont le **nom** de la forme et l'**id** de l'effet qui voyagent.
+    `save.selectedSkin` est bien un index, mais un index ne survit pas à un réordonnancement de
+    `CONFIG.SKINS` entre deux versions : deux joueurs qui ne tournent pas la même version se
+    verraient porter la forme de l'autre. Le nom et l'id sont stables, pour quelques octets de
+    plus une fois par partie.
+38. **Chaque poste recompose le style depuis son propre `CONFIG`.** Le style composé ne voyage
+    pas : il figerait le rendu chez celui qui le reçoit. Conséquences voulues — une forme qu'une
+    version ne connaît pas retombe sur le **rendu uni** plutôt que de casser le rendu, et un
+    client d'une version antérieure, qui n'annonce rien, reste uni exactement comme avant.
+
 ---
 
 ## 6. Pause en partie privée
@@ -378,12 +399,6 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
 
 ## 8. Reste à faire
 
-- **Apparence d'un joueur distant en partie privée.** Le protocole ne transporte que sa
-  **couleur** : forme et effet ne voyagent pas, si bien qu'un joueur se voit avec son skin mais
-  que les autres le voient uni. Antérieur au découplage forme/effet, qui le rend seulement plus
-  visible. À corriger en joignant les deux index au `HELLO` et au roster de `GAME_START` — deux
-  entiers par joueur, envoyés une seule fois : l'apparence ne change pas en cours de partie, elle
-  n'a donc rien à faire dans les instantanés.
 - **Reconnexion réseau.** Une coupure de la liaison compte comme un départ définitif. Le retrait
   d'écran, lui, est traité (§5.28). À rouvrir si l'usage montre que les coupures brèves gênent.
 
@@ -392,12 +407,26 @@ bannière spectateur) ; laissé vide, le jeu retombe sur « TOI », traduit selo
 | Ce qui est vérifié | Commande |
 |---|---|
 | Les 6 langues sont complètes, aucune clé morte ni orpheline | `node "Snake'on/verifie-traductions.js"` |
+| Les formes à teinte imposée sont lues là où elles sont déclarées | `node "Snake'on/verifie-formes-speciales.js"` |
+| Le dossier d'entrée ComfyUI n'est pas codé en dur | `python3 "Snake'on/ia-assets/verifie-chemins.py"` |
+| Le script de restauration Linux passe l'analyse statique | `shellcheck -S style docs/migration-linux/restauration-linux.sh` |
 
-Ce contrôle échoue si une langue perd une clé, si le HTML cite une clé inexistante, ou si une clé
+Le premier échoue si une langue perd une clé, si le HTML cite une clé inexistante, ou si une clé
 n'est plus utilisée nulle part. Il a été saboté dans les trois sens pour vérifier qu'il sait
 encore échouer.
+
+Le deuxième est né d'un défaut que personne ne voyait : `fixedColor` était déclaré dans `style` et
+lu à la racine du skin, donc toujours `undefined`. Son témoin est **dans** l'instrument — s'il
+n'extrait aucune forme à teinte imposée, il sort en erreur au lieu de rendre un OK vide.
+
+Le troisième a été éprouvé par sabotage : on lui remet le chemin Windows codé en dur, il doit
+rendre `DEFAUT`. Il distingue la branche par défaut de la branche à variable d'environnement, et
+n'accuse pas celle qui marche encore.
+
+Le quatrième n'a pas de témoin écrit : c'est un outil tiers. Il a signalé un vrai défaut sur ce
+fichier (SC2012) avant d'être mis au vert, ce qui prouve au moins qu'il y mord.
 
 ---
 
 *Ce document est la référence pour tout nouvel écran ou composant d'interface ajouté au jeu.
-La V0.6 est implémentée, à l'exception des points listés au §8.*
+La V0.7 est implémentée, à l'exception des points listés au §8.*
