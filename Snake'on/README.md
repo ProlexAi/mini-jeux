@@ -1,7 +1,7 @@
 # 🐍 Snake'on
 
 Arène survivor-like néon dans un **grand monde qui défile** : mange, grossis, dévore les serpents
-plus petits que toi. Seul face à 45 bots, ou **à plusieurs dans la même arène** en s'échangeant un
+plus petits que toi. Seul face à 187 bots, ou **à plusieurs dans la même arène** en s'échangeant un
 code. **100 % HTML/JS/CSS**, aucun build, aucun serveur. Installable comme une vraie appli
 (**PWA**) et **jouable hors-ligne** en solo.
 
@@ -21,7 +21,7 @@ code. **100 % HTML/JS/CSS**, aucun build, aucun serveur. Installable comme une v
 **But :** grossir le plus possible, **sans fin** — comme sur slither.io, la partie ne s'arrête
 jamais d'elle-même. Une seule façon de « gagner » : arriver **en tête du classement** et choisir
 de t'arrêter là, depuis Pause, pour empocher le bonus de victoire.
-Face à 150 adversaires, seul un coup sur la **tête** détruit complètement un serpent (il faut être
+Face à 187 adversaires, seul un coup sur la **tête** détruit complètement un serpent (il faut être
 25 % plus lourd) ; toucher son **corps** ne le tue pas — ça le "coupe" : il perd la partie amputée
 mais **survit**, raccourci. Le tronçon amputé devient des pastilles de nourriture, dont la taille
 et le gain sont proportionnels à ce qui a été coupé. Toucher un corps plus gros ou égal agit comme
@@ -92,16 +92,21 @@ La carte ne tient **pas** dans l'écran : la caméra suit le serpent, la carte d
 et on **dézoome en grossissant** pour continuer à voir venir le danger.
 
 Sa taille n'est pas fixe, elle est **calculée au début de chaque partie** : le monde vaut toujours
-**16 écrans de surface** (au-delà de 6000 px sur un axe, le monde est plafonné en conservant son
-ratio — l'aire de 16 écrans n'est alors plus garantie, c'est le compromis qui protège la grille
+**58 écrans de surface** (au-delà de 20 000 px sur un axe, le monde est plafonné en conservant son
+ratio — l'aire de 58 écrans n'est alors plus garantie, c'est le compromis qui protège la grille
 spatiale et le nombre de pastilles sur très grand écran). Un écran de téléphone voit 2,3× moins de
 surface qu'un écran d'ordinateur — un monde de taille fixe serait désert sur l'un ou étouffant sur
 l'autre. À l'arrivée :
 
 | Écran | Monde | Nourriture | Adversaires visibles en moyenne |
 |---|---|---|---|
-| Ordinateur 1100×700 | 4400 × 2800 | 560 | ~1,9 |
-| iPhone 390×844 (plein écran) | 1987 × 2650 | 239 | ~1,8 |
+| Ordinateur 1100×700 | 8377 × 5331 | 2030 | ~3,2 |
+| iPhone 390×844 (plein écran) | 3784 × 5045 | 868 | ~3,2 |
+
+Ces quatre dimensions se recalculent, elles ne se recopient pas : elles sortent de
+`computeWorld()` et de `FOOD_AREA_PER_ITEM`. La colonne « adversaires visibles » vaut
+`BOT_COUNT_SOLO ÷ WORLD_SCREENS` — c'est pour cela qu'elle est identique sur téléphone et sur
+ordinateur : le monde est dimensionné **à densité constante**, c'est le but de la formule.
 
 La nourriture n'est **pas** éparpillée uniformément : elle apparaît par **amas** (une quinzaine de
 pastilles par zone, comme sur slither.io), avec des poches vides entre les amas — des zones plus
@@ -160,9 +165,10 @@ Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.h
 | Réglage | Effet |
 |---|---|
 | `FOOD_GROWTH: 2` | taille gagnée par pastille |
-| `WORLD_SCREENS: 16` | taille du monde, en écrans de surface — monte-le pour une carte plus vaste |
-| `BOT_COUNT: 45` | nombre d'adversaires (la densité de rencontres) |
-| `BOT_MAX_LENGTH: 300` | plafond des bots, pour qu'aucun ne finisse par dominer toute l'arène |
+| `WORLD_SCREENS: 58` | taille du monde, en écrans de surface — monte-le pour une carte plus vaste |
+| `BOT_COUNT: 150` | adversaires en partie privée (la densité de rencontres) |
+| `BOT_COUNT_SOLO: 187` | adversaires en solo — plus nombreux, la partie solo est plus dense |
+| `BOT_MAX_LENGTH: 800` | plafond des bots, aligné sur `MAX_LENGTH` : même limite que le joueur |
 | `SPAWN_SHIELD_MS: 3000` | invincibilité à l'apparition (et à chaque réapparition) |
 | `SPECTATE_MS: 4000` | durée de la vue sur le tueur avant de réapparaître |
 | `FOOD_AREA_PER_ITEM` | densité de nourriture (px² par pastille) |
