@@ -158,6 +158,25 @@ le navigateur refuse un service worker écrit à l'intérieur d'une page. C'est 
 
 ---
 
+**Re-vérifié le 2026-09-07**, sur le site en production, jeu piloté image par image (`gameLoop`
+cadencé à la main, `requestAnimationFrame` étant suspendu dans un onglet non visible) :
+
+| Ce qui a été rejoué | Résultat |
+|---|---|
+| Monde calculé sur 1100×700 | 8377 × 5331, 2030 pastilles, 187 bots |
+| Caméra bloquée aux murs | bords vus exactement à `0,0` et `8377,5331` |
+| Rayon dérivé de la masse | 8 à masse 10, 130 au plafond `MAX_RADIUS` |
+| Dézoom | 1 → 0,451 pour un `MIN_ZOOM` de 0,45 |
+| Découpe ≠ kill (décision 27) | la cible survit raccourcie (610 → 7), masse et rayon suivent ; la tête détruit |
+| Boucle sans fin | 3 cycles mort → spectateur → réapparition, jamais d'écran de fin, bouclier à chaque fois |
+| Pause | horloge figée sur 2,5 s de frames, reprise après le décompte 3-2-1 |
+| DASH | double-tap requis, coûte 5 % de masse (410 → 390), dure 1,2 s |
+| Difficulté | peuplement 131 / 187 / 234 bots |
+| Persistance | couleur, effet et effet de kill relus à l'identique après écriture |
+
+*Le débit d'images n'est pas dans ce tableau : il n'est pas mesurable de façon honnête dans un
+onglet non composé par le navigateur.*
+
 ## 🔧 Régler le jeu
 
 Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.html`.
@@ -232,8 +251,11 @@ retardataire, sous son pseudo.
 
 Testé automatiquement dans Chromium (ordinateur 1100×700 et iPhone 390×844 en 3×) :
 
-- **60 fps** tenus avec 45 serpents et ~700 pastilles, sur les deux formats
-- **Caméra** : suit le joueur, se bloque exactement aux murs du monde, dézoom 1 → 0,59 quand on grossit
+- **60 fps** tenus sur les deux formats. *Mesure d'origine faite à 45 serpents et ~700 pastilles,
+  avant le passage à l'échelle agar.io ; le peuplement est aujourd'hui de 187 bots et ~2030
+  pastilles sur 1100×700, et le débit n'a pas été re-mesuré depuis.*
+- **Caméra** : suit le joueur, se bloque exactement aux murs du monde, dézoom 1 → 0,45 quand on
+  grossit (`MIN_ZOOM`)
 - **Visée** : le pointeur est converti en coordonnées monde, donc juste même quand la caméra est bloquée au bord
 - **Boucle sans fin** : 100 s simulées, 7 morts du joueur, l'état de jeu ne quitte jamais
   `PLAYING`/`SPECTATING` (pas d'écran de fin) — le monde, les bots et la nourriture restent les
