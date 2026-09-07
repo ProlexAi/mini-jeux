@@ -2709,6 +2709,26 @@ function writeSave() {
     try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(save)); } catch(e) { /* mode privé : on continue sans persister */ }
 }
 
+// Le localStorage n'est PAS garanti : sous pression de stockage, un navigateur evince les
+// origines « best-effort » sans prevenir, et la progression part avec. navigator.storage.persist()
+// demande le statut « persistant », qui met l'origine a l'abri de cette eviction automatique.
+//
+// Mesure faite le 2026-09-07 avant ce correctif : navigator.storage.persisted() rendait false.
+// Le quota n'a jamais ete le sujet — 10 Go disponibles pour 1,4 ko de sauvegarde ; c'est la
+// PERMISSION qui manquait, et personne ne l'avait demandee.
+//
+// Silencieux par construction : selon le navigateur la demande est accordee d'office (appli
+// installee, site visite souvent), refusee, ou soumise a une invite. Un refus ne casse rien —
+// on retombe sur le comportement d'avant. On ne derange donc jamais le joueur avec un message.
+async function demanderStockagePersistant() {
+    try {
+        if (!navigator.storage || !navigator.storage.persist) return false;
+        if (await navigator.storage.persisted()) return true;
+        return await navigator.storage.persist();
+    } catch (e) { return false; }
+}
+demanderStockagePersistant();
+
 let save = loadSave();
 
 function applyUiColor(hex) {
