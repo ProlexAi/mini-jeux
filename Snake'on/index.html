@@ -2954,7 +2954,7 @@ function currentColor() {
 // variantes, eux, prennent la couleur choisie — c'est tout l'objet de la categorie "Couleurs".
 function playerColor() {
     const skin = currentSkin();
-    return (skin && skin.fixedColor) ? skin.color : currentColor().hex;
+    return (skin && skin.style && skin.style.fixedColor) ? skin.color : currentColor().hex;
 }
 
 // L'effet est independant de la forme. Verrouille par niveau comme elle, et on retombe
@@ -2988,7 +2988,7 @@ function currentStyle() {
                                 (skin && skin.style) || {}, currentEffect().style || {});
     // Une forme speciale garde les teintes de son dessin : les rederiver reviendrait a repeindre
     // ce que l'auteur a compose. Le serpent de reference, lui, suit la couleur choisie.
-    if (skin && skin.fixedColor) return style;
+    if (style.fixedColor) return style;
     const teinte = playerColor();
     if (style.gradient) style.gradient = [teinte, nuance(teinte, 0.55)];
     if (style.hueStops) style.hueStops = [
@@ -5069,7 +5069,7 @@ function renderSkinsGrid() {
         card.type = 'button';
         card.className = 'skin-card';
         // Une forme speciale porte SA couleur : la carte doit montrer ce qui sera joue.
-        card.style.color = skin.fixedColor ? skin.color : teinte;
+        card.style.color = (skin.style && skin.style.fixedColor) ? skin.color : teinte;
         card.appendChild(apercuSerpent(skin.style || {}));
         const nom = document.createElement('span');
         nom.className = 'name';
