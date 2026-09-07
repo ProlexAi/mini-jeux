@@ -2982,14 +2982,12 @@ function nuance(hex, ratio) {
 // quelles ferait mentir la categorie "Couleurs" : l'effet "Degrade" resterait jaune quelle qu'en
 // soit la teinte. Les supprimer serait pire — l'effet deviendrait un doublon vide de "Aucun". On
 // les recalcule donc a partir de la teinte portee.
-function currentStyle() {
-    const skin = currentSkin();
+function composeStyle(skin, effect, teinte) {
     const style = Object.assign({}, CONFIG.BASE_STYLE,
-                                (skin && skin.style) || {}, currentEffect().style || {});
+                                (skin && skin.style) || {}, (effect && effect.style) || {});
     // Une forme speciale garde les teintes de son dessin : les rederiver reviendrait a repeindre
     // ce que l'auteur a compose. Le serpent de reference, lui, suit la couleur choisie.
     if (style.fixedColor) return style;
-    const teinte = playerColor();
     if (style.gradient) style.gradient = [teinte, nuance(teinte, 0.55)];
     if (style.hueStops) style.hueStops = [
         [teinte, nuance(teinte, 0.6)],
@@ -2998,6 +2996,40 @@ function currentStyle() {
     ];
     if (style.trailColor) style.trailColor = nuance(teinte, 0.45);
     return style;
+}
+
+// MON style : le cas particulier de composeStyle ou l'identite vient de ma sauvegarde.
+function currentStyle() {
+    return composeStyle(currentSkin(), currentEffect(), playerColor());
+}
+
+// ---- Apparence sur le reseau ---------------------------------------------------------
+// Ce qui voyage n'est PAS le style compose. Ce serait gros, et surtout ce serait fige : un
+// poste rendrait l'autre avec des cles qu'il ne sait peut-etre plus interpreter. Voyage donc
+// l'IDENTITE -- quelle forme, quel effet -- et chaque poste recompose le style depuis SON
+// propre CONFIG.
+//
+// La forme voyage par son NOM, pas par son index. save.selectedSkin est bien un index, mais
+// un index ne survit pas a un reordonnancement de CONFIG.SKINS entre deux versions : deux
+// joueurs de versions differentes se verraient porter la forme de l'autre. L'effet, lui, a
+// deja un id court et stable, on le garde.
+function netIdentity() {
+    const skin = currentSkin(), eff = currentEffect();
+    return { skin: skin ? skin.name : null, effect: eff ? eff.id : null };
+}
+
+// Recompose l'apparence d'un AUTRE joueur a partir de ce qu'il a annonce.
+// Renvoie null quand il n'y a rien a rendre : ce serpent garde alors le rendu uni d'origine,
+// exactement comme avant ce chantier. C'est aussi le repli quand la forme annoncee est
+// inconnue de cette version -- on prefere un serpent uni a un plantage de rendu.
+function netStyleFrom(skinName, effectId, teinte) {
+    const skin = skinName ? CONFIG.SKINS.find(s => s.name === skinName) : null;
+    // 'none' est l'ABSENCE d'effet, pas un effet : le traiter comme les autres ferait rendre un
+    // style la ou il n'y a rien a rendre, et un serpent sans rien prendrait un chemin de rendu
+    // different de celui d'avant ce chantier.
+    const eff = (effectId && effectId !== 'none') ? CONFIG.EFFECTS.find(e => e.id === effectId) : null;
+    if (!skin && !eff) return null;
+    return composeStyle(skin, eff, teinte);
 }
 
 // ============================================================
@@ -7368,7 +7400,12 @@ function handleHostMessage(conn, msg) {
         // vision nul ne laisserait plus rien passer — ce joueur ne recevrait plus aucun serpent.
         // À défaut, hostViewFor retombe sur NET_SCREEN_DEFAULT.
         if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
-        party.players.set(conn.peer, { name, color, isHost: false });
+        // Apparence annoncee. Bornee comme le nom et la couleur : le message vient du reseau,
+        // il ne decide pas de la taille de ce qu'on garde. Un client d'une version anterieure
+        // n'envoie rien -> null, et il sera rendu uni, comme avant.
+        const skin = msg.skin ? String(msg.skin).slice(0, 32) : null;
+        const effect = msg.effect ? String(msg.effect).slice(0, 24) : null;
+        party.players.set(conn.peer, { name, color, isHost: false, skin, effect });
         lobbySend(conn, {
             type: 'WELCOME', selfId: conn.peer,
             players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, color: p.color, isHost: p.isHost })),
@@ -7419,7 +7456,9 @@ async function joinParty() {
         party.hostConn = conn;
         conn.on('open', () => {
             netLastSentScreen = WIDTH + 'x' + HEIGHT;
-            lobbySend(conn, { type: 'HELLO', name: playerName(), color: playerColor(), w: WIDTH, h: HEIGHT });
+            lobbySend(conn, Object.assign(
+                { type: 'HELLO', name: playerName(), color: playerColor(), w: WIDTH, h: HEIGHT },
+                netIdentity()));
         });
         conn.on('data', (msg) => handleClientMessage(msg, code));
         conn.on('close', () => {
@@ -7816,16 +7855,29 @@ function hostSnakeByNetId(id) {
 function hostBuildRoster() {
     return netOrder.map(id => {
         const s = hostSnakeByNetId(id);
-        return [id, s ? s.name : '?', s ? s.color : CONFIG.COLORS[0].hex];
+        const ligne = [id, s ? s.name : '?', s ? s.color : CONFIG.COLORS[0].hex];
+        // L'apparence ne concerne que les humains : "Bots sans skin", cahier des charges §5.4.
+        // Pour moi, elle est lue au vol : j'ai pu changer de forme entre la creation du salon
+        // et le lancement. Pour les autres, c'est ce qu'ils ont annonce en HELLO.
+        const ident = (id === 'host') ? netIdentity() : party.players.get(id);
+        // Deux champs ajoutes SEULEMENT s'il y a quelque chose a dire : un roster de 150 bots
+        // ne paie pas deux nulls par ligne pour rien. Les lignes courtes se destructurent en
+        // undefined a l'arrivee, ce que netStyleFrom traite comme "aucune apparence".
+        if (ident && (ident.skin || (ident.effect && ident.effect !== 'none'))) {
+            ligne.push(ident.skin || null, ident.effect || null);
+        }
+        return ligne;
     });
 }
 
 function hostSpawnRemote(peerId) {
     const info = party.players.get(peerId) || {};
+    const couleur = info.color || CONFIG.COLORS[0].hex;
     const s = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        false, info.name || '?', info.color || CONFIG.COLORS[0].hex
+        false, info.name || '?', couleur,
+        netStyleFrom(info.skin, info.effect, couleur)
     );
     s.netId = peerId;
     s.netControlled = true;          // ni pointeur local, ni IA : son cap arrive par le réseau
@@ -7853,7 +7905,7 @@ function launchPrivateGame() {
     player = new Snake(
         CONFIG.WORLD_WIDTH * (0.2 + Math.random()*0.6),
         CONFIG.WORLD_HEIGHT * (0.2 + Math.random()*0.6),
-        true, playerName(), playerColor()
+        true, playerName(), playerColor(), currentStyle()
     );
     player.netId = 'host';
     player.powerupEnds.invincible = gnow() + CONFIG.SPAWN_SHIELD_MS;
@@ -8002,7 +8054,12 @@ function applyGameStart(msg) {
     netResetIdentity();
     netMinimap = [];
     netLeaderboard = null;
-    msg.roster.forEach(([id, name, color]) => { netRoster.set(id, { name, color }); netRegisterId(id); });
+    // skin et effect sont absents des lignes qui n'ont pas d'apparence a declarer (tous les
+    // bots) : la destructuration rend undefined, que netStyleFrom traite comme "rendu uni".
+    msg.roster.forEach(([id, name, color, skin, effect]) => {
+        netRoster.set(id, { name, color, skin, effect });
+        netRegisterId(id);
+    });
 
     gameState = 'PLAYING';
     gameClock = 0; accumulator = 0; lastFrameTs = 0;
@@ -8029,7 +8086,10 @@ function netEnsureSnake(netId) {
     let s = netSnakes.get(netId);
     if (s) return s;
     const info = netRoster.get(netId) || { name: '?', color: CONFIG.COLORS[0].hex };
-    s = new Snake(CONFIG.WORLD_WIDTH/2, CONFIG.WORLD_HEIGHT/2, false, info.name, info.color);
+    // Mon propre serpent passe aussi par ici (cf. netEnsureSnake(party.selfId) au GAME_START) :
+    // sans cette composition, un client ne voyait meme pas SA propre forme en partie privee.
+    s = new Snake(CONFIG.WORLD_WIDTH/2, CONFIG.WORLD_HEIGHT/2, false, info.name, info.color,
+                  netStyleFrom(info.skin, info.effect, info.color));
     s.netId = netId;
     netSnakes.set(netId, s);
     return s;
