@@ -177,6 +177,26 @@ cadencé à la main, `requestAnimationFrame` étant suspendu dans un onglet non 
 *Le débit d'images n'est pas dans ce tableau : il n'est pas mesurable de façon honnête dans un
 onglet non composé par le navigateur.*
 
+## 💾 Ta sauvegarde
+
+Ta progression vit dans le **`localStorage` de ton navigateur**, sur ta machine. Elle est
+partagée entre le site et l'appli installée (même origine), et le jeu demande au navigateur de
+la mettre à l'abri de l'effacement automatique (`navigator.storage.persist()`).
+
+Ce qu'elle **ne fait pas** : se synchroniser. Changer de machine, de navigateur, ou effacer les
+données du site, et elle est perdue. C'est le prix du « sans serveur » — assumé, pas subi.
+
+D'où **Réglages → Sauvegarde** :
+
+| | |
+|---|---|
+| **⬇ Exporter** | télécharge `snakeon-sauvegarde-AAAA-MM-JJ.json` — ta progression complète, ~1,4 ko |
+| **⬆ Importer** | relit un fichier exporté et recharge le jeu dessus |
+
+L'import **valide avant d'écrire** : un fichier abîmé, vide, ou qui n'est pas une sauvegarde est
+refusé sans toucher à la progression en place. Les champs absents d'un vieux fichier reprennent
+leurs valeurs par défaut, donc une sauvegarde ancienne reste importable.
+
 ## 🔧 Régler le jeu
 
 Tout est regroupé dans l'objet `CONFIG`, tout en haut du `<script>` de `index.html`.
