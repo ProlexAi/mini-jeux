@@ -609,6 +609,9 @@
         }
 
         .effects-row { display: flex; flex-direction: column; gap: 7px; max-width: 380px; margin: 0 auto; }
+        .save-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .save-actions .tab-btn { flex: 1 1 140px; }
+
         .effect-opt {
             display: flex; align-items: center; gap: 11px;
             min-height: 44px; padding: 0 12px; margin: 0;
@@ -1182,6 +1185,15 @@
                     <p data-i18n="ctrlMobile">👆 Mobile : le serpent suit ton doigt</p>
                     <p data-i18n="ctrlKeys">⌨️ Échap ou P : pause · Entrée / Espace : jouer</p>
                 </div>
+                <h2 style="margin-top:16px" data-i18n="secSave">Sauvegarde</h2>
+                <div class="controls-hint">
+                    <p data-i18n="saveHint">Ta progression vit dans CE navigateur, sur CETTE machine. Rien ne la synchronise ailleurs : exporte-la pour la garder ou la porter sur un autre appareil.</p>
+                </div>
+                <div class="save-actions">
+                    <button type="button" class="tab-btn" id="saveExportBtn" data-i18n="saveExport">⬇ Exporter</button>
+                    <button type="button" class="tab-btn" id="saveImportBtn" data-i18n="saveImport">⬆ Importer</button>
+                </div>
+                <input type="file" id="saveImportInput" accept="application/json,.json" hidden>
             </div>
             <div id="settingsLang" class="hidden">
                 <div class="lang-list" id="langList"></div>
@@ -2056,6 +2068,9 @@ const TRANSLATIONS = {
         statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
         colNum: '#', colSize: 'Taille', colKills: 'Kills', colDuration: 'Durée', noGames: 'Aucune partie',
         secAudio: 'Audio', secEffects: 'Effets', secQuality: 'Qualité graphique',
+        secSave: 'Sauvegarde', saveExport: '⬇ Exporter', saveImport: '⬆ Importer',
+        saveHint: "Ta progression vit dans CE navigateur, sur CETTE machine. Rien ne la synchronise ailleurs : exporte-la pour la garder ou la porter sur un autre appareil.",
+        saveExported: '💾 Sauvegarde exportée', saveLoaded: '✅ Sauvegarde importée', saveInvalid: "⚠️ Fichier illisible ou ce n'est pas une sauvegarde",
         secLanguage: 'Langue', secUiColor: "Couleur de l'interface", secControls: 'Commandes',
         music: '🎵 Musique', sounds: '🔊 Sons',
         fxNone: 'Aucun', fxLight: 'Léger', fxFull: 'Complet',
@@ -2116,6 +2131,9 @@ const TRANSLATIONS = {
         statBest: 'Best', statKills: 'Kills', statGames: 'Games', statTime: 'Time',
         colNum: '#', colSize: 'Size', colKills: 'Kills', colDuration: 'Duration', noGames: 'No games yet',
         secAudio: 'Audio', secEffects: 'Effects', secQuality: 'Graphics quality',
+        secSave: 'Save data', saveExport: '⬇ Export', saveImport: '⬆ Import',
+        saveHint: 'Your progress lives in THIS browser, on THIS machine. Nothing syncs it elsewhere: export it to keep it or carry it to another device.',
+        saveExported: '💾 Save exported', saveLoaded: '✅ Save imported', saveInvalid: '⚠️ Unreadable file, or not a save',
         secLanguage: 'Language', secUiColor: 'Interface colour', secControls: 'Controls',
         music: '🎵 Music', sounds: '🔊 Sounds',
         fxNone: 'None', fxLight: 'Light', fxFull: 'Full',
@@ -2176,6 +2194,9 @@ const TRANSLATIONS = {
         statBest: 'Récord', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tiempo',
         colNum: '#', colSize: 'Tamaño', colKills: 'Kills', colDuration: 'Duración', noGames: 'Ninguna partida',
         secAudio: 'Audio', secEffects: 'Efectos', secQuality: 'Calidad gráfica',
+        secSave: 'Partida guardada', saveExport: '⬇ Exportar', saveImport: '⬆ Importar',
+        saveHint: 'Tu progreso vive en ESTE navegador, en ESTA máquina. Nada lo sincroniza en otro sitio: expórtalo para conservarlo o llevarlo a otro dispositivo.',
+        saveExported: '💾 Partida exportada', saveLoaded: '✅ Partida importada', saveInvalid: '⚠️ Archivo ilegible, o no es una partida guardada',
         secLanguage: 'Idioma', secUiColor: 'Color de la interfaz', secControls: 'Controles',
         music: '🎵 Música', sounds: '🔊 Sonidos',
         fxNone: 'Ninguno', fxLight: 'Ligero', fxFull: 'Completo',
@@ -2236,6 +2257,9 @@ const TRANSLATIONS = {
         statBest: 'Rekord', statKills: 'Kills', statGames: 'Runden', statTime: 'Zeit',
         colNum: '#', colSize: 'Größe', colKills: 'Kills', colDuration: 'Dauer', noGames: 'Keine Runde',
         secAudio: 'Audio', secEffects: 'Effekte', secQuality: 'Grafikqualität',
+        secSave: 'Spielstand', saveExport: '⬇ Exportieren', saveImport: '⬆ Importieren',
+        saveHint: 'Dein Fortschritt lebt in DIESEM Browser, auf DIESEM Gerät. Nichts synchronisiert ihn anderswo: exportiere ihn, um ihn zu behalten oder mitzunehmen.',
+        saveExported: '💾 Spielstand exportiert', saveLoaded: '✅ Spielstand importiert', saveInvalid: '⚠️ Datei unlesbar oder kein Spielstand',
         secLanguage: 'Sprache', secUiColor: 'Farbe der Oberfläche', secControls: 'Steuerung',
         music: '🎵 Musik', sounds: '🔊 Geräusche',
         fxNone: 'Keine', fxLight: 'Leicht', fxFull: 'Voll',
@@ -2296,6 +2320,9 @@ const TRANSLATIONS = {
         statBest: 'Record', statKills: 'Kills', statGames: 'Partite', statTime: 'Tempo',
         colNum: '#', colSize: 'Taglia', colKills: 'Kills', colDuration: 'Durata', noGames: 'Nessuna partita',
         secAudio: 'Audio', secEffects: 'Effetti', secQuality: 'Qualità grafica',
+        secSave: 'Salvataggio', saveExport: '⬇ Esporta', saveImport: '⬆ Importa',
+        saveHint: 'I tuoi progressi vivono in QUESTO browser, su QUESTA macchina. Niente li sincronizza altrove: esportali per conservarli o portarli su un altro dispositivo.',
+        saveExported: '💾 Salvataggio esportato', saveLoaded: '✅ Salvataggio importato', saveInvalid: '⚠️ File illeggibile, o non è un salvataggio',
         secLanguage: 'Lingua', secUiColor: "Colore dell'interfaccia", secControls: 'Comandi',
         music: '🎵 Musica', sounds: '🔊 Suoni',
         fxNone: 'Nessuno', fxLight: 'Leggero', fxFull: 'Completo',
@@ -2356,6 +2383,9 @@ const TRANSLATIONS = {
         statBest: 'Recorde', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tempo',
         colNum: '#', colSize: 'Tamanho', colKills: 'Kills', colDuration: 'Duração', noGames: 'Nenhuma partida',
         secAudio: 'Áudio', secEffects: 'Efeitos', secQuality: 'Qualidade gráfica',
+        secSave: 'Progresso', saveExport: '⬇ Exportar', saveImport: '⬆ Importar',
+        saveHint: 'O teu progresso vive NESTE navegador, NESTA máquina. Nada o sincroniza noutro lado: exporta-o para o guardar ou levar para outro dispositivo.',
+        saveExported: '💾 Progresso exportado', saveLoaded: '✅ Progresso importado', saveInvalid: '⚠️ Ficheiro ilegível, ou não é um progresso guardado',
         secLanguage: 'Idioma', secUiColor: 'Cor da interface', secControls: 'Comandos',
         music: '🎵 Música', sounds: '🔊 Sons',
         fxNone: 'Nenhum', fxLight: 'Ligeiro', fxFull: 'Completo',
@@ -3056,6 +3086,70 @@ function netStyleFrom(skinName, effectId, teinte) {
     const skin = skinName ? CONFIG.SKINS.find(s => s.name === skinName) : null;
     const eff = (effectId && effectId !== 'none') ? CONFIG.EFFECTS.find(e => e.id === effectId) : null;
     return composeStyle(skin, eff, teinte);
+}
+
+// ============================================================
+//  SAUVEGARDE PORTABLE — le joueur porte son paquet
+// ============================================================
+// Le localStorage est lie a UNE origine ET a UN profil de navigateur. Rien ne le synchronise :
+// changer de machine ou de navigateur perd la progression. C'est arrive pour de vrai lors du
+// passage de Windows a Linux, et il a fallu aller rechercher la sauvegarde dans le magasin
+// leveldb du profil Chrome pour la recuperer.
+//
+// Le choix est ASSUME : pas de compte, pas de serveur, pas de synchronisation automatique. Le
+// joueur emporte un fichier. Le jeu reste ce qu'il annonce -- 100 % HTML/JS/CSS, sans serveur --
+// et aucune donnee de joueur ne transite ni ne se stocke nulle part ailleurs que chez lui.
+
+function nomFichierSauvegarde() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `snakeon-sauvegarde-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
+}
+
+function exporterSauvegarde() {
+    // On exporte ce qui est REELLEMENT enregistre, pas l'objet en memoire : ce qui part est
+    // exactement ce qu'un rechargement relirait.
+    let brut = null;
+    try { brut = localStorage.getItem(CONFIG.SAVE_KEY); } catch(e) { /* mode prive */ }
+    if (!brut) brut = JSON.stringify(save);
+    const url = URL.createObjectURL(new Blob([brut], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nomFichierSauvegarde();
+    document.body.appendChild(a); a.click(); a.remove();
+    // Liberation differee : revoquer trop tot annule le telechargement sur certains navigateurs.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast(t('saveExported'));
+}
+
+// Refuse tout ce qui ne ressemble pas a une sauvegarde. Le fichier vient du disque du joueur,
+// donc pas d'un attaquant — mais un fichier ABIME ne doit pas ecraser une progression valide.
+// On verifie avant d'ecrire, jamais apres.
+function sauvegardeValide(o) {
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+    if (typeof o.level !== 'number' || !isFinite(o.level) || o.level < 1) return false;
+    if (typeof o.xp !== 'number' || !isFinite(o.xp) || o.xp < 0) return false;
+    // Les autres champs sont facultatifs : loadSave() complete depuis DEFAULT_SAVE, ce qui rend
+    // une sauvegarde ancienne lisible par une version recente (verifie sur une save du 23/08).
+    return true;
+}
+
+function importerSauvegarde(fichier) {
+    if (!fichier) return;
+    const lecteur = new FileReader();
+    lecteur.onerror = () => showToast(t('saveInvalid'));
+    lecteur.onload = () => {
+        let objet = null;
+        try { objet = JSON.parse(String(lecteur.result)); } catch(e) { objet = null; }
+        if (!sauvegardeValide(objet)) { showToast(t('saveInvalid')); return; }
+        try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(objet)); }
+        catch(e) { showToast(t('saveInvalid')); return; }
+        showToast(t('saveLoaded'));
+        // Rechargement plutot qu'un rafraichissement partiel : la progression touche le menu, la
+        // boutique, les stats, l'historique, les succes et les reglages. Tout relire d'un coup
+        // est le seul moyen sur de n'en oublier aucun.
+        setTimeout(() => location.reload(), 700);
+    };
+    lecteur.readAsText(fichier);
 }
 
 // ============================================================
@@ -8361,6 +8455,13 @@ function escapeHtml(s) {
 
 bindBtn('privateGameBtn', openLobbyChoice);
 bindBtn('lobbyShowJoinBtn', showLobbyJoinForm);
+bindBtn('saveExportBtn', exporterSauvegarde);
+bindBtn('saveImportBtn', () => $('saveImportInput').click());
+$('saveImportInput').addEventListener('change', (e) => {
+    importerSauvegarde(e.target.files && e.target.files[0]);
+    e.target.value = '';          // reimporter deux fois le meme fichier doit rester possible
+});
+
 bindBtn('lobbyCreateBtn', createParty);
 bindBtn('lobbyJoinConfirmBtn', joinParty);
 bindBtn('lobbyBackBtn', () => { resetParty(); showScreen('menu'); });
