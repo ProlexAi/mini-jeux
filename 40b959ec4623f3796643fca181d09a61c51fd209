@@ -1,0 +1,13 @@
+Rectificatif. Deux mots de ce message ont ete manges a la redaction : des backticks places dans une chaine bash double-quotee ont ete executes par le shell.
+
+La phrase amputee se lit :
+  "Ligne 2991, la cle est desormais lue sur  plutot que sur  :"
+
+Elle doit se lire :
+  "Ligne 2991, la cle est desormais lue sur style plutot que sur skin :"
+
+Le code, le controle rejouable et le journal du jour ne sont pas concernes :
+seul ce message l'est. Corrige par une note plutot que par un amend, qui aurait
+demande un push --force sur une branche publique.
+
+Parade adoptee pour la suite : git commit -F, jamais -m avec des backticks.
