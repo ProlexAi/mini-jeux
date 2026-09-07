@@ -3018,17 +3018,23 @@ function netIdentity() {
     return { skin: skin ? skin.name : null, effect: eff ? eff.id : null };
 }
 
-// Recompose l'apparence d'un AUTRE joueur a partir de ce qu'il a annonce.
-// Renvoie null quand il n'y a rien a rendre : ce serpent garde alors le rendu uni d'origine,
-// exactement comme avant ce chantier. C'est aussi le repli quand la forme annoncee est
-// inconnue de cette version -- on prefere un serpent uni a un plantage de rendu.
+// Recompose l'apparence d'un AUTRE JOUEUR HUMAIN a partir de ce qu'il a annonce.
+//
+// Rend TOUJOURS un style, jamais null : un joueur sans forme ni effet porte quand meme le rendu
+// de reference (BASE_STYLE, donc les ecailles), exactement comme le sien en local et comme en
+// solo. La premiere version renvoyait null dans ce cas, ce qui rendait lisses tous les joueurs
+// distants sans forme pendant que l'hote, lui, gardait ses ecailles -- asymetrie mesuree a trois
+// onglets, invisible tant qu'on ne comparait pas les deux points de vue.
+//
+// Les BOTS n'appellent jamais cette fonction : ils gardent leur couleur plate, cf. cahier des
+// charges §5.4 "Bots sans skin". C'est l'appelant qui tranche humain/bot, sur la presence des
+// champs dans la ligne de roster.
+//
+// 'none' est l'ABSENCE d'effet, pas un effet. Une forme annoncee que cette version ne connait
+// pas retombe sur ce meme rendu de reference plutot que de casser le rendu.
 function netStyleFrom(skinName, effectId, teinte) {
     const skin = skinName ? CONFIG.SKINS.find(s => s.name === skinName) : null;
-    // 'none' est l'ABSENCE d'effet, pas un effet : le traiter comme les autres ferait rendre un
-    // style la ou il n'y a rien a rendre, et un serpent sans rien prendrait un chemin de rendu
-    // different de celui d'avant ce chantier.
     const eff = (effectId && effectId !== 'none') ? CONFIG.EFFECTS.find(e => e.id === effectId) : null;
-    if (!skin && !eff) return null;
     return composeStyle(skin, eff, teinte);
 }
 
@@ -7402,7 +7408,8 @@ function handleHostMessage(conn, msg) {
         if (msg.w > 0 && msg.h > 0) netScreens.set(conn.peer, { w: msg.w, h: msg.h });
         // Apparence annoncee. Bornee comme le nom et la couleur : le message vient du reseau,
         // il ne decide pas de la taille de ce qu'on garde. Un client d'une version anterieure
-        // n'envoie rien -> null, et il sera rendu uni, comme avant.
+        // n'envoie rien -> null, et il porte alors le rendu de reference, comme un joueur qui
+        // n'a simplement choisi aucune forme.
         const skin = msg.skin ? String(msg.skin).slice(0, 32) : null;
         const effect = msg.effect ? String(msg.effect).slice(0, 24) : null;
         party.players.set(conn.peer, { name, color, isHost: false, skin, effect });
@@ -7410,7 +7417,11 @@ function handleHostMessage(conn, msg) {
             type: 'WELCOME', selfId: conn.peer,
             players: Array.from(party.players, ([id, p]) => ({ id, name: p.name, color: p.color, isHost: p.isHost })),
         });
-        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name, color }, conn.peer);
+        // skin/effect voyagent ICI AUSSI. C'est le seul canal qui atteint les pairs DEJA
+        // connectes quand quelqu'un arrive en cours de partie : eux ne recoivent pas de
+        // nouveau GAME_START, donc sans ces deux champs ils rendraient l'arrivant uni pour
+        // toute la partie. Defaut reproduit a trois onglets avant d'etre corrige.
+        hostBroadcast({ type: 'PLAYER_JOINED', id: conn.peer, name, color, skin, effect }, conn.peer);
         renderLobbyPlayers();
         // Arrivée en cours de partie : il apparaît tout de suite, pas en spectateur (§2 de la
         // note de conception). Il reçoit le monde déjà en cours, pas un nouveau.
@@ -7488,8 +7499,11 @@ function handleClientMessage(msg, code) {
         enterLobbyRoom();
         lobbySetStatus('lobbyWaiting');
     } else if (msg.type === 'PLAYER_JOINED') {
-        party.players.set(msg.id, { name: msg.name, color: msg.color, isHost: false });
-        netRoster.set(msg.id, { name: msg.name, color: msg.color });
+        // Bornage identique a celui de l'hote : ce message vient du reseau.
+        const skin = msg.skin ? String(msg.skin).slice(0, 32) : null;
+        const effect = msg.effect ? String(msg.effect).slice(0, 24) : null;
+        party.players.set(msg.id, { name: msg.name, color: msg.color, isHost: false, skin, effect });
+        netRoster.set(msg.id, { name: msg.name, color: msg.color, skin, effect });
         // En jeu seulement : l'index compact s'ajoute à la fin, comme chez l'hôte, donc tout le
         // monde numérote pareil. Avant le lancement il n'y a pas d'ordre — le GAME_START l'apporte.
         if (party.inGame) netRegisterId(msg.id);
@@ -7860,12 +7874,11 @@ function hostBuildRoster() {
         // Pour moi, elle est lue au vol : j'ai pu changer de forme entre la creation du salon
         // et le lancement. Pour les autres, c'est ce qu'ils ont annonce en HELLO.
         const ident = (id === 'host') ? netIdentity() : party.players.get(id);
-        // Deux champs ajoutes SEULEMENT s'il y a quelque chose a dire : un roster de 150 bots
-        // ne paie pas deux nulls par ligne pour rien. Les lignes courtes se destructurent en
-        // undefined a l'arrivee, ce que netStyleFrom traite comme "aucune apparence".
-        if (ident && (ident.skin || (ident.effect && ident.effect !== 'none'))) {
-            ligne.push(ident.skin || null, ident.effect || null);
-        }
+        // Les deux champs sont poussés pour TOUT HUMAIN, meme sans forme ni effet : leur
+        // PRESENCE est ce qui dit "humain" a l'arrivee, et un humain sans forme doit garder le
+        // rendu de reference. Un bot n'est jamais dans party.players : sa ligne reste a trois
+        // elements, et 150 bots ne paient pas 300 champs pour rien.
+        if (ident) ligne.push(ident.skin || null, ident.effect || null);
         return ligne;
     });
 }
@@ -8088,8 +8101,13 @@ function netEnsureSnake(netId) {
     const info = netRoster.get(netId) || { name: '?', color: CONFIG.COLORS[0].hex };
     // Mon propre serpent passe aussi par ici (cf. netEnsureSnake(party.selfId) au GAME_START) :
     // sans cette composition, un client ne voyait meme pas SA propre forme en partie privee.
+    //
+    // Humain ou bot ? La PRESENCE des champs dans la ligne de roster tranche : l'hote les pousse
+    // pour tout humain, jamais pour un bot. Un bot garde donc sa couleur plate (§5.4), et un
+    // humain sans forme garde le rendu de reference.
+    const humain = info.skin !== undefined || info.effect !== undefined;
     s = new Snake(CONFIG.WORLD_WIDTH/2, CONFIG.WORLD_HEIGHT/2, false, info.name, info.color,
-                  netStyleFrom(info.skin, info.effect, info.color));
+                  humain ? netStyleFrom(info.skin, info.effect, info.color) : null);
     s.netId = netId;
     netSnakes.set(netId, s);
     return s;
