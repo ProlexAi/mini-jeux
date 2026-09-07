@@ -26,7 +26,11 @@ set -euo pipefail
 
 DEPOT_URL="https://github.com/ProlexAi/mini-jeux.git"
 DEPOT_DIR="${DEPOT_DIR:-$HOME/mini-jeux}"
-BRANCHE="${BRANCHE:-migration-linux}"
+# La branche migration-linux a ete fusionnee dans main le 2026-09-07 : tout ce que
+# ce script suppose (python3 dans launch.json, .gitattributes, OUT_DIR variabilise,
+# les deux controles rejouables) vit desormais sur main. Surchargeable pour rejouer
+# la restauration sur une branche precise : BRANCHE=xxx ./restauration-linux.sh
+BRANCHE="${BRANCHE:-main}"
 DRY_RUN=0
 
 if [ "${1:-}" = "--dry-run" ]; then
@@ -237,7 +241,7 @@ manuel "  python3 -c \"import torch; print(torch.__version__, torch.cuda.is_avai
 info "Memoire Claude Code du projet"
 if [ -d "$HOME/.claude/projects" ]; then
     info "Identifiants de projet deja presents :"
-    ls -1 "$HOME/.claude/projects" 2>/dev/null | sed 's/^/      /' || true
+    find "$HOME/.claude/projects" -mindepth 1 -maxdepth 1 -printf '      %f\n' 2>/dev/null || true
 fi
 manuel "1. lancer Claude Code une fois dans $DEPOT_DIR"
 manuel "2. reperer l'identifiant cree :  ls ~/.claude/projects/"
