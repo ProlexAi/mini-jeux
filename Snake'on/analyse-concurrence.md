@@ -77,6 +77,22 @@ serpents au plafond ont la même épaisseur à l'écran alors que l'un peut dév
 joueur ne peut donc plus juger le rapport de force à l'œil seul une fois le plafond atteint.
 C'est un écart avec la contrainte de lisibilité du §2 du cahier des charges, et il reste ouvert.
 
+> **Annotation du 2026-09-07.** La dernière phrase n'est plus vraie ; le reste de l'entrée l'est
+> toujours, et c'est la nuance qui compte. Le rayon **est encore plafonné en dur** — deux serpents
+> au plafond ont bien la même épaisseur, l'épaisseur seule ne dit toujours rien du rapport de
+> force. Ce qui a changé le 2026-08-22 (commit `c25a2c6`), c'est qu'un **second canal visuel** a
+> été ajouté pour porter l'information que l'épaisseur ne porte plus : le **liseré de menace**,
+> rendu sur le serpent et repris sur la minimap, plus une courbe amortie qui retarde l'arrivée au
+> plafond. L'écart de lisibilité est donc **compensé, pas supprimé** : toute modification qui
+> retirerait le liseré rouvrirait ce point tel quel.
+>
+> Commandes qui le vérifient :
+>
+> ```bash
+> grep -nE "^ +(MAX_RADIUS|RADIUS_EXPONENT):" "Snake'on/index.html"  # le plafond existe toujours
+> grep -n "threatLevel()" "Snake'on/index.html"                    # le canal qui le compense
+> ```
+
 ---
 
 ## 2. Comportement des bots : la traque collante
