@@ -1,3 +1,12 @@
 # Donnees personnelles hors-git (progression de jeu, jamais dans un depot public)
 Snake'on/localstorage-snakeon.json
 Snake'on/LISEZ-MOI-localstorage.txt
+
+# Cache d octets Python, genere des deux cotes des que build_style_sheet.py
+# ou verifie-chemins.py tourne. Jamais un livrable.
+__pycache__/
+*.pyc
+
+# Worktrees isoles crees par l outillage agent (EnterWorktree). Arbre de travail
+# complet : jamais versionne, sinon le depot se contient lui-meme.
+.claude/worktrees/

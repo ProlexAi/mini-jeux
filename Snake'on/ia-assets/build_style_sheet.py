@@ -6,7 +6,8 @@
 # change - voir la methode canvas.toBlob() documentee dans PIPELINE-ASSETS-IA.md
 # si un script de capture automatique est prefere a des screenshots manuels.
 #
-# Usage : python build_style_sheet.py
+# Usage : python3 build_style_sheet.py
+#         COMFYUI_INPUT_DIR=/chemin/vers/ComfyUI/input python3 build_style_sheet.py
 
 from PIL import Image
 import os
@@ -14,7 +15,16 @@ import math
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(SCRIPT_DIR, "game_captures")
-OUT_DIR = r"C:\ComfyUI\input"
+# Dossier d'entree de ComfyUI, ou la planche est aussi deposee pour servir de
+# reference. Il change d'une machine a l'autre (C:\ComfyUI\input sous Windows,
+# ~/ComfyUI/input sous Linux) : on le declare par la variable d'environnement
+# COMFYUI_INPUT_DIR, sinon on retombe sur le defaut de la plateforme courante.
+# La copie reste optionnelle (voir le os.path.isdir en fin de fichier) : le
+# livrable est OUT_REPO, versionne dans le depot.
+OUT_DIR = os.environ.get(
+    "COMFYUI_INPUT_DIR",
+    r"C:\ComfyUI\input" if os.name == "nt" else os.path.expanduser("~/ComfyUI/input"),
+)
 OUT_REPO = os.path.join(SCRIPT_DIR, "snakeon_style_sheet.png")
 
 TILE_W, TILE_H = 320, 260
