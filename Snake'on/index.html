@@ -1192,6 +1192,7 @@
                 <div class="save-actions">
                     <button type="button" class="tab-btn" id="saveExportBtn" data-i18n="saveExport">⬇ Exporter</button>
                     <button type="button" class="tab-btn" id="saveImportBtn" data-i18n="saveImport">⬆ Importer</button>
+                    <button type="button" class="tab-btn" id="saveLinkBtn" data-i18n="saveLink">🔗 Copier le lien</button>
                 </div>
                 <input type="file" id="saveImportInput" accept="application/json,.json" hidden>
             </div>
@@ -2068,7 +2069,8 @@ const TRANSLATIONS = {
         statBest: 'Record', statKills: 'Kills', statGames: 'Parties', statTime: 'Temps',
         colNum: '#', colSize: 'Taille', colKills: 'Kills', colDuration: 'Durée', noGames: 'Aucune partie',
         secAudio: 'Audio', secEffects: 'Effets', secQuality: 'Qualité graphique',
-        secSave: 'Sauvegarde', saveExport: '⬇ Exporter', saveImport: '⬆ Importer',
+        secSave: 'Sauvegarde', saveExport: '⬇ Exporter', saveImport: '⬆ Importer', saveLink: '🔗 Copier le lien',
+        saveLinkCopied: '🔗 Lien de reprise copié', saveLinkConfirm: 'Remplacer la progression de cet appareil par celle du lien ?',
         saveHint: "Ta progression vit dans CE navigateur, sur CETTE machine. Rien ne la synchronise ailleurs : exporte-la pour la garder ou la porter sur un autre appareil.",
         saveExported: '💾 Sauvegarde exportée', saveLoaded: '✅ Sauvegarde importée', saveInvalid: "⚠️ Fichier illisible ou ce n'est pas une sauvegarde",
         secLanguage: 'Langue', secUiColor: "Couleur de l'interface", secControls: 'Commandes',
@@ -2131,7 +2133,8 @@ const TRANSLATIONS = {
         statBest: 'Best', statKills: 'Kills', statGames: 'Games', statTime: 'Time',
         colNum: '#', colSize: 'Size', colKills: 'Kills', colDuration: 'Duration', noGames: 'No games yet',
         secAudio: 'Audio', secEffects: 'Effects', secQuality: 'Graphics quality',
-        secSave: 'Save data', saveExport: '⬇ Export', saveImport: '⬆ Import',
+        secSave: 'Save data', saveExport: '⬇ Export', saveImport: '⬆ Import', saveLink: '🔗 Copy link',
+        saveLinkCopied: '🔗 Restore link copied', saveLinkConfirm: 'Replace the progress on this device with the one from the link?',
         saveHint: 'Your progress lives in THIS browser, on THIS machine. Nothing syncs it elsewhere: export it to keep it or carry it to another device.',
         saveExported: '💾 Save exported', saveLoaded: '✅ Save imported', saveInvalid: '⚠️ Unreadable file, or not a save',
         secLanguage: 'Language', secUiColor: 'Interface colour', secControls: 'Controls',
@@ -2194,7 +2197,8 @@ const TRANSLATIONS = {
         statBest: 'Récord', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tiempo',
         colNum: '#', colSize: 'Tamaño', colKills: 'Kills', colDuration: 'Duración', noGames: 'Ninguna partida',
         secAudio: 'Audio', secEffects: 'Efectos', secQuality: 'Calidad gráfica',
-        secSave: 'Partida guardada', saveExport: '⬇ Exportar', saveImport: '⬆ Importar',
+        secSave: 'Partida guardada', saveExport: '⬇ Exportar', saveImport: '⬆ Importar', saveLink: '🔗 Copiar enlace',
+        saveLinkCopied: '🔗 Enlace copiado', saveLinkConfirm: '¿Reemplazar el progreso de este dispositivo por el del enlace?',
         saveHint: 'Tu progreso vive en ESTE navegador, en ESTA máquina. Nada lo sincroniza en otro sitio: expórtalo para conservarlo o llevarlo a otro dispositivo.',
         saveExported: '💾 Partida exportada', saveLoaded: '✅ Partida importada', saveInvalid: '⚠️ Archivo ilegible, o no es una partida guardada',
         secLanguage: 'Idioma', secUiColor: 'Color de la interfaz', secControls: 'Controles',
@@ -2257,7 +2261,8 @@ const TRANSLATIONS = {
         statBest: 'Rekord', statKills: 'Kills', statGames: 'Runden', statTime: 'Zeit',
         colNum: '#', colSize: 'Größe', colKills: 'Kills', colDuration: 'Dauer', noGames: 'Keine Runde',
         secAudio: 'Audio', secEffects: 'Effekte', secQuality: 'Grafikqualität',
-        secSave: 'Spielstand', saveExport: '⬇ Exportieren', saveImport: '⬆ Importieren',
+        secSave: 'Spielstand', saveExport: '⬇ Exportieren', saveImport: '⬆ Importieren', saveLink: '🔗 Link kopieren',
+        saveLinkCopied: '🔗 Link kopiert', saveLinkConfirm: 'Fortschritt dieses Geräts durch den aus dem Link ersetzen?',
         saveHint: 'Dein Fortschritt lebt in DIESEM Browser, auf DIESEM Gerät. Nichts synchronisiert ihn anderswo: exportiere ihn, um ihn zu behalten oder mitzunehmen.',
         saveExported: '💾 Spielstand exportiert', saveLoaded: '✅ Spielstand importiert', saveInvalid: '⚠️ Datei unlesbar oder kein Spielstand',
         secLanguage: 'Sprache', secUiColor: 'Farbe der Oberfläche', secControls: 'Steuerung',
@@ -2320,7 +2325,8 @@ const TRANSLATIONS = {
         statBest: 'Record', statKills: 'Kills', statGames: 'Partite', statTime: 'Tempo',
         colNum: '#', colSize: 'Taglia', colKills: 'Kills', colDuration: 'Durata', noGames: 'Nessuna partita',
         secAudio: 'Audio', secEffects: 'Effetti', secQuality: 'Qualità grafica',
-        secSave: 'Salvataggio', saveExport: '⬇ Esporta', saveImport: '⬆ Importa',
+        secSave: 'Salvataggio', saveExport: '⬇ Esporta', saveImport: '⬆ Importa', saveLink: '🔗 Copia il link',
+        saveLinkCopied: '🔗 Link copiato', saveLinkConfirm: 'Sostituire i progressi di questo dispositivo con quelli del link?',
         saveHint: 'I tuoi progressi vivono in QUESTO browser, su QUESTA macchina. Niente li sincronizza altrove: esportali per conservarli o portarli su un altro dispositivo.',
         saveExported: '💾 Salvataggio esportato', saveLoaded: '✅ Salvataggio importato', saveInvalid: '⚠️ File illeggibile, o non è un salvataggio',
         secLanguage: 'Lingua', secUiColor: "Colore dell'interfaccia", secControls: 'Comandi',
@@ -2383,7 +2389,8 @@ const TRANSLATIONS = {
         statBest: 'Recorde', statKills: 'Kills', statGames: 'Partidas', statTime: 'Tempo',
         colNum: '#', colSize: 'Tamanho', colKills: 'Kills', colDuration: 'Duração', noGames: 'Nenhuma partida',
         secAudio: 'Áudio', secEffects: 'Efeitos', secQuality: 'Qualidade gráfica',
-        secSave: 'Progresso', saveExport: '⬇ Exportar', saveImport: '⬆ Importar',
+        secSave: 'Progresso', saveExport: '⬇ Exportar', saveImport: '⬆ Importar', saveLink: '🔗 Copiar ligação',
+        saveLinkCopied: '🔗 Ligação copiada', saveLinkConfirm: 'Substituir o progresso deste dispositivo pelo da ligação?',
         saveHint: 'O teu progresso vive NESTE navegador, NESTA máquina. Nada o sincroniza noutro lado: exporta-o para o guardar ou levar para outro dispositivo.',
         saveExported: '💾 Progresso exportado', saveLoaded: '✅ Progresso importado', saveInvalid: '⚠️ Ficheiro ilegível, ou não é um progresso guardado',
         secLanguage: 'Idioma', secUiColor: 'Cor da interface', secControls: 'Comandos',
@@ -3131,6 +3138,78 @@ function sauvegardeValide(o) {
     // Les autres champs sont facultatifs : loadSave() complete depuis DEFAULT_SAVE, ce qui rend
     // une sauvegarde ancienne lisible par une version recente (verifie sur une save du 23/08).
     return true;
+}
+
+// ---- Lien de reprise -------------------------------------------------------------------
+// Le fichier oblige a transporter quelque chose. Le lien, lui, s'envoie : la sauvegarde voyage
+// DANS l'URL, dans le fragment (#) — la partie qu'un navigateur n'envoie JAMAIS au serveur.
+// Rien ne transite donc par GitHub Pages, meme quand le lien est ouvert.
+//
+// Compressee en gzip par le navigateur (CompressionStream, natif, aucune dependance) : une
+// sauvegarde reelle passe de ~1430 a ~570 octets, soit ~800 caracteres d'URL une fois encodee.
+
+const b64urlEncode = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function b64urlDecode(s) {
+    const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+    const u8 = new Uint8Array(b.length);
+    for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i);
+    return u8;
+}
+
+async function compresser(texte) {
+    const octets = new TextEncoder().encode(texte);
+    if (typeof CompressionStream !== 'function') return { u8: octets, gz: false };
+    const cs = new CompressionStream('gzip');
+    const w = cs.writable.getWriter(); w.write(octets); w.close();
+    return { u8: new Uint8Array(await new Response(cs.readable).arrayBuffer()), gz: true };
+}
+async function decompresser(u8, gz) {
+    if (!gz) return new TextDecoder().decode(u8);
+    const ds = new DecompressionStream('gzip');
+    const w = ds.writable.getWriter(); w.write(u8); w.close();
+    return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+}
+
+async function lienDeReprise() {
+    let brut = null;
+    try { brut = localStorage.getItem(CONFIG.SAVE_KEY); } catch(e) { /* mode prive */ }
+    if (!brut) brut = JSON.stringify(save);
+    const { u8, gz } = await compresser(brut);
+    // Le prefixe dit comment relire : 'z' compresse, 'p' brut. Sans lui, un navigateur sans
+    // CompressionStream produirait un lien que personne ne saurait interpreter.
+    return location.origin + location.pathname + '#s=' + (gz ? 'z' : 'p') + b64urlEncode(u8);
+}
+
+async function copierLienDeReprise() {
+    const lien = await lienDeReprise();
+    try {
+        await navigator.clipboard.writeText(lien);
+        showToast(t('saveLinkCopied'));
+    } catch (e) {
+        // Presse-papier refuse (contexte non securise, permission) : on montre le lien pour
+        // que le joueur le copie a la main plutot que de le laisser sans rien.
+        window.prompt(t('saveLink'), lien);
+    }
+}
+
+// Reprise a l'ouverture. Le fragment est lu puis EFFACE de la barre d'adresse : sans cela, un
+// rechargement rejouerait l'import et ecraserait une progression entre-temps avancee.
+async function reprendreDepuisLien() {
+    const m = String(location.hash || '').match(/^#s=([zp])([A-Za-z0-9\-_]+)$/);
+    if (!m) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    let objet = null;
+    try {
+        objet = JSON.parse(await decompresser(b64urlDecode(m[2]), m[1] === 'z'));
+    } catch (e) { objet = null; }
+    if (!sauvegardeValide(objet)) { showToast(t('saveInvalid')); return; }
+    // On DEMANDE avant d'ecraser : le lien peut arriver sur un appareil ou une partie est deja
+    // commencee, et l'ecraser sans rien dire serait une perte silencieuse.
+    if (!window.confirm(t('saveLinkConfirm'))) return;
+    try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(objet)); }
+    catch (e) { showToast(t('saveInvalid')); return; }
+    showToast(t('saveLoaded'));
+    setTimeout(() => location.reload(), 700);
 }
 
 function importerSauvegarde(fichier) {
@@ -8456,6 +8535,8 @@ function escapeHtml(s) {
 bindBtn('privateGameBtn', openLobbyChoice);
 bindBtn('lobbyShowJoinBtn', showLobbyJoinForm);
 bindBtn('saveExportBtn', exporterSauvegarde);
+bindBtn('saveLinkBtn', copierLienDeReprise);
+reprendreDepuisLien();
 bindBtn('saveImportBtn', () => $('saveImportInput').click());
 $('saveImportInput').addEventListener('change', (e) => {
     importerSauvegarde(e.target.files && e.target.files[0]);
