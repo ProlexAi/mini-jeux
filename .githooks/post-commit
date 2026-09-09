@@ -1,0 +1,48 @@
+#!/bin/sh
+# post-commit -- inscrit le commit au journal : SHA, message, agent.
+#
+# Ce hook ferme la boucle d'attribution (R-16). Le journal sait deja qui a change un
+# statut et qui a clos une tache ; sans cette ligne, il ne sait pas dans QUEL commit ces
+# changements ont fini. Un agent qui reprend le travail trois jours plus tard remonte
+# ainsi du defaut a la tache, puis de la tache au commit.
+#
+# Comme pre-commit, il ne fait jamais echouer quoi que ce soit : un post-commit qui sort
+# en erreur n'annule pas le commit -- il ne produit que du bruit et de la defiance.
+
+set -u
+
+racine=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cli="$racine/bin/workflow.py"
+[ -f "$cli" ] || exit 0
+
+py=""
+for candidat in python3 python py; do
+    if command -v "$candidat" >/dev/null 2>&1; then
+        if "$candidat" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" 2>/dev/null; then
+            py="$candidat"
+            break
+        fi
+    fi
+done
+[ -n "$py" ] || exit 0
+
+sha=$(git rev-parse --short HEAD 2>/dev/null) || exit 0
+sujet=$(git log -1 --format=%s 2>/dev/null)
+
+WORKFLOW_AGENT="${WORKFLOW_AGENT:-git}" \
+    "$py" "$cli" log "commit $sha : $sujet" >/dev/null 2>&1 || true
+
+# Remontee vers le registre central -- ajoutee en 1.7.0, demande de Matt du
+# 2026-09-08 : "backlog_trace doit declencher un script qui ramene vers
+# l orchestrateur".
+#
+# Elle ne fait RIEN si le commit ne touche aucun fichier de backlog, et rien non
+# plus si le depot est hors federation. Le `|| true` et la redirection ne sont pas
+# de la prudence decorative : le registre est une ressource EXTERIEURE au depot, et
+# AGENTS.md 12 interdit qu un hook bloque dessus. Le jour ou ce chemin change de
+# machine, de proprietaire ou de disque, les commits doivent continuer de passer
+# sans un mot.
+WORKFLOW_AGENT="${WORKFLOW_AGENT:-git}" \
+    "$py" "$cli" remonter --sha "$sha" --silencieux >/dev/null 2>&1 || true
+
+exit 0

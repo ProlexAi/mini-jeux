@@ -1,0 +1,67 @@
+#!/bin/sh
+# pre-commit -- CONSULTATIF. Il regarde, il avertit, il ne modifie RIEN.
+#
+# POURQUOI IL N'ECRIT PLUS, ALORS QU'IL ARCHIVAIT
+# -----------------------------------------------
+# La premiere version faisait `git add -- TODO.md` et `git add -A -- docs`. Un `-A`, dans
+# un hook, a la place de l'agent : exactement ce qu'`AGENTS.md` §11 interdit, et sans que
+# personne puisse le voir venir. Sur le premier depot reel, un fichier est entre dans un
+# commit que son auteur n'avait pas choisi d'y mettre.
+#
+# Les deux issues evidentes sont mauvaises :
+#   mettre en index a sa place -> contourne le pathspec explicite ;
+#   ne pas le faire            -> laisse l'arbre sale apres chaque commit, sur un depot
+#                                 ou l'on compare justement les mtime avant d'ecrire.
+#
+# La troisieme voie est celle-ci : **la regeneration suit la CAUSE, pas le commit.** Les
+# commandes qui changent les taches regenerent `TODO.md` immediatement ; ce hook n'a plus
+# rien a rattraper. Ce qui reste a faire, il le DIT.
+#
+# REGLE GENERALE QUE CET INCIDENT A DEGAGEE
+# -----------------------------------------
+# Un hook herite de l'autorite de celui qui commite sans heriter de ses regles. Toute
+# automatisation qui ecrit dans la zone d'index doit etre jugee comme si l'agent l'avait
+# tapee lui-meme.
+#
+# IL NE BLOQUE JAMAIS -- et un avertissement sur stdout n'etant lu par personne, un echec
+# part aussi au journal du kit, qui se relit.
+
+set -u
+
+racine=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cli="$racine/bin/workflow.py"
+[ -f "$cli" ] || exit 0
+
+py=""
+for candidat in python3 python py; do
+    if command -v "$candidat" >/dev/null 2>&1; then
+        if "$candidat" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" 2>/dev/null; then
+            py="$candidat"
+            break
+        fi
+    fi
+done
+[ -n "$py" ] || exit 0
+
+# `sync --blanc` ne touche a rien : il dit ce qui BOUGERAIT.
+sortie=$("$py" "$cli" sync --blanc 2>&1)
+code=$?
+
+if [ $code -ne 0 ]; then
+    echo "workflow : le controle a echoue, le commit continue." >&2
+    echo "$sortie" | sed 's/^/           /' >&2
+    # Un avertissement que personne ne lit n'est pas un avertissement : on le pose aussi
+    # la ou il se relira.
+    WORKFLOW_AGENT="${WORKFLOW_AGENT:-git}" \
+        "$py" "$cli" log "pre-commit : sync --blanc a echoue (code $code)" >/dev/null 2>&1 || true
+    exit 0
+fi
+
+case "$sortie" in
+    *"Rien ne bougerait"*|"") exit 0 ;;
+esac
+
+echo "$sortie" | sed 's/^/workflow : /'
+echo "workflow : rien n'a ete modifie. Pour appliquer : $py bin/workflow.py sync" >&2
+
+exit 0

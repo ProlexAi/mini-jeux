@@ -1,0 +1,10 @@
+# Ecrit par `workflow.py init`. Rien de ce dossier ne se versionne.
+#
+# state.json et journal.jsonl decrivent qui travaille sur CETTE machine, en ce
+# moment. Versionnes, ils etaient detruits par un `git checkout` de branche, ils
+# faisaient allouer le meme identifiant a deux branches, et un conflit de fusion
+# rendait toutes les commandes du kit inutilisables. Mesure du 2026-09-09.
+state.json
+journal.jsonl
+local.json
+*.lock
