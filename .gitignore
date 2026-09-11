@@ -16,3 +16,15 @@ Snake'on/SkinsTest/
 # Worktrees isoles crees par l outillage agent (EnterWorktree). Arbre de travail
 # complet : jamais versionne, sinon le depot se contient lui-meme.
 .claude/worktrees/
+
+# Variable d'environnement locale, jamais commitee (T-064, 2026-09-11).
+# .env.example est public et documente chaque variable sans valeur ; un vrai
+# .env ne doit jamais l'etre, dans un depot PUBLIC servi tel quel par Pages.
+# Regle sur le nom exact seul (pas de glob .env.*) : mesure, 2026-09-11 -
+# un glob .env.* + negation !.env.example fait dire "ignore" (exit 0) a
+# `git check-ignore .env.example` alors que le fichier reste bien suivi
+# (git status --ignored le confirme non ignore) ; la regle simple evite
+# le piege d'instrument sans rien perdre, aucune convention .env.local
+# n'existant dans ce depot (relecture des lectures d'environnement, meme
+# commande qu'en tete de .env.example).
+.env
