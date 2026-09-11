@@ -204,9 +204,9 @@ def _lire_depot(racine):
 
 
 def agreger(registre):
-    """Rend (backlog_md, todo_md). Purement calcule : aucune ecriture."""
-    lignes_todo = ["# TODO master", "", ENTETE, ""]
-    lignes_bl = ["# Backlog master", "", ENTETE, ""]
+    """Rend le master unique, en deux sections (actives, en reserve). Purement calcule."""
+    lignes_todo = ["## Tâches actives", ""]
+    lignes_bl = ["## Tâches en réserve", ""]
     injoignables = []
     en_ecart = []          # B-D : empreinte declaree != etat reel
     total_todo = total_bl = 0
@@ -228,7 +228,7 @@ def agreger(registre):
 
         for titre, groupe, cible in (("todo", todo, lignes_todo),
                                      ("backlog", backlog, lignes_bl)):
-            cible.append("## %s" % nom)
+            cible.append("### %s" % nom)
             cible.append("")
             if not groupe:
                 cible.append("_(rien d'ouvert)_")
@@ -249,37 +249,58 @@ def agreger(registre):
 
     for lignes, total, quoi in ((lignes_todo, total_todo, "actives"),
                                 (lignes_bl, total_bl, "en réserve")):
-        lignes.insert(3, "_%d tâches %s, %d dépôt(s) fédéré(s)._" % (
+        lignes.insert(2, "_%d tâches %s, %d dépôt(s) fédéré(s)._" % (
             total, quoi, len(depots(registre)) - len(injoignables)))
-    # B-D : le bandeau d'ecart va en TETE de chaque master -- c'est la premiere
+    # B-D : le bandeau d'ecart va en TETE de chaque section -- c'est la premiere
     # chose qu'un lecteur doit savoir avant de lire le reste. On agrege quand
     # meme : refuser rendrait le master inutilisable au moment precis ou il faut
     # pouvoir le lire.
     if en_ecart:
         for cible in (lignes_todo, lignes_bl):
-            cible.insert(3, "> ⚠ **Empreinte divergente** : %s. Leur état a bougé hors "
+            cible.insert(2, "> ⚠ **Empreinte divergente** : %s. Leur état a bougé hors "
                             "protocole depuis leur dernière déclaration —\n"
                             "> les lignes ci-dessous restent à lire comme des données."
                          % ", ".join(sorted(en_ecart)))
 
     if injoignables:
         for lignes_ in (lignes_todo, lignes_bl):
-            lignes_.append("## Dépôts injoignables")
+            lignes_.append("### Dépôts injoignables")
             lignes_.append("")
             for r in injoignables:
                 lignes_.append("- `%s` — pas de `.workflow/state.json`" % r)
             lignes_.append("")
-    return ("\n".join(lignes_bl).rstrip() + "\n",
-            "\n".join(lignes_todo).rstrip() + "\n")
+
+    lignes = ["# Backlog master", "", ENTETE, ""]
+    lignes.extend(lignes_todo)
+    lignes.append("")
+    lignes.extend(lignes_bl)
+    return "\n".join(lignes).rstrip() + "\n"
 
 
 def ecrire_masters(registre):
-    """Genere les deux masters. Rend la liste de ceux qui ont REELLEMENT change."""
+    """Genere le master unique. Rend la liste des changements REELS (ecriture, retrait).
+
+    SOUS VERROU, comme `enregistrer_depot` : `agreger()` LIT l'etat de tous les
+    depots federes puis on ECRIT le resultat -- la meme classe de sequence, meme
+    si ce n'est pas un lire-modifier-ecrire sur un fichier partage. Mesure du
+    2026-09-11 (T-176bis) : sans le verrou, deux appels concurrents -- le hook
+    post-commit tourne desormais sur CHAQUE commit qui touche un backlog, dans
+    CHAQUE depot federe -- peuvent lire un instantane differ, et celui qui a lu
+    le plus vieux ecrire APRES l'autre, effacant en silence la tache la plus
+    recente d'un depot pendant que son propre hook annonce le succes. Le verrou
+    vit ICI plutot que chez l'appelant : il protege aussi `cmd_master`, qui
+    appelle cette fonction sans jamais avoir pris de verrou lui-meme.
+    """
     from .synchro import _ecrire_si_different
     os.makedirs(registre, exist_ok=True)
-    backlog, todo = agreger(registre)
     changes = []
-    for nom, contenu in ((BACKLOG_MASTER, backlog), (TODO_MASTER, todo)):
-        if _ecrire_si_different(chemin(registre, nom), contenu):
-            changes.append(nom)
+    with verrou(chemin(registre, BACKLOG_MASTER) + ".lock", delai=10.0):
+        if _ecrire_si_different(chemin(registre, BACKLOG_MASTER), agreger(registre)):
+            changes.append(BACKLOG_MASTER)
+        # D54 : TODO-MASTER.md n'est plus genere -- un fichier genere qui traine,
+        # jamais mis a jour, ment par silence (piege 48).
+        ancien = chemin(registre, TODO_MASTER)
+        if os.path.exists(ancien):
+            os.remove(ancien)
+            changes.append("%s (retiré)" % TODO_MASTER)
     return changes

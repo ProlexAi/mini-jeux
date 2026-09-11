@@ -34,6 +34,12 @@ import subprocess
 
 DOSSIER_ETAT = ".workflow"
 
+# Le nom du rendu de suivi, IDENTIQUE dans tous les depots -- decision D40 de Matt.
+# Avant elle, six conventions cohabitaient sur neuf depots : TODO.md, todo.md,
+# docs/backlog_trace.md, kanban.db, TODO_ROGUE.md. Un orchestrateur qui recoit une
+# consigne « lis le backlog » doit trouver le meme fichier partout.
+NOM_BACKLOG = "backlog.md"
+
 
 class HorsDepot(RuntimeError):
     def __init__(self, depart):
@@ -188,9 +194,28 @@ def registre(rac=None):
 
 
 def nom_depot(rac=None):
-    """Nom court du depot, pour prefixer les identifiants dans les masters."""
-    rac = rac or racine()
-    return os.path.basename(os.path.abspath(rac))
+    """Nom court du depot, pour prefixer les identifiants dans les masters.
+
+    L'AUTORITE EST `state.json`, PAS LE DISQUE. `orchestration.constater()`
+    applique deja ce principe (`etat.get("depot") or os.path.basename(racine)`)
+    pour ne pas confondre deux depots federes : cette fonction ne le faisait
+    pas, et rendait le basename du dossier courant meme quand un worktree
+    porte un nom different du checkout principal. Mesure le 2026-09-10,
+    T-022 : `sync` lance depuis un worktree renommait le depot a tort.
+
+    Le basename ne sert que de repli -- avant le premier `init`, si l'etat est
+    absent ou illisible, ou si un `state.json` syntaxiquement valide ne porte
+    pas d'objet a sa racine (`null`, une liste, une chaine) : nommer le depot
+    ne doit jamais faire echouer une commande qui ne fait que l'afficher.
+    """
+    rac = rac or racine_partagee()
+    try:
+        with open(chemin_etat(rac), encoding="utf-8") as f:
+            contenu = json.load(f)
+        declare = contenu.get("depot") if isinstance(contenu, dict) else None
+    except (OSError, json.JSONDecodeError):
+        declare = None
+    return declare or os.path.basename(os.path.abspath(rac))
 
 
 def agent():

@@ -33,11 +33,14 @@ Il ne classe pas par gravite, ne recommande rien, ne modifie rien. Un fait sans 
 peut etre relu et conteste ; un jugement sans fait ne le peut pas.
 """
 
+import fnmatch
+import functools
 import json
 import os
+import re
 from datetime import datetime, timedelta
 
-from . import registre as reg
+from . import journal as jrn, registre as reg
 
 SEUILS_DEFAUT = {
     # Heures. Aucun n'est un couperet : ce sont les points ou il devient raisonnable de
@@ -105,14 +108,146 @@ def _normaliser(surface):
     return surface.strip().replace("\\", "/").strip("/").lower()
 
 
-def _se_recouvrent(a, b):
-    """Vrai si deux surfaces se recouvrent : identiques, ou l'une contenant l'autre."""
-    a, b = _normaliser(a), _normaliser(b)
-    if not a or not b:
+_RE_EXTENSION = re.compile(r"\.[A-Za-z][A-Za-z0-9_-]*$")
+
+
+def _ressemble_a_un_chemin(mot):
+    """Vrai si un mot, une fois isole, ressemble a un chemin -- pas de la prose."""
+    if not mot:
         return False
-    if a == b:
+    if "/" in mot or "\\" in mot:
         return True
-    return a.startswith(b + "/") or b.startswith(a + "/")
+    return bool(_RE_EXTENSION.search(mot))
+
+
+def _diviser_hors_parentheses(texte, separateurs):
+    """Scinde `texte` sur les caracteres de `separateurs`, sauf a l'interieur de ( ).
+
+    Une annotation entre parentheses porte souvent ses propres virgules -- « (§3, §6,
+    gabarits de reference) » -- et scinder dessus produirait des fragments qui ne sont
+    ni la surface d'origine ni une annotation propre.
+    """
+    morceaux = []
+    courant = []
+    profondeur = 0
+    for car in texte:
+        if car == "(":
+            profondeur += 1
+            courant.append(car)
+        elif car == ")":
+            profondeur = max(0, profondeur - 1)
+            courant.append(car)
+        elif profondeur == 0 and car in separateurs:
+            morceaux.append("".join(courant))
+            courant = []
+        else:
+            courant.append(car)
+    morceaux.append("".join(courant))
+    return morceaux
+
+
+def _developper_accolades(texte):
+    """Developpe prefixe{A,B}suffixe en plusieurs chaines ; sans accolades, rend [texte]."""
+    m = re.search(r"\{([^{}]*)\}", texte)
+    if not m:
+        return [texte]
+    options = [o.strip() for o in m.group(1).split(",") if o.strip()]
+    if not options:
+        return [texte]
+    resultats = []
+    for option in options:
+        remplace = texte[:m.start()] + option + texte[m.end():]
+        resultats.extend(_developper_accolades(remplace))
+    return resultats
+
+
+def _retirer_annotations(texte):
+    """Retire les annotations entre parentheses, y compris imbriquees."""
+    avant = None
+    while avant != texte:
+        avant = texte
+        texte = re.sub(r"\([^()]*\)", "", texte)
+    return texte
+
+
+@functools.lru_cache(maxsize=2048)
+def _tokens_chemins(surface):
+    """Decoupe une surface en tokens qui ressemblent chacun a un chemin.
+
+    Une surface declaree porte souvent PLUSIEURS fichiers dans UNE chaine, avec des
+    notations qui varient d'un agent a l'autre -- mesure sur 89 reservations reelles :
+    « ; », « + », virgule (avec ou sans espace), accolades, glob « * », espaces bruts,
+    annotations entre parentheses qui portent elles-memes des virgules. Comparer la
+    chaine entiere (l'ancien comportement) manque donc les recouvrements reels des que
+    deux agents ne notent pas le meme fichier de la meme facon -- le cas mesure entre
+    T-148 et T-147, qui partagent docs/orchestrateur/DECISIONS.md.
+
+    Mis en cache : `chevauchements` compare chaque surface a toutes les autres, et ne
+    doit pas la retokeniser a chaque paire.
+    """
+    if not surface:
+        return ()
+    morceaux = _diviser_hors_parentheses(surface, ";+")
+    developpes = []
+    for morceau in morceaux:
+        developpes.extend(_developper_accolades(morceau))
+    eclates = []
+    for morceau in developpes:
+        eclates.extend(_diviser_hors_parentheses(morceau, ","))
+
+    tokens = []
+    vus = set()
+    for morceau in eclates:
+        propre = _retirer_annotations(morceau)
+        for mot in propre.split():
+            mot = mot.strip(" \t,;")
+            if not _ressemble_a_un_chemin(mot):
+                continue
+            n = _normaliser(mot)
+            if n and n not in vus:
+                vus.add(n)
+                tokens.append(n)
+    return tuple(tokens)
+
+
+def _jetons_se_recouvrent(x, y):
+    """Compare deux tokens deja normalises : egalite, prefixe de dossier, ou glob.
+
+    Un token qui porte '*' sans '/' est REFUSE en comparaison par motif : un glob nu
+    comme '*.md' recouvrirait n'importe quel fichier du meme type, ce qui produirait
+    plus de bruit que de signal.
+    """
+    if x == y:
+        return True
+    if x.startswith(y + "/") or y.startswith(x + "/"):
+        return True
+    if "*" in x or "*" in y:
+        if "*" in x and "/" not in x:
+            return False
+        if "*" in y and "/" not in y:
+            return False
+        return fnmatch.fnmatch(x, y) or fnmatch.fnmatch(y, x)
+    return False
+
+
+def _se_recouvrent(a, b):
+    """Vrai si deux surfaces se recouvrent.
+
+    Chaque surface est d'abord decoupee en tokens-chemins (`_tokens_chemins`) ; deux
+    surfaces se recouvrent si UNE PAIRE de leurs tokens se recouvre (egalite, prefixe de
+    dossier, ou glob avec dossier). Si l'une des deux surfaces ne rend AUCUN token --
+    motif 100% prose, sans fichier nomme -- on retombe sur l'ancienne comparaison de
+    chaine entiere : rien ne serait gagne a tokeniser de la prose.
+    """
+    ta, tb = _tokens_chemins(a), _tokens_chemins(b)
+    if not ta or not tb:
+        na, nb = _normaliser(a), _normaliser(b)
+        if not na or not nb:
+            return False
+        if na == nb:
+            return True
+        return na.startswith(nb + "/") or nb.startswith(na + "/")
+    return any(_jetons_se_recouvrent(x, y) for x in ta for y in tb)
 
 
 def chevauchements(registre):
@@ -201,40 +336,81 @@ def backlogs_bouges(registre, fenetre_heures=24):
     il cessait de l'etre -- une fusion Git qui reordonne, un import de lignes
     anciennes -- ce raccourci deviendrait faux en silence. Le cas est couvert par un
     test qui place volontairement une ligne ancienne apres une recente.
+
+    F21 -- LE JOURNAL CENTRAL TOURNE AUSSI. `journal.ajouter()` archive le fichier
+    courant des qu'il depasse son seuil, quel que soit le journal ecrit. La fenetre
+    peut donc etre a cheval sur une rotation recente : on lit le fichier COURANT en
+    premier, et seulement si la fenetre n'est pas encore fermee on continue dans
+    l'archive la plus RECENTE, puis la suivante -- l'inverse de l'ordre chronologique
+    que rend `journal.fichiers()`, d'ou le `reversed()`. Le cout reste borne par la
+    fenetre, pas par l'historique -- MAIS la sortie anticipee ci-dessous ne se
+    declenche que sur une ligne "backlog-bouge" hors fenetre, et la plupart des
+    lignes du journal central sont d'autres evenements. Une archive qui n'en
+    porte AUCUNE ne rencontrerait donc jamais ce declencheur et partirait a la
+    lecture integrale -- mesure du 2026-09-11 : 3003 lignes lues pour 3001
+    presentes sur une archive de 3000 lignes "document-statut" sans une seule
+    "backlog-bouge". D'ou le filtre supplementaire juste en-dessous, sur la
+    toute DERNIERE ligne de chaque fichier, quel que soit son type : append-only,
+    elle est forcement la plus RECENTE de ce fichier, donc si elle est deja hors
+    fenetre, tout le fichier l'est aussi. Une rotation de plus ne coute alors que
+    la lecture d'UNE ligne, pas la taille de l'archive.
     """
     fichier = reg.chemin(registre, reg.JOURNAL)
     if not os.path.exists(fichier):
         return []
     vus = []
     try:
-        for ligne in _lignes_depuis_la_fin(fichier):
-            ligne = ligne.strip()
-            if not ligne:
+        for f in reversed(jrn.fichiers(fichier)):
+            if not os.path.exists(f):
                 continue
-            if '"backlog-bouge"' not in ligne:
-                # Filtre bon marche avant l'analyse JSON : la grande majorite des
-                # lignes du journal central sont d'autres evenements.
-                continue
-            try:
-                e = json.loads(ligne)
-            except json.JSONDecodeError:
-                # Une ligne illisible n'invalide pas les autres : le journal est
-                # ecrit par N depots a la fois, et une ligne tronquee par un
-                # incident ne doit pas rendre le constat aveugle.
-                continue
-            if e.get("quoi") != "backlog-bouge":
-                continue
-            age = _age_heures(e.get("quand", ""))
-            if age is None:
-                continue
-            if age > fenetre_heures:
-                # SORTIE ANTICIPEE : tout ce qui precede est encore plus ancien.
+            fenetre_fermee = False
+            fichier_deja_hors_fenetre = False
+            derniere_ligne_vue = False
+            for ligne in _lignes_depuis_la_fin(f):
+                ligne = ligne.strip()
+                if not ligne:
+                    continue
+                if not derniere_ligne_vue:
+                    derniere_ligne_vue = True
+                    # Voir la docstring : cette ligne est la plus RECENTE du
+                    # fichier, quel que soit son type d'evenement. Si elle est
+                    # deja hors fenetre, inutile de lire la suite -- ni de ce
+                    # fichier, ni des archives plus anciennes qui le suivent.
+                    try:
+                        age_dernier = _age_heures(json.loads(ligne).get("quand", ""))
+                    except json.JSONDecodeError:
+                        age_dernier = None
+                    if age_dernier is not None and age_dernier > fenetre_heures:
+                        fichier_deja_hors_fenetre = True
+                        break
+                if '"backlog-bouge"' not in ligne:
+                    # Filtre bon marche avant l'analyse JSON : la grande majorite des
+                    # lignes du journal central sont d'autres evenements.
+                    continue
+                try:
+                    e = json.loads(ligne)
+                except json.JSONDecodeError:
+                    # Une ligne illisible n'invalide pas les autres : le journal est
+                    # ecrit par N depots a la fois, et une ligne tronquee par un
+                    # incident ne doit pas rendre le constat aveugle.
+                    continue
+                if e.get("quoi") != "backlog-bouge":
+                    continue
+                age = _age_heures(e.get("quand", ""))
+                if age is None:
+                    continue
+                if age > fenetre_heures:
+                    # SORTIE ANTICIPEE : tout ce qui precede -- dans ce fichier, puis
+                    # dans les archives plus anciennes -- est encore plus vieux.
+                    fenetre_fermee = True
+                    break
+                vus.append({
+                    "depot": e.get("cible"), "quand": e.get("quand"),
+                    "age_heures": round(age, 1), "detail": e.get("detail"),
+                    "fichiers": e.get("fichiers") or [], "ouvertes": e.get("ouvertes"),
+                })
+            if fenetre_fermee or fichier_deja_hors_fenetre:
                 break
-            vus.append({
-                "depot": e.get("cible"), "quand": e.get("quand"),
-                "age_heures": round(age, 1), "detail": e.get("detail"),
-                "fichiers": e.get("fichiers") or [], "ouvertes": e.get("ouvertes"),
-            })
     except OSError:
         return []
     vus.sort(key=lambda v: v["quand"], reverse=True)

@@ -10,6 +10,9 @@ CE QU'ELLE FAIT. Appelee apres un commit, elle regarde si ce commit a touche un
 fichier de backlog -- le `TODO.md` du kit, son `state.json`, ou un backlog tenu a
 la main comme `docs/backlog_trace.md`. Si oui, une ligne part au journal central :
 quel depot, quel commit, quels fichiers, combien de taches ouvertes apres coup.
+Depuis D89 (T-176), elle regenere aussi `BACKLOG-MASTER.md` dans la foulee --
+le master n'attend plus un second tour d'agent qui joue `workflow.py master` a
+la main.
 
 TROIS INTERDITS, chacun ne d'un defaut deja paye dans ce depot.
 
@@ -44,7 +47,12 @@ from . import config, journal as jrn, registre as reg
 # `backlog_trace.md` est nomme explicitement : quatre depots le portent, tenu a la
 # main, et le kit ne le touche pas. C'est precisement le fichier que Matt veut voir
 # remonter (demande du 2026-09-08).
+# `backlog.md` est le nom unique depuis la decision D40 de Matt. Les autres restent
+# reconnus : six conventions cohabitaient sur neuf depots, et un depot qui n'a pas
+# encore migre doit continuer de remonter -- sinon la migration rend le registre
+# aveugle sur lui, en silence.
 MOTIFS = (
+    "backlog.md",
     "todo.md",
     ".workflow/state.json",
     "backlog_trace.md",
@@ -158,4 +166,21 @@ def remonter(racine=None, sha="HEAD", agent=None):
 
     rendu["remonte"] = True
     rendu["motif"] = "%d fichier(s) de backlog remonte(s)" % len(touches)
+
+    # D89 (T-176) : le master ne doit plus attendre un second tour d'agent qui
+    # joue `workflow.py master` a la main. Memes appels que `cmd_master` --
+    # `ecrire_masters` est deja idempotent (`_ecrire_si_different`), donc rejouer
+    # ce bloc sur un master a jour n'ecrit rien. MEME FILET que ci-dessus : le
+    # registre est exterieur au depot, et un `depots.json` corrompu (leve par
+    # `agreger` en `RegistreIllisible`) ne doit pas plus faire echouer le commit
+    # qu'un journal inecrivable. Ce qui echoue ici est deja remonte -- la ligne
+    # `backlog-bouge` est ecrite -- seul le master reste en retard, et ce fait se
+    # lit dans le motif rendu ici, pour la sortie non silencieuse.
+    try:
+        changements = reg.ecrire_masters(central)
+        if changements:
+            rendu["motif"] += " ; master regenere : %s" % ", ".join(changements)
+    except Exception as e:  # noqa: BLE001 -- meme regle : jamais bloquant
+        rendu["motif"] += " ; master NON regenere : %s" % e
+
     return rendu

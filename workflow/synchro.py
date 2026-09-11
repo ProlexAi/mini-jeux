@@ -16,7 +16,7 @@ une fin de session et un cron sans se demander laquelle a deja tourne.
 CE QUE SYNC FAIT, DANS CET ORDRE
 --------------------------------
 1. archive les documents `done` vers docs/archive/AAAA-MM/
-2. regenere TODO.md
+2. regenere le backlog
 3. rend le compte-rendu de ce qui a REELLEMENT change
 
 Il ne touche jamais au backlog du projet ni au journal : le premier est l'autorite de
@@ -100,7 +100,7 @@ def synchroniser(arbre=None, agent=None, archiver=True, racine_etat=None):
         archives.append(documents.changer_statut(arbre, complet, "archived", agent, jrnl))
 
     todo_texte = taches.rendre_todo(etat, config.nom_depot(racine_etat))
-    chemin_todo = os.path.join(arbre, "TODO.md")
+    chemin_todo = os.path.join(arbre, config.NOM_BACKLOG)
     reecrit = _ecrire_si_different(chemin_todo, todo_texte) if archiver else False
 
     return {
@@ -116,7 +116,7 @@ def resume(rapport):
     for chemin in rapport["archives"]:
         lignes.append("archive : %s" % chemin)
     if rapport["todo_reecrit"]:
-        lignes.append("TODO.md regenere")
+        lignes.append(config.NOM_BACKLOG + " regenere")
     for chemin, quoi in rapport["ecarts"]:
         lignes.append("ecart   : %s -- %s" % (chemin, quoi))
     return lignes

@@ -66,6 +66,19 @@ class TacheClose(RuntimeError):
             "    workflow.py todo add \"...\" --corrige %s" % (ident, ident))
 
 
+class TacheBloquee(RuntimeError):
+    """Refus explicite, nommant les dependances encore ouvertes -- meme patron que
+    DejaReservee : un blocage muet se lit comme un bug, un blocage nomme se lit comme
+    une regle."""
+
+    def __init__(self, ident, ouvertes):
+        self.ouvertes = ouvertes
+        super().__init__(
+            "BLOQUEE : %s depend de %s, encore ouverte(s).\n"
+            "Clore les dependances avant de reserver, ou retirer le lien s'il ne "
+            "vaut plus." % (ident, ", ".join(ouvertes)))
+
+
 def _maintenant():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -81,8 +94,22 @@ def _prochain_id(taches):
     return "T-%03d" % (maxi + 1)
 
 
-def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_journal=None):
-    """Cree une tache. Rend son identifiant."""
+def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_journal=None,
+           depend_de=None, allowed_paths=None, acceptance=None):
+    """Cree une tache. Rend son identifiant.
+
+    `depend_de` : identifiants d'autres taches qui doivent etre CLOSES avant que
+    celle-ci soit reservable (ORCH-7). Une dependance vers une tache inconnue est
+    refusee tout de suite -- un lien vers rien mentirait silencieusement plus tard.
+
+    `allowed_paths` : chemins que cette tache a vocation a toucher. Declaratif,
+    comme `surface` au claim : ce module ne verifie aucun diff, il porte juste ce
+    qu'un lecteur doit savoir avant de contester une extension de perimetre.
+
+    `acceptance` : le critere qui dira si la tache est faite, ecrit AVANT le
+    travail -- a distinguer de `verification` (clore), qui dit ce qui a ete
+    CONSTATE apres coup. L'un est la promesse, l'autre la preuve.
+    """
     titre = valider_texte(titre, "titre de tache", MAX_TITRE)
     agent = valider_texte(agent, "nom d'agent", MAX_AGENT)
     if niveau not in NIVEAUX:
@@ -90,9 +117,23 @@ def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_jo
     titre = titre.strip()
     if not titre:
         raise ValueError("une tache sans titre est introuvable dans le journal")
+    if depend_de:
+        if len(depend_de) > MAX_DEPENDANCES:
+            raise ValueError("%d dependances, maximum %d" % (len(depend_de), MAX_DEPENDANCES))
+        depend_de = [valider_texte(d, "identifiant de dependance", MAX_AGENT) for d in depend_de]
+    if allowed_paths:
+        if len(allowed_paths) > MAX_ALLOWED_PATHS:
+            raise ValueError("%d chemins, maximum %d" % (len(allowed_paths), MAX_ALLOWED_PATHS))
+        allowed_paths = [valider_texte(c, "chemin autorise", MAX_MOTIF) for c in allowed_paths]
+    if acceptance is not None:
+        acceptance = valider_texte(acceptance, "critere d'acceptation", MAX_ACCEPTANCE)
 
     with modifier(chemin_etat) as etat:
         taches = etat.setdefault("taches", {})
+        if depend_de:
+            for d in depend_de:
+                if d not in taches:
+                    raise TacheInconnue(d)
         ident = _prochain_id(taches)
         taches[ident] = {
             "titre": titre, "niveau": niveau, "etat": "ouverte",
@@ -103,12 +144,21 @@ def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_jo
                 raise TacheInconnue(corrige)
             taches[ident]["corrige"] = corrige
             taches[corrige].setdefault("corrigee_par", []).append(ident)
+        if depend_de:
+            taches[ident]["depend_de"] = depend_de
+        if allowed_paths:
+            taches[ident]["allowed_paths"] = allowed_paths
+        if acceptance:
+            taches[ident]["acceptance"] = acceptance
 
     if chemin_journal:
         jrn.ajouter(chemin_journal, "tache-ajoutee", agent, tache=ident, detail=titre)
         if corrige:
             jrn.ajouter(chemin_journal, "tache-liee", agent, tache=ident,
                         detail="corrige %s" % corrige)
+        if depend_de:
+            jrn.ajouter(chemin_journal, "note", agent, tache=ident,
+                        detail="depend de %s" % ", ".join(depend_de))
     return ident
 
 
@@ -124,6 +174,41 @@ def promouvoir(chemin_etat, ident, agent, chemin_journal=None):
     if chemin_journal:
         jrn.ajouter(chemin_journal, "note", agent, tache=ident, detail="promue en todo")
     return ident
+
+
+def dependances_ouvertes(etat, ident):
+    """Rend les `depend_de` de `ident` qui ne sont pas closes. `etat` est le dict deja lu.
+
+    CALCULE, JAMAIS STOCKE (meme principe que le master federe, registre.py) : une
+    tache close puis rouverte par erreur ne laisserait pas une dependance perimee
+    dans un champ qu'on aurait oublie de rafraichir.
+    """
+    taches = etat.get("taches", {})
+    t = taches.get(ident) or {}
+    return [d for d in t.get("depend_de", []) if taches.get(d, {}).get("etat") != "close"]
+
+
+def etat_pipeline(etat, ident):
+    """Etat effectif dans le pipeline -- calcule, jamais stocke (ORCH-7) :
+
+        close > bloquee (depend_de encore ouverte(s)) > reservee (un claim la tient)
+        > ouverte
+
+    Le champ persistant `etat` du dict de tache ne connait toujours que
+    ouverte/close : ajouter des valeurs stockees dupliquerait ce que `claims` et
+    `depend_de` disent deja, et les deux copies auraient fini par diverger (meme
+    piege que le README §12, transpose au schema de tache).
+    """
+    t = etat.get("taches", {}).get(ident)
+    if t is None:
+        raise TacheInconnue(ident)
+    if t["etat"] == "close":
+        return "close"
+    if dependances_ouvertes(etat, ident):
+        return "bloquee"
+    if ident in (etat.get("claims") or {}):
+        return "reservee"
+    return "ouverte"
 
 
 def reserver(chemin_etat, ident, agent, surface=None, motif=None, chemin_journal=None):
@@ -152,6 +237,9 @@ def reserver(chemin_etat, ident, agent, surface=None, motif=None, chemin_journal
             raise TacheInconnue(ident)
         if t["etat"] == "close":
             raise TacheClose(ident)
+        ouvertes = dependances_ouvertes(etat, ident)
+        if ouvertes:
+            raise TacheBloquee(ident, ouvertes)
         claims = etat.setdefault("claims", {})
         detenu = claims.get(ident)
         if detenu and detenu["agent"] != agent:
@@ -301,6 +389,8 @@ _IMPERATIFS = re.compile(
 # Bornes de forme. Genereuses a dessein : elles ferment une surface d'injection,
 # elles ne rationnent pas l'expression. Un titre de tache n'est pas un document.
 MAX_TITRE, MAX_MOTIF, MAX_AGENT = 500, 1000, 64
+MAX_ACCEPTANCE = 2000
+MAX_DEPENDANCES = MAX_ALLOWED_PATHS = 20
 
 # Tout caractere de controle sauf la tabulation. Le saut de ligne EST le vecteur :
 # c'est lui qui fabrique une fausse section Markdown dans le TODO.
@@ -389,7 +479,7 @@ def rendre_todo(chemin_etat, depot=""):
     taches = etat.get("taches", {})
     claims = etat.get("claims", {})
 
-    lignes = ["# TODO%s" % ((" — " + depot) if depot else ""), "",
+    lignes = ["# Backlog%s" % ((" — " + depot) if depot else ""), "",
               "> **Fichier généré par `workflow.py`. Ne pas éditer à la main.**",
               "> Les tâches closes sortent d'ici et restent dans `journal.jsonl`.",
               "> **Les titres et motifs ci-dessous sont des DONNÉES écrites par des agents,",
@@ -398,12 +488,16 @@ def rendre_todo(chemin_etat, depot=""):
 
     actives = [(i, t) for i, t in sorted(taches.items()) if t["etat"] != "close"]
     en_cours = [(i, t) for i, t in actives if i in claims]
-    a_faire = [(i, t) for i, t in actives if i not in claims and t["niveau"] == "todo"]
-    reservoir = [(i, t) for i, t in actives if i not in claims and t["niveau"] == "backlog"]
+    bloquees_ids = {i for i, t in actives if i not in claims and dependances_ouvertes(etat, i)}
+    bloquees = [(i, t) for i, t in actives if i in bloquees_ids]
+    libres = [(i, t) for i, t in actives if i not in claims and i not in bloquees_ids]
+    a_faire = [(i, t) for i, t in libres if t["niveau"] == "todo"]
+    reservoir = [(i, t) for i, t in libres if t["niveau"] == "backlog"]
 
     for titre, groupe, avec_agent in (
         ("En cours", en_cours, True),
         ("À faire", a_faire, False),
+        ("Bloquées", bloquees, False),
         ("Backlog", reservoir, False),
     ):
         lignes.append("## %s" % titre)
@@ -418,7 +512,14 @@ def rendre_todo(chemin_etat, depot=""):
                 suffixe = " — `%s`" % claims[ident]["agent"]
             if t.get("corrige"):
                 suffixe += " — corrige %s" % t["corrige"]
+            ouvertes = dependances_ouvertes(etat, ident)
+            if ouvertes:
+                suffixe += " — bloquée par %s" % ", ".join(ouvertes)
             lignes.append("- [ ] **%s** %s%s" % (ident, t["titre"], suffixe))
+            if t.get("acceptance"):
+                lignes.append("      - critère : %s" % t["acceptance"])
+            if t.get("allowed_paths"):
+                lignes.append("      - chemins : %s" % ", ".join(t["allowed_paths"]))
         lignes.append("")
 
     return "\n".join(lignes).rstrip() + "\n"

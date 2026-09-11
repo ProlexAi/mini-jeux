@@ -125,25 +125,28 @@ def _regenerer_todo(rac, arbre=None):
     """
     try:
         texte = taches.rendre_todo(config.chemin_etat(rac), config.nom_depot(rac))
-        chemin = os.path.join(arbre or config.racine(), "TODO.md")
+        chemin = os.path.join(arbre or config.racine(), config.NOM_BACKLOG)
         return synchro._ecrire_si_different(chemin, texte)
     except OSError as e:
         # Ne jamais faire echouer une commande reussie a cause du fichier genere : la
         # verite est dans l'etat, TODO.md n'en est qu'une vue.
-        print("note : TODO.md n'a pas pu etre regenere (%s)" % e, file=sys.stderr)
+        print("note : %s n'a pas pu etre regenere (%s)" % (config.NOM_BACKLOG, e), file=sys.stderr)
         return False
 
 
 # ------------------------------------------------------------------ commandes
 
-IGNORES_ETAT = ("state.json", "journal.jsonl", "local.json", "*.lock")
+IGNORES_ETAT = ("state.json", "journal.jsonl", "journal.*.jsonl", "local.json", "*.lock")
 
 EN_TETE_GITIGNORE = """# Ecrit par `workflow.py init`. Rien de ce dossier ne se versionne.
 #
 # state.json et journal.jsonl decrivent qui travaille sur CETTE machine, en ce
 # moment. Versionnes, ils etaient detruits par un `git checkout` de branche, ils
 # faisaient allouer le meme identifiant a deux branches, et un conflit de fusion
-# rendait toutes les commandes du kit inutilisables. Mesure du 2026-09-09."""
+# rendait toutes les commandes du kit inutilisables. Mesure du 2026-09-09.
+#
+# journal.*.jsonl : les archives que la rotation par taille (F21) produit --
+# journal.1.jsonl, journal.2.jsonl... Meme raison que journal.jsonl lui-meme."""
 
 
 def _ecrire_gitignore_etat(chemin):
@@ -172,7 +175,11 @@ def _sortir_l_etat_de_l_index(rac):
     neuf, ce qui ferait passer une migration reussie pour un echec.
     """
     suivis = []
-    for nom in (n for n in IGNORES_ETAT if not n.startswith("*")):
+    # Seuls les noms LITTERAUX ont un sens ici -- ls-files --error-unmatch sur un
+    # motif glob ("*.lock", "journal.*.jsonl") ne dit pas quel fichier PRECIS
+    # etait suivi. Aucun n'a jamais ete versionne avant ce .gitignore de toute
+    # facon : les exclure du controle ne perd rien.
+    for nom in (n for n in IGNORES_ETAT if "*" not in n):
         rel = "%s/%s" % (config.DOSSIER_ETAT, nom)
         r = subprocess.run(["git", "-C", rac, "ls-files", "--error-unmatch", rel],
                            capture_output=True, text=True)
@@ -272,14 +279,23 @@ def cmd_snapshot(args):
 def cmd_todo_add(args):
     rac = config.racine_partagee()
     agent = config.agent_obligatoire()
-    ident = taches.ajouter(config.chemin_etat(rac), args.titre, agent,
-                           niveau="todo" if args.actif else "backlog",
-                           corrige=args.corrige,
-                           chemin_journal=config.chemin_journal(rac))
+    try:
+        ident = taches.ajouter(config.chemin_etat(rac), args.titre, agent,
+                               niveau="todo" if args.actif else "backlog",
+                               corrige=args.corrige,
+                               chemin_journal=config.chemin_journal(rac),
+                               depend_de=args.depend_de or None,
+                               allowed_paths=args.allowed_paths or None,
+                               acceptance=args.acceptance)
+    except taches.TacheInconnue as e:
+        return _sortir(str(e))
     _regenerer_todo(rac)
     print("%s cree (%s)" % (ident, "todo" if args.actif else "backlog"))
     if args.corrige:
         print("  corrige %s -- le lien existe dans les deux sens" % args.corrige)
+    if args.depend_de:
+        print("  depend de %s -- non reservable tant qu'elles restent ouvertes"
+              % ", ".join(args.depend_de))
     return 0
 
 
@@ -299,12 +315,38 @@ def cmd_todo_done(args):
     if args.sans_verif and len(args.sans_verif.strip()) < 20:
         return _sortir("--sans-verif attend un motif d'au moins 20 caracteres. "
                        "« rien a verifier » n'est pas un motif.")
+    # T-016 : le journal sait ce que l'etat des claims a oublie -- une tache jamais
+    # reservee et une tache reservee puis liberee sont indiscernables par les seuls
+    # claims en cours. Cherche AVANT la cloture : `chercher` ne lit que ce qui existe
+    # deja, et `tache-close` n'est pas encore ecrit.
+    #
+    # Ce pre-check LIT tout le journal, alors que clore() n'a jamais eu besoin que
+    # d'y AJOUTER (append, sans lecture). Une ligne corrompue ailleurs dans le
+    # journal -- sans aucun rapport avec la tache qu'on ferme -- ne doit donc pas
+    # empecher la cloture : meme logique que _liberer_presence_si_plus_rien et
+    # _regenerer_todo plus bas, une lecture annexe qui echoue n'annule pas une
+    # commande par ailleurs reussie. Le defaut reste signale, jamais avale en
+    # silence : juste pas au prix d'un traceback brut ni d'une tache non fermee.
+    chemin_journal = config.chemin_journal(rac)
+    try:
+        jamais_reservee = not any(
+            jrn.chercher(chemin_journal, tache=args.tache, evenement="tache-reservee"))
+        journal_illisible = None
+    except ValueError as e:
+        jamais_reservee = False
+        journal_illisible = str(e)
     taches.clore(config.chemin_etat(rac), args.tache, agent,
                  verification=args.verif or ("SANS VERIFICATION : " + args.sans_verif),
-                 chemin_journal=config.chemin_journal(rac))
+                 chemin_journal=chemin_journal)
     _regenerer_todo(rac)
     _liberer_presence_si_plus_rien(rac, agent)
     print("%s close. Retiree du TODO, conservee au journal." % args.tache)
+    if jamais_reservee:
+        print("AVERTISSEMENT : %s close sans avoir jamais ete reservee par claim -- "
+              "le registre ne dit pas qui y a travaille." % args.tache)
+    elif journal_illisible is not None:
+        print("AVERTISSEMENT : impossible de verifier si %s a deja ete reservee -- "
+              "journal illisible, a corriger :\n%s" % (args.tache, journal_illisible))
     return 0
 
 
@@ -331,7 +373,7 @@ def cmd_claim(args):
         taches.reserver(config.chemin_etat(rac), args.tache, agent,
                         surface=args.surface, motif=args.motif,
                         chemin_journal=config.chemin_journal(rac))
-    except taches.DejaReservee as e:
+    except (taches.DejaReservee, taches.TacheBloquee) as e:
         return _sortir(str(e))
     _regenerer_todo(rac)
     print("%s reservee par %s." % (args.tache, agent))
@@ -530,12 +572,11 @@ def cmd_master(args):
     if not r:
         return 1
     if args.blanc:
-        backlog, todo = reg.agreger(r)
-        print(todo if args.quoi == "todo" else backlog, end="")
+        print(reg.agreger(r), end="")
         return 0
     changes = reg.ecrire_masters(r)
-    print("Masters regeneres : %s" % (", ".join(changes) if changes
-                                      else "aucun changement (idempotent)"))
+    print("Master regenere : %s" % (", ".join(changes) if changes
+                                     else "aucun changement (idempotent)"))
     return 0
 
 
@@ -615,6 +656,15 @@ def construire():
                        help="cree directement dans le todo au lieu du backlog")
     ajout.add_argument("--corrige", metavar="T-XXX",
                        help="cette tache corrige un defaut laisse par une autre")
+    ajout.add_argument("--depend-de", dest="depend_de", metavar="T-XXX", action="append",
+                       help="non reservable tant que cette tache n'est pas close "
+                            "(repetable)")
+    ajout.add_argument("--allowed-paths", dest="allowed_paths", metavar="CHEMIN",
+                       action="append",
+                       help="chemin que cette tache a vocation a toucher, declaratif "
+                            "(repetable)")
+    ajout.add_argument("--acceptance", help="critere qui dira si la tache est faite, "
+                                            "ecrit AVANT le travail")
     ajout.set_defaults(f=cmd_todo_add)
 
     fin = todo.add_parser("done", help="clot une tache")
@@ -680,8 +730,7 @@ def construire():
     s.add_parser("federer", help="inscrit ce depot au registre central").set_defaults(
         f=cmd_federer)
 
-    ma = s.add_parser("master", help="regenere les masters agreges (jamais edites)")
-    ma.add_argument("quoi", nargs="?", choices=("todo", "backlog"), default="todo")
+    ma = s.add_parser("master", help="regenere le master agrege (jamais edite)")
     ma.add_argument("--blanc", action="store_true", help="affiche sans ecrire")
     ma.set_defaults(f=cmd_master)
 
