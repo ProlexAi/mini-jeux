@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modifications doc proposées — mini-jeux</title>
+<style>
+:root {
+  --bg: #f7f5f2;
+  --fg: #1c1a17;
+  --fg-muted: #5a564f;
+  --border: #ddd6cb;
+  --card: #ffffff;
+  --accent: #8a4b12;
+  --accent-bg: #f1e4d3;
+  --code-bg: #efece6;
+  --table-head: #eee7da;
+  --warn-bg: #fdf1e6;
+  --warn-border: #d98a3d;
+  --ok-bg: #eaf3ea;
+  --ok-border: #4c8c5a;
+  --danger-bg: #fbeaea;
+  --danger-border: #c0483f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1916;
+    --fg: #ece7de;
+    --fg-muted: #b3ab9e;
+    --border: #3a352c;
+    --card: #24211c;
+    --accent: #e0a15c;
+    --accent-bg: #3a2c1a;
+    --code-bg: #2c2820;
+    --table-head: #322c22;
+    --warn-bg: #3a2c18;
+    --warn-border: #d98a3d;
+    --ok-bg: #1d2f20;
+    --ok-border: #5fa96e;
+    --danger-bg: #3a1f1d;
+    --danger-border: #c0483f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1916;
+  --fg: #ece7de;
+  --fg-muted: #b3ab9e;
+  --border: #3a352c;
+  --card: #24211c;
+  --accent: #e0a15c;
+  --accent-bg: #3a2c1a;
+  --code-bg: #2c2820;
+  --table-head: #322c22;
+  --warn-bg: #3a2c18;
+  --warn-border: #d98a3d;
+  --ok-bg: #1d2f20;
+  --ok-border: #5fa96e;
+  --danger-bg: #3a1f1d;
+  --danger-border: #c0483f;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+header.page .kicker { color: var(--fg-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+h1 { font-size: 1.6rem; margin: 0.2rem 0 0.3rem; }
+h2 { font-size: 1.25rem; margin-top: 2.2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+h3 { font-size: 1.05rem; margin-top: 1.6rem; color: var(--accent); }
+p { margin: 0.7rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: 0.35rem 0; }
+a { color: var(--accent); }
+code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+em { color: var(--fg-muted); font-style: italic; }
+blockquote.callout {
+  border-left: 4px solid var(--border);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  margin: 1rem 0;
+}
+blockquote.callout.warning { border-color: var(--warn-border); background: var(--warn-bg); }
+blockquote.callout.important { border-color: var(--accent); background: var(--accent-bg); }
+blockquote.callout.note { border-color: var(--border); background: var(--card); }
+blockquote.callout.danger { border-color: var(--danger-border); background: var(--danger-bg); }
+blockquote.callout .callout-title { font-weight: 600; display: block; margin-bottom: 0.25rem; }
+.codewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); margin: 0.9rem 0; }
+.codewrap pre { margin: 0; padding: 0.75rem 1rem; font-size: 0.87rem; }
+.codewrap code { background: none; padding: 0; }
+.tableau { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; min-width: 480px; }
+th, td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; font-size: 0.92rem; }
+thead th { background: var(--table-head); }
+tr:last-child td { border-bottom: none; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="page">
+  <span class="kicker">mini-jeux — implantation de l&#x27;orchestration, 2026-09-11</span>
+  <h1>MODIFICATIONS DOC PROPOSÉES — mini-jeux, implantation de l'orchestration</h1>
+</header>
+<p><em>Étape 2 du prompt d'implantation. Posé par l'orchestrateur dédié (D66) : « tu appliques toi-même <code>CLAUDE.md</code>, <code>SOUL.md</code> et <code>OUTILS.md</code> dans ton dépôt, par ton workflow git ; Matt relit le diff après. » Chaque diff exact est dans l'historique git de la branche <code>orchestration-2026-09-11</code> — pointé ici, pas recopié (D63 : « un chiffre mesuré périme, la commande qui le rejoue non »).</em></p>
+<h3>CLAUDE.md</h3>
+<p><strong>Diff exact</strong> : <code>git show &lt;commit&gt; -- CLAUDE.md</code> (voir le journal du jour pour les hash — deux commits, <code>0091f17</code> puis <code>a90b3d0</code>). <strong>Longueur</strong> : 95 lignes (mesurée, <code>wc -l</code>). <strong>Contrôle de ton</strong> : <code>[OK] 0 tournure punitive, 0 ligne VOIR</code> (<code>controler-ton-claude-md.py CLAUDE.md</code>) — obtenu au second passage : R-09 joué ici aussi. Le premier jet omettait la règle « ne pas retraiter la tâche d'un autre agent, ne pas relire <code>docs/archive/</code> » (trouvé en relisant mon propre rapport d'état, qui la classait « coexistence outillée » — gardée — sans qu'elle le soit réellement dans la pose) ; réintégrée sous une forme « <code>Ne jamais retraiter…</code> » que le contrôle a refusée (<code>BLOQUANT</code>, tournure « ne … jamais » adressée à l'agent) ; reformulée en constat, contrôle rejoué, vert.</p>
+<p><strong>Justification en une phrase</strong> : le fichier existant ne câblait ni <code>@SOUL.md</code> ni <code>@AGENTS.md</code> (défaut C1 du rapport d'état — contredit D32) et ne nommait ni <code>JOURNAL/</code> (C2), ni la contre-passe (C3), ni R-09 (C4) ; la nouvelle version câble les deux imports en tête, condense les 9 règles de kit-hygiène existantes (aucune perdue en substance — voir le tableau du rapport d'état §2), et ajoute les quatre manques ci-dessus comme règles écrites plutôt que pratiques tacites.</p>
+<p><strong>Ce qui est repris tel quel, en substance</strong> : l'identité <code>WORKFLOW_AGENT</code> préfixée à chaque commande, l'interdiction d'éditer <code>TODO.md</code>/<code>state.json</code>/<code>journal.jsonl</code> à la main, l'interdiction de rouvrir un document archivé, l'interdiction d'une liste de suivi parallèle — condensés dans « Ouvrir » et absorbés par la logique du kit lui-même (le fichier généré porte déjà l'avertissement).</p>
+<p><strong>Ce qui est neuf</strong> : la section « Le jeu, et le dépôt public » (bump <code>CACHE_VERSION</code>, piège du service worker, données personnelles hors dépôt — reprises depuis <code>AGENTS.md</code>/le coffre, pour qu'elles soient visibles dès <code>CLAUDE.md</code> sans devoir lire deux fichiers) ; la contre-passe et R-09 dans « Tenir le travail » ; une table de délégation (reprise du profil socle <code>claude-md/mini-jeux.md</code>, corrigée : <code>orchestrateur-federe</code> n'est plus « en réserve », il est opérationnel depuis WP5).</p>
+<h3>SOUL.md</h3>
+<p><strong>Diff exact</strong> : nouveau fichier (n'existait pas à la racine). <strong>Longueur</strong> : 70 lignes. <strong>Contrôle de ton</strong> : <code>[OK] 0 tournure punitive, 0 ligne VOIR</code> — obtenu après une correction R-09 : la première version portait 31 lignes de prose hors du chapeau « Qui tu es » (D62, <code>[VOIR]</code>), causées par des puces Markdown repliées sur plusieurs lignes physiques que l'instrument lit comme autant de paragraphes ; corrigée en ramenant chaque puce à une seule ligne physique, à la forme exacte du pilote KmopBudget.</p>
+<p><strong>Justification</strong> : matière de départ <code>ProlexCore/SOCLE/profils-agents/soul/mini-jeux.md</code> (D63), condensée de 118 à 70 lignes pour tenir le plafond D30-D38 (&lt; 200 lignes, zéro fait mesuré hors chapeau, deuxième personne). Perdu en chemin, volontairement : les faits mesurés inline (« WSL », comptes de ports, dates) — remplacés par des pointeurs (<code>OUTILS.md</code>, <code>AGENTS.md</code>) ; l'affirmation « absence du kit agent-workflow », factuellement fausse depuis WP5. Gardé intégralement en substance : la hiérarchie d'arbitrage à 6 rangs (section « Ce qui passe devant quoi »), l'exigence de contre-passe sur un changement critique, la thèse « zéro dépendance », le principe « l'instrument ment plus souvent que le code ».</p>
+<h3>OUTILS.md</h3>
+<p><strong>Diff exact</strong> : nouveau fichier. <strong>Longueur</strong> : 187 lignes. <strong>Contrôle de ton</strong> : <code>[OK] 0 tournure punitive, 0 ligne VOIR</code>.</p>
+<p><strong>Justification</strong> : matière de départ <code>ProlexCore/SOCLE/profils-agents/outils/mini-jeux.md</code> (relevé du 2026-09-08 21:48, commit <code>6a3e8bd</code>), <strong>entièrement re-mesurée ce soir</strong> plutôt que recopiée (D63 : « c'est TOI qui le tiendras ensuite »). Changements de fond par rapport au relevé du 2026-09-08 : le kit <code>agent-workflow</code> (absent alors, 1.22.0 fédéré maintenant), <code>orchestrateur-federe</code> (inerte alors, opérationnel maintenant), le plugin <code>permafrost</code> (absent du relevé précédent, activé maintenant), le coffre <code>Obsidian_MiniJeux/</code> (absent alors, posé ce soir), la section §7 « Ce qui manque » recomptée (l'absence de <code>CLAUDE.md</code> retirée — fausse depuis le 2026-09-09 — deux manques ajoutés : le retrait différé de <code>mini-jeux-projet.md</code> [D69] et la richesse non remontée dans <code>AGENTS.md</code>).</p>
+<h3>Pas de USER.md (2bis)</h3>
+<p>Conforme à D67 : <code>USER.md</code> est unique, tenu dans ProlexCore, chargé par toutes les sessions de la machine. Aucune copie posée ici. Rien appris sur Matt ce soir qui mériterait remontée (la session a porté sur l'infrastructure du dépôt, pas sur une préférence nouvelle de Matt).</p>
+<h3>Coffre Obsidian (2ter)</h3>
+<p>Traité et posé : voir le rapport d'état §3 (ligne C6 pour la question adjacente du retrait de <code>mini-jeux-projet.md</code>) et le commit <code>697b92c</code> (« D85 : coffre Obsidian du dépôt, gitignore et vérifié »). Emplacement choisi : <strong>dans le dépôt, gitignoré et vérifié</strong> — motivé dans ce même commit, écart assumé par rapport à la recommandation « hors dépôt » du gabarit, à cause du garde-fou D104 de cette session (aucune écriture hors de <code>/home/matt/mini-jeux</code> ce soir).</p>
+<h3>Ce qui s'applique sans attendre</h3>
+<p>Rien d'autre n'a été touché ce soir : <code>AGENTS.md</code> reste identique (ses quatre sujets sont propres au dépôt, aucune contradiction, aucun mort trouvé — rapport d'état §2). Aucun chemin mort ni doublon intra-lecteur trouvé dans <code>AGENTS.md</code> qui justifierait une correction indépendante des trois surfaces posées.</p>
+<footer class="page">Rendu HTML de <code>2026-09-11-modifications-doc-proposees.md</code> — la version versionnée (Markdown) fait foi en cas d'écart. Jamais publié par un push : ce dépôt est public.</footer>
+</div>
+</body>
+</html>

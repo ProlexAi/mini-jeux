@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapport de contradictions — mini-jeux</title>
+<style>
+:root {
+  --bg: #f7f5f2;
+  --fg: #1c1a17;
+  --fg-muted: #5a564f;
+  --border: #ddd6cb;
+  --card: #ffffff;
+  --accent: #8a4b12;
+  --accent-bg: #f1e4d3;
+  --code-bg: #efece6;
+  --table-head: #eee7da;
+  --warn-bg: #fdf1e6;
+  --warn-border: #d98a3d;
+  --ok-bg: #eaf3ea;
+  --ok-border: #4c8c5a;
+  --danger-bg: #fbeaea;
+  --danger-border: #c0483f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1916;
+    --fg: #ece7de;
+    --fg-muted: #b3ab9e;
+    --border: #3a352c;
+    --card: #24211c;
+    --accent: #e0a15c;
+    --accent-bg: #3a2c1a;
+    --code-bg: #2c2820;
+    --table-head: #322c22;
+    --warn-bg: #3a2c18;
+    --warn-border: #d98a3d;
+    --ok-bg: #1d2f20;
+    --ok-border: #5fa96e;
+    --danger-bg: #3a1f1d;
+    --danger-border: #c0483f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1916;
+  --fg: #ece7de;
+  --fg-muted: #b3ab9e;
+  --border: #3a352c;
+  --card: #24211c;
+  --accent: #e0a15c;
+  --accent-bg: #3a2c1a;
+  --code-bg: #2c2820;
+  --table-head: #322c22;
+  --warn-bg: #3a2c18;
+  --warn-border: #d98a3d;
+  --ok-bg: #1d2f20;
+  --ok-border: #5fa96e;
+  --danger-bg: #3a1f1d;
+  --danger-border: #c0483f;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+header.page .kicker { color: var(--fg-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+h1 { font-size: 1.6rem; margin: 0.2rem 0 0.3rem; }
+h2 { font-size: 1.25rem; margin-top: 2.2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+h3 { font-size: 1.05rem; margin-top: 1.6rem; color: var(--accent); }
+p { margin: 0.7rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: 0.35rem 0; }
+a { color: var(--accent); }
+code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+em { color: var(--fg-muted); font-style: italic; }
+blockquote.callout {
+  border-left: 4px solid var(--border);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  margin: 1rem 0;
+}
+blockquote.callout.warning { border-color: var(--warn-border); background: var(--warn-bg); }
+blockquote.callout.important { border-color: var(--accent); background: var(--accent-bg); }
+blockquote.callout.note { border-color: var(--border); background: var(--card); }
+blockquote.callout.danger { border-color: var(--danger-border); background: var(--danger-bg); }
+blockquote.callout .callout-title { font-weight: 600; display: block; margin-bottom: 0.25rem; }
+.codewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); margin: 0.9rem 0; }
+.codewrap pre { margin: 0; padding: 0.75rem 1rem; font-size: 0.87rem; }
+.codewrap code { background: none; padding: 0; }
+.tableau { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; min-width: 480px; }
+th, td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; font-size: 0.92rem; }
+thead th { background: var(--table-head); }
+tr:last-child td { border-bottom: none; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="page">
+  <span class="kicker">mini-jeux — implantation de l&#x27;orchestration, 2026-09-11</span>
+  <h1>Rapport de contradictions — implantation de l'orchestration, mini-jeux</h1>
+</header>
+<p><em>Étape 3 du prompt d'implantation. « Le rapport qui vaut l'implantation. » Déposé à la boîte d'échange à la suite de ce document.</em></p>
+<h3>Doctrine contre dépôt — ce que la nouvelle orchestration casse ici, et ce que ça coûte</h3>
+<ul><li><strong>Condensation de la kit-hygiène.</strong> Les 9 règles du <code>CLAUDE.md</code> existant (interdiction d'éditer <code>TODO.md</code>/<code>state.json</code> à la main, de rouvrir un document archivé, de dupliquer le suivi…) sont condensées en 4 lignes dans « Ouvrir ». <strong>Coût</strong> : un lecteur pressé qui ne lit que le nouveau <code>CLAUDE.md</code> perd la liste exhaustive et explicite des quatre interdits — il lui reste la logique (le fichier généré porte lui-même l'avertissement) plutôt que la liste. Risque faible (l'avertissement du fichier généré tient), mais réel.</li><li><strong>Le coffre est posé DANS le dépôt, gitignoré — pas hors dépôt comme le gabarit le recommande.</strong> Coût direct : la garde ne tient plus que sur une ligne de <code>.gitignore</code> et la discipline de ne jamais faire <code>git add -f</code>, quand une localisation hors dépôt l'aurait rendue structurellement impossible. C'est un écart assumé, imposé par le garde-fou D104 de cette session (aucune écriture hors de <code>/home/matt/mini-jeux</code> ce soir) et non par un choix de fond — <strong>à rouvrir avec Matt</strong> : si la voie hors-dépôt est préférée à terme, le coffre devra être déplacé, ce qui n'est pas un geste anodin dans Obsidian (chemins internes, liens).</li><li><strong><code>AGENTS.md</code> n'a pas été touché</strong>, alors que <code>SOCLE/agents/mini-jeux-projet.md</code> (encore vivant, D69 non exécutée) porte des pièges plus détaillés (service worker fantôme nommé comme tel, onglet caché sous Wayland, dégradation de qualité graphique). Coût : cette richesse ne vit que dans un sous-agent promis au retrait et dans le coffre versé ce soir (moins visible qu'un <code>AGENTS.md</code> enrichi) — signalé en <code>OUTILS.md</code> §7, non corrigé ce soir (hors périmètre du prompt, §4).</li></ul>
+<h3>Dépôt contre doctrine — ce que mini-jeux a de meilleur, à remonter au gabarit</h3>
+<ul><li><strong>Le témoin vit DANS l'instrument, pas à côté.</strong> <code>verifie-formes-speciales.js</code> refuse de conclure (sort en erreur) s'il n'extrait aucune forme à teinte imposée, au lieu de rendre un OK vide — la même logique que <code>~/.claude/CLAUDE.md</code> §2 demande en général (« un critère s'exécute à la source avant d'être écrit »), mais ce dépôt en a une réalisation concrète et citable. <strong>Proposition</strong> : verser cet exemple précis à <code>CANON/PIEGES-MESURES.md</code> de ProlexCore comme cas d'école, à côté des pièges déjà catalogués.</li><li><strong>Le critère d'arrêt posé avant de commencer, honoré sans le redébattre.</strong> L'encodeur QR documente explicitement sa propre faute de méthode (« le critère d'arrêt n'avait pas été posé avant de commencer, mais en cours de route ») — une leçon vécue, pas théorique, qui illustre exactement <code>~/.claude/CLAUDE.md</code> §3 (« le critère d'arrêt s'écrit avant de commencer »). <strong>Proposition</strong> : ce cas concret comme exemple dans la doctrine générale, au même endroit.</li><li><strong>Le marqueur de déploiement doit être une chaîne absente de la version précédente</strong>, sous peine de « réussir » en zéro seconde en mesurant la présence du fichier et non celle du correctif — mesuré ici deux fois (une fois où ça a raté, la boucle de vérification en ligne corrigée depuis). Généralisable à tout dépôt qui déploie par push simple (GitHub Pages ou équivalent) sans étape de build intermédiaire.</li><li><strong>Quatre contrôles rejouables avec sabotage systématique avant mise en production</strong> — la pratique du dépôt (chaque contrôle accepte un chemin de cible pour être rejoué sur une copie sabotée) préfigure exactement <code>AGENTS.md</code> §10 de ProlexCore côté gouvernance (« maintien à partir de 5 déclenchements sans faux positif… ») mais l'applique à un jeu, pas à un outil de gouvernance — un second terrain de validation pour la même idée, à citer si <code>AGENTS.md</code> de ProlexCore cherche un second exemple hors de son propre périmètre.</li></ul>
+<h3>Doctrine contre elle-même — ce qui se contredit entre PROTOCOLE-AGENTS.md, DECISIONS.md, LANGUE-COMMUNE et les gabarits</h3>
+<ul><li><strong><code>PROTOCOLE-AGENTS.md</code> se contredit lui-même sur la validation d'un spécialiste de flotte.</strong> Section « La flotte appartient à l'agent » : « <strong>Matt valide ou améliore.</strong> Un agent non validé n'existe pas. » — puis, trois paragraphes plus bas, dans le même fichier : « Depuis D66, le dédié crée ses spécialistes sans validation préalable et les inscrit à son <code>OUTILS.md</code> le jour même. » Les deux phrases coexistent, non réconciliées : la première n'a pas été retirée ni marquée périmée quand la seconde a été ajoutée. Un lecteur qui s'arrête à la première bullet croit encore devoir attendre Matt. <strong>Proposition</strong> : retirer ou biffer la phrase « Matt valide ou améliore » (le paragraphe D66 suffit et est plus récent), ou la faire pointer explicitement vers l'amendement.</li><li><strong><code>LANGUE-COMMUNE.md</code> affirme T-098/T-105 « encore ouvertes » alors que D81 les a closes le même jour.</strong> <code>LANGUE-COMMUNE.md</code> §6 (« Matière des profils… leur forme est antérieure à D30-D38 <strong>tant que T-098 et T-105 restent ouvertes</strong> (D58) ») — mais D81 (« A-02 »), daté du même 2026-09-11, dit : « Déjà clos par <code>prolexcore-master</code> avant la réponse… T-098, T-105 et T-123, closes comme caduques (D63, D66). » <code>LANGUE-COMMUNE.md</code> n'a pas été remis à jour après D81 : sa condition (« tant que… restent ouvertes ») est donc fausse au moment où je la lis. Sans conséquence pratique ce soir (je n'ai pas attendu ces tâches pour poser mes surfaces, D66 l'autorisant explicitement), mais un lecteur strict de <code>LANGUE-COMMUNE.md</code> seul s'y tromperait.</li><li><strong>« Posé » (D66) et le déclencheur du retrait (D69) ne sont pas synchronisés sur le même jalon.</strong> D66 dit qu'un dédié « pose, puis rend compte » — sans mentionner de fusion sur <code>main</code> comme condition. D69 dit qu'un sous-agent <code>*-projet.md</code> « se retire… quand l'orchestrateur dédié de son dépôt est posé », et son propre texte précise pour KmopBudget : « sa branche d'implantation n'est pas fusionnée, et <code>main</code> ne porte ni <code>SOUL.md</code> ni <code>OUTILS.md</code>. Le retrait attend donc. » — traitant donc implicitement « posé » comme « fusionné sur <code>main</code> », un sens plus étroit que celui de D66. J'ai suivi cette lecture implicite ce soir (<code>mini-jeux-projet.md</code> non retiré, ma branche n'étant pas fusionnée) par cohérence avec le seul précédent existant, mais <strong>la doctrine ne le dit nulle part explicitement</strong> — un point à trancher une fois pour toutes plutôt que de le déduire à chaque dépôt.</li><li><strong>Le plafond « moins de 200 lignes » (<code>LANGUE-COMMUNE.md</code> §3) ne précise pas s'il vaut pour <code>OUTILS.md</code>.</strong> Le seul précédent posé, <code>KmopBudget/OUTILS.md</code>, fait <strong>232 lignes</strong> — au-dessus du plafond, sans correction ni exception écrite nulle part. Mon <code>OUTILS.md</code> (187 lignes) reste dessous, mais par choix, pas parce que la règle l'exigeait clairement — à clarifier : le plafond vaut-il pour les trois surfaces, ou seulement <code>SOUL.md</code>/<code>CLAUDE.md</code> (ce qui serait cohérent avec la nature « inventaire » d'<code>OUTILS.md</code>, plus longue par construction) ?</li></ul>
+<footer class="page">Rendu HTML de <code>2026-09-11-rapport-contradictions.md</code> — la version versionnée (Markdown) fait foi en cas d'écart. Jamais publié par un push : ce dépôt est public.</footer>
+</div>
+</body>
+</html>

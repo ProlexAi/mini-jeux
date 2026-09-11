@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapport d&#x27;état — implantation mini-jeux</title>
+<style>
+:root {
+  --bg: #f7f5f2;
+  --fg: #1c1a17;
+  --fg-muted: #5a564f;
+  --border: #ddd6cb;
+  --card: #ffffff;
+  --accent: #8a4b12;
+  --accent-bg: #f1e4d3;
+  --code-bg: #efece6;
+  --table-head: #eee7da;
+  --warn-bg: #fdf1e6;
+  --warn-border: #d98a3d;
+  --ok-bg: #eaf3ea;
+  --ok-border: #4c8c5a;
+  --danger-bg: #fbeaea;
+  --danger-border: #c0483f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1916;
+    --fg: #ece7de;
+    --fg-muted: #b3ab9e;
+    --border: #3a352c;
+    --card: #24211c;
+    --accent: #e0a15c;
+    --accent-bg: #3a2c1a;
+    --code-bg: #2c2820;
+    --table-head: #322c22;
+    --warn-bg: #3a2c18;
+    --warn-border: #d98a3d;
+    --ok-bg: #1d2f20;
+    --ok-border: #5fa96e;
+    --danger-bg: #3a1f1d;
+    --danger-border: #c0483f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1916;
+  --fg: #ece7de;
+  --fg-muted: #b3ab9e;
+  --border: #3a352c;
+  --card: #24211c;
+  --accent: #e0a15c;
+  --accent-bg: #3a2c1a;
+  --code-bg: #2c2820;
+  --table-head: #322c22;
+  --warn-bg: #3a2c18;
+  --warn-border: #d98a3d;
+  --ok-bg: #1d2f20;
+  --ok-border: #5fa96e;
+  --danger-bg: #3a1f1d;
+  --danger-border: #c0483f;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+header.page .kicker { color: var(--fg-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+h1 { font-size: 1.6rem; margin: 0.2rem 0 0.3rem; }
+h2 { font-size: 1.25rem; margin-top: 2.2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+h3 { font-size: 1.05rem; margin-top: 1.6rem; color: var(--accent); }
+p { margin: 0.7rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: 0.35rem 0; }
+a { color: var(--accent); }
+code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+em { color: var(--fg-muted); font-style: italic; }
+blockquote.callout {
+  border-left: 4px solid var(--border);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  margin: 1rem 0;
+}
+blockquote.callout.warning { border-color: var(--warn-border); background: var(--warn-bg); }
+blockquote.callout.important { border-color: var(--accent); background: var(--accent-bg); }
+blockquote.callout.note { border-color: var(--border); background: var(--card); }
+blockquote.callout.danger { border-color: var(--danger-border); background: var(--danger-bg); }
+blockquote.callout .callout-title { font-weight: 600; display: block; margin-bottom: 0.25rem; }
+.codewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); margin: 0.9rem 0; }
+.codewrap pre { margin: 0; padding: 0.75rem 1rem; font-size: 0.87rem; }
+.codewrap code { background: none; padding: 0; }
+.tableau { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; min-width: 480px; }
+th, td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; font-size: 0.92rem; }
+thead th { background: var(--table-head); }
+tr:last-child td { border-bottom: none; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="page">
+  <span class="kicker">mini-jeux — implantation de l&#x27;orchestration, 2026-09-11</span>
+  <h1>Rapport d'état — implantation de l'orchestration, mini-jeux</h1>
+</header>
+<p><em>Session <code>claude-mini-jeux</code>, 2026-09-11 au soir. Étape 1 du prompt d'implantation (D82, <code>ProlexCore/docs/orchestrateur/PROMPT-IMPLANTATION-PROJET.md</code>). Chaque affirmation porte sa nature — <strong>mesuré</strong> (commande), <strong>lu</strong> (source), <strong>déduit</strong> (jugement) — et sa preuve.</em></p>
+<h3>1. Surfaces existantes</h3>
+<p><strong><code>CLAUDE.md</code></strong> — <strong>mesuré</strong>, 1473 octets, 44 lignes (<code>wc -c/-l CLAUDE.md</code>). Nature : <strong>consignes en dur, propres au cycle de vie du kit <code>agent-workflow</code></strong> — pas un miroir, pas quasi-vide. Il ne porte que le kit : ouverture (<code>workflow.py snapshot</code>), identité <code>WORKFLOW_AGENT</code>, quatre interdits (éditer <code>TODO.md</code>/<code>state.json</code>/<code>journal.jsonl</code> à la main, marquer <code>done</code> sans <code>--verif</code>, rouvrir un document archivé, dupliquer le suivi), et <code>workflow.py log</code>.</p>
+<p><strong>Qui le lit réellement</strong> — <strong>mesuré</strong>, <code>grep -n "@" CLAUDE.md</code> : aucune occurrence. <code>CLAUDE.md</code> <strong>n'importe rien</strong> — ni <code>@AGENTS.md</code>, ni (a fortiori) <code>@SOUL.md</code>, qui n'existe pas encore à la racine. Il <em>mentionne</em> <code>AGENTS.md</code> en prose (« Le protocole complet est dans AGENTS.md ») mais cette prose n'est pas un import : d'après D32 (mesuré sur onze dépôts par ProlexCore, cité dans <code>PROTOCOLE-AGENTS.md</code>), « un ordre dépend de l'obéissance de l'agent ; un import est chargé par le harnais » — Claude Code ne charge nativement que <code>&lt;dépôt&gt;/CLAUDE.md</code>. <strong>Conséquence mesurée ici, pas seulement déduite de D32 : une session ouverte à la racine de <code>mini-jeux</code> ne charge <code>AGENTS.md</code> que si elle le lit elle-même</strong> — ce que le <code>CLAUDE.md</code> actuel demande en prose sans le garantir par le harnais. C'est un défaut réel, corrigé dans le bloc de proposition (§2ter... voir plus bas, §3).</p>
+<p><strong><code>AGENTS.md</code></strong> — <strong>mesuré</strong>, 3768 octets, 67 lignes. Quatre sujets propres, tous confirmés à la lecture : vérification avant merge (la séquence complète « vérification complète, si validé merge et push », avec ses cinq réflexes de mesure — <code>getBoundingClientRect</code>, mobile 375×812, GitHub Pages ~1 min, régression vs comportement conditionnel, canvas animé 5-10 s) ; lecture d'une maquette Claude Design (bundle base64, décodage JSON, piège <code>skewX</code>) ; génération d'assets IA (un seul LoRA actif, VRAM 16 Go) ; données personnelles hors dépôt (<code>localStorage</code>, jamais versionné). <strong>Aucun des quatre ne couvre le jeu lui-même</strong> ni la doctrine d'orchestration : ce sont des pièges d'outil et de process propres à ce dépôt, exactement la nature attendue d'<code>AGENTS.md</code> (« ce qui empêche l'erreur d'OUTIL », <code>LANGUE-COMMUNE.md</code> §2).</p>
+<p><strong><code>SOUL.md</code>, <code>OUTILS.md</code></strong> — <strong>mesuré</strong>, absents à la racine (<code>ls SOUL.md OUTILS.md</code> échoue). Matière de départ existante, non vivante (D63) : <code>ProlexCore/SOCLE/profils-agents/{soul,outils}/mini-jeux.md</code>, <strong>lus</strong> en entier ce soir — datés du 2026-09-08 à 21:48, commit <code>6a3e8bd</code>. Le profil <code>soul/</code> affirme encore l'absence du kit <code>agent-workflow</code> (faux depuis WP5, 2026-09-09) et une hiérarchie d'arbitrage à 6 rangs sans la forme D30-D38 (prose longue, plusieurs faits mesurés inline — ports, dates). Le profil <code>outils/</code> porte un relevé daté 2026-09-08, avec une section entière (§7, « Ce qui manque à cet agent ») listant « Aucun <code>CLAUDE.md</code> dans le dépôt » — <strong>faux</strong> : <code>CLAUDE.md</code> existe (le profil <code>outils/</code> lui-même semble contredire le profil <code>soul/</code>, qui dit à l'inverse ne pas le porter dans la même phrase que celle citée par le prompt ; en réalité les deux profils étaient corrects à leur date, <code>CLAUDE.md</code> ayant été posé entre-temps le 2026-09-09 par une autre session — voir <code>JOURNAL/2026-09-10.md</code>, « Le suivi passe au kit »).</p>
+<p><strong>Coffre Obsidian</strong> — <strong>mesuré</strong>, absent du dépôt le 2026-09-11 avant cette session (<code>find . -iname '<em>obsidian</em>'</code> vide). Matière de départ trouvée <strong>hors du périmètre de lecture que le prompt annonçait</strong> (non citée dans son préambule « sources lues ») : <code>ProlexCore/SOCLE/profils-agents/coffres/mini-jeux/</code>, 9 notes + accueil, 1125 lignes, même date de revue (2026-09-08, commit <code>6a3e8bd</code>). Versé ce soir dans le dépôt, gitignoré (§2ter, détail dans le rapport de contradictions).</p>
+<h3>2. Ce qui couvre déjà la doctrine</h3>
+<p>Confrontation des 9 règles de <code>CLAUDE.md</code> et des 4 sujets d'<code>AGENTS.md</code> aux cinq consignes transverses (<code>LANGUE-COMMUNE.md</code> §4), à la contre-passe, aux boucles fermées et à la gestion du backlog :</p>
+<div class="tableau"><table><thead><tr><th>Règle existante</th><th>Couvre déjà</th><th>Verdict</th></tr></thead><tbody><tr><td><code>workflow.py snapshot</code> en ouverture</td><td>« Ouvrir » du gabarit demande l'équivalent</td><td><strong>remplacement</strong> — repris sous la forme condensée de KmopBudget</td></tr><tr><td>Ne pas éditer <code>TODO.md</code>/<code>state.json</code>/<code>journal.jsonl</code> à la main</td><td>gestion du backlog</td><td><strong>remplacement, condensé</strong> — le fichier généré porte déjà l'avertissement dans son propre en-tête (<code>TODO.md</code> : « Fichier généré… Ne pas éditer à la main »), la règle est donc partiellement redondante avec l'artefact lui-même ; KmopBudget (pilote posé) ne la répète pas telle quelle non plus</td></tr><tr><td>Ne pas rouvrir un document <code>archived</code>/une tâche close</td><td>gestion du backlog</td><td><strong>remplacement, condensé</strong> — même logique</td></tr><tr><td>Pas de liste de suivi parallèle</td><td>gestion du backlog</td><td><strong>remplacement, condensé</strong></td></tr><tr><td><code>workflow.py log</code> pour ce qui reste ouvert/a changé une décision/peut se reproduire</td><td>« Journal au fil de l'eau » (consigne transverse 2)</td><td><strong>coexistence outillée</strong> — le kit trace dans <code>.workflow/journal.jsonl</code> (mémoire machine), <code>JOURNAL/AAAA-MM-JJ.md</code> trace pour un lecteur humain : deux canaux, pas un doublon, mais <strong>aucune des deux surfaces actuelles ne nomme <code>JOURNAL/</code></strong> (gap, voir §3)</td></tr><tr><td>Ne pas retraiter la tâche d'un autre agent, ne pas relire <code>docs/archive/</code></td><td>réservations (<code>LANGUE-COMMUNE.md</code> §5)</td><td><strong>coexistence outillée</strong> — <code>docs/archive/</code> n'existe pas encore (mesuré : <code>find docs -maxdepth 2 -type d</code> rend <code>active</code>, <code>inbox</code>, <code>migration-linux</code>, <code>travaux-en-cours</code>, pas <code>archive</code>) ; règle préventive, pas morte, gardée</td></tr><tr><td>Vérification avant merge (5 réflexes de mesure)</td><td>« Vérifier avant d'affirmer » (consigne transverse 3)</td><td><strong>coexistence outillée</strong> — c'est un <strong>approfondissement local</strong> de la consigne générique, pas une redite : les réflexes sont propres à ce jeu (canvas, PWA, mobile). Gardé intégralement dans <code>AGENTS.md</code></td></tr><tr><td>Maquette Claude Design, assets IA, données perso</td><td>rien de générique n'en parle</td><td><strong>coexistence outillée</strong> — proprement local, aucun recouvrement</td></tr></tbody></table></div>
+<p><strong>Compte du critère d'arrêt (§6 du gabarit)</strong> : sur les 9 règles de <code>CLAUDE.md</code> + 4 sujets d'<code>AGENTS.md</code> = 13 unités confrontées, <strong>0 sortent en « reprise au gabarit »</strong> (aucune n'est à la fois absente de la doctrine générique ET assez générale pour y entrer — les kit-hygiène sont trop spécifiques au kit pour enrichir <code>LANGUE-COMMUNE.md</code>, et les 4 sujets d'<code>AGENTS.md</code> sont déjà à leur place). <strong>9 en remplacement/condensation, 4 en coexistence outillée.</strong> Sous la moitié : <strong>le critère d'arrêt ne se déclenche pas</strong>, la passe continue à l'étape 2.</p>
+<h3>3. Contradictions et conflits</h3>
+<div class="tableau"><table><thead><tr><th>#</th><th>Affirmation</th><th>Source</th><th>Verdict</th></tr></thead><tbody><tr><td>C1</td><td><code>CLAUDE.md</code> n'importe ni <code>@SOUL.md</code> ni <code>@AGENTS.md</code></td><td>mesuré, <code>grep -n "@" CLAUDE.md</code> → vide</td><td><strong>Contredit D32.</strong> À corriger : le nouveau <code>CLAUDE.md</code> câble les deux imports en tête</td></tr><tr><td>C2</td><td>La convention <code>JOURNAL/AAAA-MM-JJ.md</code> n'est nommée dans <strong>aucune</strong> surface d'ordres du dépôt</td><td>mesuré, <code>grep -rn "JOURNAL" CLAUDE.md AGENTS.md</code> → vide ; confirmé par <code>SOCLE/agents/mini-jeux-projet.md</code> : « aucune surface d'ordres ne le nomme : la convention n'est portée que par l'usage »</td><td><strong>Gap réel, pas une contradiction de doctrine mais un manque.</strong> Corrigé : le nouveau <code>CLAUDE.md</code> la nomme explicitement</td></tr><tr><td>C3</td><td>« Contre-passe » n'apparaît dans aucune des deux surfaces actuelles</td><td>mesuré, <code>grep -rn "contre-passe" CLAUDE.md AGENTS.md</code> → vide</td><td><strong>Le dépôt pratique déjà la contre-passe</strong> (journal du 2026-09-10 : « Ce sont les contre-passes qui ont trouvé les vrais défauts », deux défauts réseau réels trouvés ainsi) <strong>sans jamais l'écrire comme règle.</strong> Corrigé dans le nouveau <code>CLAUDE.md</code></td></tr><tr><td>C4</td><td>R-09 (« un rendu refusé par un vérificateur repart en boucle jusqu'à passer ») absent des surfaces actuelles</td><td>mesuré, absent</td><td>Le dépôt a déjà l'équivalent en pratique — le journal du 2026-09-10 documente une boucle de contrôle (quatre contrôles rejouables, deux tenus au vert après correction). <strong>Reprise au sens local</strong> : R-09 entre au <code>CLAUDE.md</code></td></tr><tr><td>C5</td><td><code>SOCLE/agents/mini-jeux-projet.md</code> porte des pièges opérationnels plus détaillés qu'<code>AGENTS.md</code> (service worker fantôme, onglet caché/<code>Wayland</code>, qualité graphique adaptative)</td><td>lu, sections « Le piège qui coûterait le plus cher ici » et suivantes</td><td><strong>Ni une contradiction ni une règle morte : un enrichissement non remonté.</strong> <code>AGENTS.md</code> actuel couvre une partie (canvas 5-10s, mobile 375, GH Pages ~1min) mais pas le service worker fantôme ni Wayland. Signalé au rapport de contradictions (§ Dépôt contre doctrine), <strong>pas corrigé d'office ce soir</strong> — hors du périmètre du prompt (§4, « le reste de ton dépôt s'écrit puis se rend compte », mais une réécriture de fond d'<code>AGENTS.md</code> n'est pas demandée par ce prompt-ci)</td></tr><tr><td>C6</td><td>D69 : « chaque <code>SOCLE/agents/&lt;projet&gt;-projet.md</code> se retire… quand l'orchestrateur dédié de son dépôt est posé » — appliqué à <code>mini-jeux-projet.md</code> ?</td><td>lu, D69</td><td><strong>Pas encore.</strong> Par le précédent exact de D69 sur KmopBudget (« sa branche d'implantation n'est pas fusionnée, et <code>main</code> ne porte ni <code>SOUL.md</code> ni <code>OUTILS.md</code>. Le retrait attend donc. »), et par le garde-fou D104 de cette session (branche seule, pas de fusion sur <code>main</code> ce soir), <strong>je ne retire pas <code>mini-jeux-projet.md</code> ce soir</strong> — même situation exacte que le pilote. Signalé comme suite (équivalent T-172 pour mini-jeux)</td></tr><tr><td>C7</td><td>Les profils socle <code>soul/mini-jeux.md</code> et <code>outils/mini-jeux.md</code> se contredisent en apparence sur l'existence de <code>CLAUDE.md</code></td><td>lu, les deux fichiers, §7 d'<code>outils/mini-jeux.md</code> : « Aucun <code>CLAUDE.md</code> dans le dépôt »</td><td><strong>Fausse contradiction : écart temporel.</strong> Les deux profils datent du même relevé (2026-09-08 21:48, commit <code>6a3e8bd</code>) — <code>CLAUDE.md</code> n'existait alors pas encore, posé le lendemain (2026-09-09, commit <code>06eaca6</code>, <code>JOURNAL/2026-09-10.md</code>). Les deux étaient vrais à leur date ; aucun n'est à corriger, ils sont remplacés ce soir par les surfaces neuves</td></tr><tr><td>C8</td><td>Le prompt (§0.7) demandait de commiter <code>.workflow/local.json</code></td><td>lu, prompt §0.7</td><td><strong>Prémisse périmée par la version du kit</strong> (1.20.0/1.21.0 → 1.22.0 entre l'écriture du prompt et cette session). Mesuré : <code>local.json</code> est gitignoré au socle 1.22.0, motif documenté dans le fichier. Non commité, documenté au journal (déjà tracé en PARTIE A)</td></tr><tr><td>C9</td><td>Le prompt (§0.8, en option) proposait <code>.env*</code> pour couvrir toute variante</td><td>lu, prompt §0.8</td><td><strong>Piège d'instrument mesuré</strong> : <code>.env.*</code> + <code>!.env.example</code> fait dire « ignoré » à <code>git check-ignore .env.example</code> (exit 0) bien que <code>git status --ignored</code> confirme le fichier suivi. Réglé par une règle plus simple, déjà tracée en PARTIE A</td></tr></tbody></table></div>
+<h3>4. Les spécificités</h3>
+<ul><li><strong>Dépôt PUBLIC servi tel quel par GitHub Pages</strong> — <strong>mesuré</strong>, <code>.nojekyll</code> présent à la racine ET dans <code>Snake'on/</code> (<code>find . -name .nojekyll</code>). Aucune donnée personnelle, tout ce qui entre est publié — corollaire direct pour le coffre (§2ter) et pour <code>.env.example</code> (T-064).</li><li><strong>Aucun build, aucune CI, aucun gestionnaire de paquets</strong> — <strong>mesuré</strong>, ni <code>package.json</code>, ni <code>Makefile</code>, ni <code>.github/workflows/</code> (<code>find . -maxdepth 2 -iname 'package.json' -o -iname Makefile</code> vide, <code>.github/</code> absent). Le jeu se sert tel quel.</li><li><strong>Le service worker sert une version fantôme pendant les tests</strong> — <strong>lu</strong>, <code>SOCLE/agents/mini-jeux-projet.md</code>, confirmé par <code>Obsidian_MiniJeux/03-Travailler/Les-pieges-de-mesure-de-ce-depot.md</code> fraîchement versé. Piège déjà payé, documenté à deux endroits maintenant redondants (le sous-agent socle, promis au retrait par D69, et le coffre versé ce soir qui en devient la source pérenne).</li><li><strong>D40 vise <code>backlog.md</code>, mais laisse l'exécution à chaque dépôt</strong> — <strong>lu</strong>, D40 (citée dans le prompt). Mesuré ce soir (après la pose du kit 1.22.0) : <code>grep -rln "TODO\.md" . | grep -v '^\./\.git/'</code> rend 10 fichiers, dont <code>docs/orchestration/2026-09-11-rapport-etat-implantation.md</code> (ce document même, autoréférence attendue) et deux entrées de <code>JOURNAL/</code> (mentions historiques). Le noyau <strong>code</strong> cité par le prompt (<code>bin/workflow.py</code>, <code>workflow/atomique.py</code>, <code>workflow/synchro.py</code>, <code>workflow/taches.py</code>, <code>workflow/remontee.py</code>, <code>.githooks/pre-commit</code>, 6 fichiers) est confirmé, <strong>et un septième s'y est ajouté au passage 1.20.0 → 1.22.0</strong> : <code>workflow/config.py</code>, absent du relevé du prompt. Plus <code>CLAUDE.md</code> lui-même, qui mentionne <code>TODO.md</code> en prose (§ « Ce que tu ne fais jamais »). <strong>Écart avec le prompt, corrigé ici</strong> : ce n'était donc pas « inchangé » mais <strong>un fichier de plus à réécrire</strong> le jour où le renommage sera fait — non renommé ce soir, conforme à l'instruction explicite du prompt (§4) et au garde-fou D104 (pas d'intention de Matt reçue sur ce point précis).</li><li><strong>Aucun skill ni agent local</strong> — <strong>mesuré</strong>, <code>.claude/agents/</code> et <code>.claude/skills/</code> absents (<code>find .claude -maxdepth 1 -type d</code>). Tout vient du socle et des plugins.</li><li><strong>Hooks Git</strong> — <strong>mesuré</strong>, <code>core.hooksPath</code> = <code>.githooks</code>, versionnés, pre-commit <strong>consultatif</strong> (n'écrit rien, ne bloque jamais — lu dans <code>SOCLE/agents/mini-jeux-projet.md</code>, non re-vérifié ligne à ligne ce soir, à confirmer si un contrôle en dépend).</li></ul>
+<footer class="page">Rendu HTML de <code>2026-09-11-rapport-etat-implantation.md</code> — la version versionnée (Markdown) fait foi en cas d'écart. Jamais publié par un push : ce dépôt est public.</footer>
+</div>
+</body>
+</html>
