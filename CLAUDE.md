@@ -10,8 +10,11 @@
 - Lire la dernière entrée de `JOURNAL/`, puis `Snake'on/_MANIFEST.md` avant toute affirmation
   sur le jeu — c'est son routeur, tenu par le jeu lui-même.
 - Déclarer ton périmètre avant d'écrire, `python3 bin/workflow.py claim <T-xxx> --surface
-  <chemin> --motif "…"`, et clore avec ce qui a été constaté, `python3 bin/workflow.py todo done
-  <T-xxx> --verif "…"`.
+  <chemin> --motif "…"`, et clore avec ce que `--verif` fait constater réellement, `python3
+  bin/workflow.py todo done <T-xxx> --verif "…"`.
+- Une tâche que le `snapshot` montre réservée par un autre agent reste hors de portée ; un
+  document sous `docs/archive/` est figé — le relire coûte du contexte pour une information qui
+  ne changera plus.
 - Lire `OUTILS.md`, et le mettre à jour dans la session même où un agent, un skill, un contrôle
   ou un hook apparaît, change de rôle ou disparaît.
 
