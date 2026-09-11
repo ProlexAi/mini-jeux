@@ -28,3 +28,17 @@ Snake'on/SkinsTest/
 # n'existant dans ce depot (relecture des lectures d'environnement, meme
 # commande qu'en tete de .env.example).
 .env
+
+# Coffre Obsidian du depot (D85, 2026-09-11) : PRIVE, jamais publie. Ce depot
+# est PUBLIC et servi tel quel par GitHub Pages (.nojekyll racine + Snake'on/) :
+# un coffre commite serait en ligne a la minute suivant un push. Choix motive
+# dans le rapport d'etat plutot que la voie hors-depot que ProlexCore
+# recommandait : la garde tient ici par cette regle + le controle rejouable
+# ci-dessous, et le depot a deja ce meme pattern pour SkinsTest/ et la
+# sauvegarde joueur.
+Obsidian_MiniJeux/
+
+# Verification rejouable : aucun fichier du coffre ne doit jamais apparaitre
+# dans `git ls-files` ni sortir de `git status --ignored` sans son "!!" :
+#   git status --ignored -- Obsidian_MiniJeux/
+#   git ls-files Obsidian_MiniJeux/ | wc -l     # doit rendre 0
