@@ -8,9 +8,15 @@ commande qui le rejoue non »).*
 
 ## CLAUDE.md
 
-**Diff exact** : `git show <commit> -- CLAUDE.md` (voir le journal du jour pour le hash).
-**Longueur** : 92 lignes (mesurée, `wc -l`). **Contrôle de ton** : `[OK] 0 tournure punitive,
-0 ligne VOIR` (`controler-ton-claude-md.py CLAUDE.md`).
+**Diff exact** : `git show <commit> -- CLAUDE.md` (voir le journal du jour pour les hash — deux
+commits, `0091f17` puis `a90b3d0`). **Longueur** : 95 lignes (mesurée, `wc -l`). **Contrôle de
+ton** : `[OK] 0 tournure punitive, 0 ligne VOIR` (`controler-ton-claude-md.py CLAUDE.md`) — obtenu
+au second passage : R-09 joué ici aussi. Le premier jet omettait la règle « ne pas retraiter la
+tâche d'un autre agent, ne pas relire `docs/archive/` » (trouvé en relisant mon propre rapport
+d'état, qui la classait « coexistence outillée » — gardée — sans qu'elle le soit réellement dans
+la pose) ; réintégrée sous une forme « `Ne jamais retraiter…` » que le contrôle a refusée
+(`BLOQUANT`, tournure « ne … jamais » adressée à l'agent) ; reformulée en constat, contrôle
+rejoué, vert.
 
 **Justification en une phrase** : le fichier existant ne câblait ni `@SOUL.md` ni `@AGENTS.md`
 (défaut C1 du rapport d'état — contredit D32) et ne nommait ni `JOURNAL/` (C2), ni la
