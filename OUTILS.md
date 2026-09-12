@@ -151,7 +151,8 @@ antérieure faisait `git add -A`, contournant le pathspec explicite d'`AGENTS.md
   §2ter du rapport d'état).
 - **Génération d'assets** : ComfyUI local, un seul LoRA actif à la fois (VRAM 16 Go). Chemin du
   dossier LoRAs — non vérifié sous Kubuntu.
-- **Worktrees** : `.claude/worktrees/` existe, vide, ignoré par Git.
+- **Worktrees** : ils vivent sous `~/.worktrees/mini-jeux/<branche>` (D151 de ProlexCore, 2026-09-12), et se
+  retirent dans le geste qui fusionne leur branche. `.claude/worktrees/` existe encore, vide et ignoré par Git.
 
 ---
 
