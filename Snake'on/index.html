@@ -1371,14 +1371,15 @@ const CONFIG = {
     // 150 restitue la densite percue d'avant (mesure : 18,4 visibles a 160 bots).
     // Sert de peuplement pour la partie PRIVEE : la simulation des bots (IA, collisions) reste a
     // la charge du seul hote, mais chaque bot ajoute aussi un serpent a diffuser a chaque invite
-    // (bande passante + hostRelevant) — pas touche ici, la demande porte sur le solo seul.
-    BOT_COUNT: 150,
+    // (bande passante + hostRelevant). Baisse de 20 % (150 -> 120) a la demande du joueur
+    // (12/09) : une arene moins chargee, en solo comme en prive.
+    BOT_COUNT: 120,
     // Solo : tourne entierement sur la machine du joueur, sans le cout reseau/bande-passante de
     // la partie privee — peut se permettre plus de peuplement pour une arene plus disputee,
     // desormais que les bots eux-memes n'ont plus de plafond de masse (cf. BOT_MAX_MASS).
-    // Baisse de 15 % (220 -> 187) a la demande du joueur : une arene un peu moins dense en solo
-    // pour respirer et progresser plus sereinement. La partie privee garde BOT_COUNT (150).
-    BOT_COUNT_SOLO: 187,
+    // Baisse de 20 % (187 -> 150) a la demande du joueur (12/09) : arene moins dense pour
+    // respirer. Historique : 220 -> 187 (-15 %, demande du joueur) puis -> 150 (-20 %).
+    BOT_COUNT_SOLO: 150,
     BASE_SPEED: 3,
     BASE_RADIUS: 8,
     GRID_SIZE: 40,
