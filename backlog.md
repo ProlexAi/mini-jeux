@@ -8,9 +8,7 @@
 
 ## En cours
 
-- [ ] **T-013** Audit d'alignement au socle D116-D154, et correction des ecarts a ma main — `claude-mini-jeux`
-      - critère : les 39 decisions D116 a D154 classees portee/contredite/non concernee, chacune avec le fichier et la ligne qui l'etablit ; chaque ecart a ma main corrige et commite par pathspec ; les 5 commandes de controle d'OUTILS.md rejouees et leur sortie lue en entier. Critere d'arret ecrit AVANT : approche morte si plus de 3 decisions restent non classables faute de mesure jouable depuis ce depot.
-      - chemins : OUTILS.md, AGENTS.md, CLAUDE.md, SOUL.md, JOURNAL/, docs/orchestration/
+_(vide)_
 
 ## À faire
 
