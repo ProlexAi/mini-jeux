@@ -59,8 +59,17 @@ class RegistreIllisible(RuntimeError):
 PRESENCE = "presence.json"
 JOURNAL = "journal.jsonl"
 DEPOTS = "depots.json"
+COMPTEURS = "compteurs.json"
 BACKLOG_MASTER = "BACKLOG-MASTER.md"
 TODO_MASTER = "TODO-MASTER.md"
+
+# F04 : borne le temps qu'un `todo add` peut perdre a attendre ce compteur.
+# Court a dessein -- ce n'est pas `depots.json` (rare, un enregistrement par
+# federation) mais un fichier touche a CHAQUE tache creee : un delai long y
+# ferait sentir la moindre contention. `taches._prochain_id` se replie sur le
+# comportement local des que ce delai est depasse (jamais d'echec de todo
+# add a cause du registre).
+DELAI_COMPTEUR_DEFAUT = 2.0
 
 ENTETE = (
     "> **Fichier généré par le kit agent-workflow. Ne pas éditer à la main.**\n"
@@ -175,6 +184,55 @@ def enregistrer_depot(registre, racine_depot):
             ecrire_texte(p, json.dumps({"depots": liste}, ensure_ascii=False,
                                        indent=2) + "\n")
     return liste
+
+
+# ---------------------------------------------------------------- identifiants federes (F04)
+
+def prochain_identifiant(registre, identite, minimum, delai=DELAI_COMPTEUR_DEFAUT):
+    """Alloue et RETIENT le prochain numero pour `identite`. Rend un entier.
+
+    F04 (T-170) : deux clones du meme depot appellent ceci avec la MEME
+    `identite` (voir `config.identite_depot`) -- c'est ce partage, VOULU, qui
+    leur interdit de s'attribuer deux fois le meme T-NNN.
+
+    SOUS VERROU, meme patron qu'`enregistrer_depot` : la sequence est un
+    lire-modifier-ecrire, et deux clones peuvent l'executer au meme instant.
+    `minimum` est le plus grand numero deja vu localement par l'appelant --
+    le compteur ne peut jamais RECULER en dessous : un depot qui porte deja
+    T-005 ne doit jamais se voir proposer T-002 parce que le registre n'a
+    encore rien enregistre pour son identite.
+
+    `delai` est COURT et BORNE a dessein (voir `DELAI_COMPTEUR_DEFAUT`) :
+    l'appelant (`taches._prochain_id`) se replie sur le seul `minimum` au
+    premier `VerrouIndisponible` -- un registre lent ou dispute ne doit
+    jamais retarder un `todo add` de facon perceptible.
+
+    Un `compteurs.json` illisible (JSON tronque) leve `RegistreIllisible`,
+    comme `depots()` pour `depots.json` : on ne le confond pas avec « aucun
+    numero encore alloue », et l'appelant s'en remet au meme repli que pour
+    un verrou indisponible.
+    """
+    os.makedirs(registre, exist_ok=True)
+    p = chemin(registre, COMPTEURS)
+    with verrou(p + ".lock", delai=delai):
+        try:
+            with open(p, encoding="utf-8") as f:
+                contenu = f.read()
+        except FileNotFoundError:
+            contenu = ""
+        try:
+            compteurs = json.loads(contenu) if contenu.strip() else {}
+        except json.JSONDecodeError as e:
+            raise RegistreIllisible(
+                "%s est illisible (%s). Reparer le fichier ou le supprimer pour "
+                "repartir de zero -- le compteur repart alors du maximum local "
+                "de chaque depot, jamais en dessous." % (p, e)) from e
+        dernier = compteurs.get(identite, 0)
+        prochain = max(minimum, dernier) + 1
+        compteurs[identite] = prochain
+        ecrire_texte(p, json.dumps(compteurs, ensure_ascii=False, indent=2,
+                                   sort_keys=True) + "\n")
+    return prochain
 
 
 # ---------------------------------------------------------------- agregation

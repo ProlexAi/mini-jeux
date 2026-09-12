@@ -83,19 +83,64 @@ def _maintenant():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def _prochain_id(taches):
-    """Identifiants stables et jamais reutilises : un numero libere reviendrait
-    designer deux travaux differents dans le journal."""
+def _maximum_local(taches):
     maxi = 0
     for ident in taches:
         m = _ID.match(ident)
         if m:
             maxi = max(maxi, int(m.group(1)))
+    return maxi
+
+
+def _prochain_id(taches, registre=None, identite=None, delai_registre=None):
+    """Identifiants stables et jamais reutilises : un numero libere reviendrait
+    designer deux travaux differents dans le journal.
+
+    F04 (T-170) -- LE TROU QUE CETTE FONCTION LAISSAIT : max+1 sur les taches
+    de CET ETAT SEUL. Deux clones du meme depot, chacun son
+    `.workflow/state.json` ignore par git, croient chacun partir de zero et
+    allouent tous les deux T-001 -- decouvert sur ProlexCore lui-meme, deux
+    worktrees du meme depot.
+
+    AVEC un registre configure ET une identite calculable (decision de
+    l'orchestrateur ProlexCore, option A -- identite Git intrinseque, voir
+    `config.identite_depot`) : le numero passe par un compteur PAR IDENTITE
+    tenu au registre, sous son verrou (`registre.prochain_identifiant`) --
+    prochain = max(max local, dernier alloue au registre pour cette identite)
+    + 1, et le registre RETIENT ce numero. Deux clones du meme remote
+    PARTAGENT ainsi le compteur : c'est voulu, c'est justement ce qui leur
+    interdit de collisionner. (Deux depots SANS remote mais au meme commit
+    racine le partagent aussi -- rare, sans danger : les numeros restent
+    uniques.)
+
+    SANS registre, SANS identite, verrou non obtenu dans le delai imparti, ou
+    compteur illisible : repli SILENCIEUX sur le comportement local
+    historique. Un `todo add` ne doit JAMAIS echouer a cause du registre --
+    l'autorite reste le depot (meme principe que partout ailleurs dans ce
+    module, D-10).
+    """
+    maxi = _maximum_local(taches)
+    if registre and identite:
+        # Import tardif : `registre.py` n'importe pas `taches.py`, rien
+        # n'empeche l'import en tete de module -- mais ce module garde ainsi
+        # le meme patron que `config.py`, qui differe le sien pour la meme
+        # raison (casser tout cycle futur au premier import, pas seulement
+        # celui d'aujourd'hui).
+        from . import registre as reg
+        from .verrou import VerrouIndisponible
+        kwargs = {}
+        if delai_registre is not None:
+            kwargs["delai"] = delai_registre
+        try:
+            return "T-%03d" % reg.prochain_identifiant(registre, identite, maxi, **kwargs)
+        except (OSError, VerrouIndisponible, reg.RegistreIllisible):
+            pass
     return "T-%03d" % (maxi + 1)
 
 
 def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_journal=None,
-           depend_de=None, allowed_paths=None, acceptance=None):
+           depend_de=None, allowed_paths=None, acceptance=None,
+           registre=None, identite=None, delai_registre=None):
     """Cree une tache. Rend son identifiant.
 
     `depend_de` : identifiants d'autres taches qui doivent etre CLOSES avant que
@@ -109,6 +154,15 @@ def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_jo
     `acceptance` : le critere qui dira si la tache est faite, ecrit AVANT le
     travail -- a distinguer de `verification` (clore), qui dit ce qui a ete
     CONSTATE apres coup. L'un est la promesse, l'autre la preuve.
+
+    `registre` / `identite` (F04, T-170) : quand les DEUX sont fournis,
+    l'identifiant passe par le compteur federe au lieu du seul maximum local
+    -- voir `_prochain_id`. L'appelant (le CLI, `cmd_todo_add`) les calcule
+    UNE FOIS par appel -- `config.registre(rac)` et `config.identite_depot(rac)`,
+    ce dernier couteux (il invoque git) -- et les transmet ici ; ce module ne
+    les recalcule jamais lui-meme, et encore moins par tache. `delai_registre`
+    n'existe que pour les tests : il raccourcit l'attente du verrou du
+    compteur sans changer le defaut de production.
     """
     titre = valider_texte(titre, "titre de tache", MAX_TITRE)
     agent = valider_texte(agent, "nom d'agent", MAX_AGENT)
@@ -134,7 +188,8 @@ def ajouter(chemin_etat, titre, agent, niveau="backlog", corrige=None, chemin_jo
             for d in depend_de:
                 if d not in taches:
                     raise TacheInconnue(d)
-        ident = _prochain_id(taches)
+        ident = _prochain_id(taches, registre=registre, identite=identite,
+                             delai_registre=delai_registre)
         taches[ident] = {
             "titre": titre, "niveau": niveau, "etat": "ouverte",
             "cree": _maintenant(), "par": agent,

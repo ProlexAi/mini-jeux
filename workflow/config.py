@@ -30,6 +30,7 @@ sortant avec un code 0. On demande donc a Git, on ne devine pas.
 
 import json
 import os
+import re
 import subprocess
 
 DOSSIER_ETAT = ".workflow"
@@ -216,6 +217,77 @@ def nom_depot(rac=None):
     except (OSError, json.JSONDecodeError):
         declare = None
     return declare or os.path.basename(os.path.abspath(rac))
+
+
+# F04 (T-170) -- deux formes admises pour le remote origin, les seules dont la
+# normalisation est prouvee : `git@hote:chemin.git` (SSH) et
+# `https://[user@]hote/chemin(.git)`. Toute autre forme (ssh://, chemin local
+# de clone de test, protocole maison) degrade proprement vers l'URL en
+# minuscules -- voir `_normaliser_origine`.
+_RE_ORIGINE_SSH = re.compile(r"^[^@\s/]+@([^:\s/]+):(.+)$")
+_RE_ORIGINE_HTTP = re.compile(r"^https?://(?:[^@/\s]+@)?([^/\s]+)/(.+)$")
+
+
+def _normaliser_origine(url):
+    """`git@hote:chemin.git` et `https://hote/chemin(.git)` rendent la MEME forme.
+
+    Deux clones du meme depot n'utilisent pas forcement le meme protocole --
+    l'un en SSH, l'autre en HTTPS -- et doivent pourtant partager la meme
+    identite (F04). Sans cette normalisation, le compteur federe se
+    dedoublerait par protocole au lieu de se partager par depot.
+    """
+    url = (url or "").strip().lower()
+    m = _RE_ORIGINE_SSH.match(url) or _RE_ORIGINE_HTTP.match(url)
+    if not m:
+        # Forme non reconnue : on la degrade en la renvoyant telle quelle,
+        # en minuscules -- JAMAIS lever. Une identite degradee reste une
+        # identite valide tant que deux clones du meme remote produisent la
+        # meme chaine, ce qui est encore le cas ici (meme URL en entree).
+        return url
+    hote, chemin_ = m.group(1), m.group(2).strip("/")
+    if chemin_.endswith(".git"):
+        chemin_ = chemin_[:-4]
+    return "%s/%s" % (hote, chemin_)
+
+
+def identite_depot(rac=None):
+    """Identite Git intrinseque du depot -- independante de son chemin sur disque.
+
+    F04 (T-170) : LA PIECE QUI MANQUAIT A L'ALLOCATION D'IDENTIFIANTS.
+    `taches._prochain_id` calculait max+1 sur les taches de l'etat LOCAL --
+    deux clones du meme depot, chacun son `.workflow/state.json` ignore par
+    git (D-16), croient chacun partir de zero et allouent tous les deux T-001.
+    Decision de l'orchestrateur ProlexCore, option A : une identite qui ne
+    depend PAS du chemin sur le disque ni du nom du dossier -- les deux seules
+    choses que le registre connaissait jusque-la (`depots.json`, `nom_depot`).
+
+    ORDRE DE PREFERENCE :
+      1. l'URL du remote `origin`, normalisee (`_normaliser_origine`) -- SSH
+         et HTTPS du MEME depot rendent alors la MEME identite ;
+      2. a defaut de remote, le hash du commit racine
+         (`git rev-list --max-parents=0 HEAD`) -- le plus petit par ordre
+         lexical s'il y en a plusieurs (greffe, import, historique reecrit).
+         Deux depots SANS remote mais au MEME commit racine partagent alors
+         le compteur : rare, et SANS DANGER -- les numeros produits restent
+         uniques, ils sont seulement alloues dans un espace commun ;
+      3. a defaut de commit (depot vide, ou hors Git) : None. Aucune identite
+         calculable -- le comportement redevient l'actuel, local et
+         silencieux (voir `taches._prochain_id`).
+
+    NE LEVE JAMAIS : une identite non calculable est un cas normal, pas une
+    erreur -- le meme principe deja suivi par `registre()` pour un registre
+    non configure.
+    """
+    depart = os.path.abspath(rac or os.getcwd())
+    origine = _git(["config", "--get", "remote.origin.url"], depart)
+    if origine:
+        return _normaliser_origine(origine)
+    racines = _git(["rev-list", "--max-parents=0", "HEAD"], depart)
+    if racines:
+        commits = racines.split()
+        if commits:
+            return "commit:%s" % min(commits)
+    return None
 
 
 def agent():

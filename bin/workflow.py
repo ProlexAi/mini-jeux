@@ -279,6 +279,12 @@ def cmd_snapshot(args):
 def cmd_todo_add(args):
     rac = config.racine_partagee()
     agent = config.agent_obligatoire()
+    registre = config.registre(rac)
+    # F04 (T-170) : l'identite se calcule ICI, UNE SEULE FOIS par appel -- elle
+    # invoque git, et rien ne doit repeter cet appel par tache. None quand
+    # aucun registre n'est configure : inutile d'interroger git pour une
+    # valeur que `taches.ajouter` n'utiliserait de toute facon pas.
+    identite = config.identite_depot(rac) if registre else None
     try:
         ident = taches.ajouter(config.chemin_etat(rac), args.titre, agent,
                                niveau="todo" if args.actif else "backlog",
@@ -286,7 +292,8 @@ def cmd_todo_add(args):
                                chemin_journal=config.chemin_journal(rac),
                                depend_de=args.depend_de or None,
                                allowed_paths=args.allowed_paths or None,
-                               acceptance=args.acceptance)
+                               acceptance=args.acceptance,
+                               registre=registre, identite=identite)
     except taches.TacheInconnue as e:
         return _sortir(str(e))
     _regenerer_todo(rac)
