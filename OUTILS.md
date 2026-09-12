@@ -132,10 +132,18 @@ activés (`~/.claude/settings.json`, mesuré ce soir) : `prolex-agents`, `prolex
 
 ## 4. Serveurs MCP
 
-Aucun `.mcp.json`, ni dans le dépôt ni chez l'utilisateur (mesuré ce soir, inchangé). Disponible
-par le harnais et les plugins : `Claude_Browser` (mesure dans la page qui tourne), `visualize`,
-`terminal`, `ccd_session`, `hermes` (fenêtre fermée 08h-12h UTC+2 fixe, hook bloquant). Une
-quinzaine de connecteurs de plugins restent sans autorisation OAuth.
+Aucun `.mcp.json`, ni dans le dépôt ni chez l'utilisateur. Disponible par le harnais et les
+plugins : `Claude_Browser` — **il exécute du JS arbitraire dans la page**,
+c'est ce qui rend toute mesure de rendu possible ici, et le témoin qui le prouve tient en une
+commande, `preview_start` sur `snakeon` puis :
+
+```js
+// viewport nul = tous les chiffres suivants sont des inventions : le vérifier AVANT de mesurer
+({viewport: [innerWidth, innerHeight], rect: document.querySelector('h1').getBoundingClientRect()})
+```
+
+Puis `visualize`, `terminal`, `ccd_session`, `hermes` (fenêtre fermée 08h-12h UTC+2 fixe, hook
+bloquant). Une quinzaine de connecteurs de plugins restent sans autorisation OAuth.
 
 ---
 
@@ -198,7 +206,7 @@ d'outil, quel qu'en soit l'émetteur.
 | Manque | Conséquence | Le geste qui le comble |
 |---|---|---|
 | **`mini-jeux-scribe` écrit mais pas installé** | Inappelable — fiche dans `SOCLE/profils-agents/agents-scribes/`, aucun lien | L'installer si le besoin se confirme |
-| **Aucun agent de production propre au jeu** | Personne ne sait spécifiquement lire `index.html` (monolithe) ni mener une passe de mesure navigateur sans repasser par un agent générique | Un agent « mesure dans la page » à écrire, sur le critère du contexte isolé (pas fait ce soir : hors périmètre du prompt, §4) |
+| ~~Aucun agent de production propre au jeu~~ | **Ce manque tombe, mesuré le 2026-09-12** : la mesure dans la page ne demande ni agent ni MCP neuf. `mcp__Claude_Browser__javascript_tool` exécute du JS arbitraire dans la page servie — `getBoundingClientRect`, `getComputedStyle`, `DOMMatrix`, `save.settings.quality`, `navigator.serviceWorker.getRegistrations()` ont tous rendu leur valeur | Rien à installer. Le protocole, lui, vit dans `AGENTS.md` §Les pièges de mesure, chargé à chaque session |
 | **`codebase-memory-mcp` retiré** | Trois agents de socle inertes ici (`codebase-memory-scout`, `-verify`, `-auditor`) | Réinstaller — `ProlexCore/SOCLE/mcp/README.md` |
 | **Contrôles Windows injouables sous Kubuntu** | `verifie-chemins.py` ne prouve que sa branche Linux ; les `.ps1` non couverts | Les jouer depuis Windows, ou les déclarer hors périmètre |
 | **`SOCLE/agents/mini-jeux-projet.md` toujours présent** | Doublonne une partie du coffre et d'`AGENTS.md`, promis au retrait par D69/D121, **condition remplie** | Le retrait vit hors de ce dépôt : proposé à ProlexCore, ses pièges désormais versés dans `AGENTS.md` |
