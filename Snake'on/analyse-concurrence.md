@@ -276,3 +276,118 @@ malaisée sur un sprite déjà colorié ; et la cohérence entre images d'une pl
 est souvent mauvaise, ce qui se voit en boucle. Enfin, cela n'épargne pas le travail d'animation.
 
 *Ne pas rouvrir sans élément nouveau.*
+
+---
+
+## 5. Panorama marché : les cinq plus gros jeux du genre (recherche à la demande de Matt)
+
+*Recherché le 12/09/2026, à la demande de Matt (« les jeux de serpent qu'on voit sur YouTube,
+avec des drapeaux turcs, français, américains »). Question : qui sont les cinq plus gros jeux
+du genre, que font-ils, combien de joueurs, qu'en dit la communauté ? Sources : fiches Google
+Play / App Store, AppBrain, AppDashboard, WebGameDB, MMOStats, Wikipédia, NamuWiki (Wormax),
+PocketGamer, et relevés yt-dlp de vues YouTube. Chiffres relevés le jour même — ce sont des
+instantanés, pas des constantes.*
+
+### Le top 5 relevé (téléchargements Android cumulés, notes, date de sortie)
+
+| # | Jeu | Dev / éditeur | Sortie | Téléch. Android | Note Play (nb avis) |
+|---|---|---|---|---|---|
+| 1 | **slither.io** | Steve Howse / Lowtech | 03/2016 | **600 M** (30 j : +1,4 M) | 3,89/5 (5,57 M) |
+| 2 | **Worms Zone .io** | CASUAL AZUR GAMES | 2018 | **500 M** (30 j : +5 M) | 4,28/5 (3,06 M) |
+| 3 | **Snake.io** | Kooapps | 2016 | **100 M+** | ~4,4/5 (1,27 M avis) |
+| 4 | **Wormate.io** | Oleksandr Godoba | 08/2016 | **33 M** cumulés (compteur Play : 10 M+) | 3,32/5 (330 K) |
+| 5 | **Little Big Snake** | Addicting Games/Shockwave | 2018 | **33 M** | ~4,0-4,5/5 (303 K) |
+| (5 bis) | **Wormax.io** | Elyland | 11/2016 | 19 M | 4,6/5 (323 K) |
+
+Snake.io affiche aussi 1,27 M d'avis Play ; Worms Zone 3,09 M. Little Big Snake : 8,5 K notes
+App Store à 4,7 (mobile), 33 M d'install Android (AppDashboard).
+
+### slither.io — l'original (2016)
+
+- **Prédation : la masse ne protège de rien.** Tête contre corps = mort, quelle que soit la
+  taille. Le petit peut toujours tuer le gros (déjà acté en §1 de ce document).
+- **Skins : c'est LÀ que vivent les drapeaux.** 16 skins par défaut ; skins personnalisés avec
+  **drapeaux de pays** (US, Turquie, France… — confirmé Wikipédia et PocketGamer : « Flags Stars
+  and Stripes », schemes tricolores interprétés Russie/France, etc.), skins YouTubers
+  (Jacksepticeye, Jelly, PewDiePie), et créateur de skins « Build a Slither ». Ce sont ces skins
+  drapeaux que Matt reconnaît dans les vidéos YouTube.
+- **Boost qui paie en masse** : le génie du jeu — accélérer coûte de la longueur, laquelle
+  se re-dépose en pastilles mangeables. Le « cut-off » (couper la route d'un adversaire pour
+  que sa tête percute son corps) est le geste central.
+- **Chiffres activité (12/09/2026)** : CCU web ~18-21 K en moyenne 30 j, pic ~28 K, record
+  97 K (29/12/2025) — WebGameDB. MMOStats estime 24 – 11 K joueurs/jour (fourchette modélisée,
+  pas une mesure). Reddit r/slitherio : 12,1 K membres.
+- **Avis** : 3,89/5 sur 5,57 M d'avis Android — plaidé pour son équité (« pas de pay-to-win,
+  les skins ne se paient pas ») et critiqué pour le lag serveur et le rayon de giration qui
+  devient pénible au-delà de 5 000 de score. No-ads en 2026 sur la plupart des versions.
+- **YouTube** : vidéos records à 98 M de vues (Slither.io A.I. 200k+), compilations « world
+  record » à 1-10 M de vues. Le genre vit encore très bien sur YouTube.
+
+### Worms Zone .io — le plus gros mobile (Azur Games)
+
+- Formule slither adoucie et **power-ups actifs** (aimant, gel, accélération…) + trois
+  « tactiques » affichées (fighter / trickster / builder).
+- **Peuplement en grande partie en bots** (avis : « I'm playing a bunch of bots ») — le
+  multi réel y est moins dense que le marketing le laisse croire.
+- Skins très nombreux, style cartoon coloré, très accessible.
+- Avis : 4,28/5 sur 3 M — récurrents : pubs longues (>1 min), leaderboard « qui ment »
+  (scores qui apparaissent magiquement), boucliers achetables jugés injustes.
+- 500 M de téléchargements, +5 M/30 j : c'est le mastodonte mobile du genre.
+
+### Snake.io (Kooapps) — le multi-plateforme
+
+- Slither-like mobile **avec mode hors-ligne (bots)** et événements mensuels live-ops
+  (boss snake, skins thématiques), mode deux joueurs sur le même écran.
+- 100 M+ de téléchargements, 1,27 M d'avis, ~4,4/5.
+- Avis positifs sur la fluidité et les sessions courtes ; critiques classiques (pubs, IA
+  offline faible).
+
+### Wormate.io — le « candy slither »
+
+- Visuel bonbon/sucrerie (donuts, gâteaux), power-ups, croissance plus rapide — slither.io
+  « sans friction », très populaire chez les plus jeunes.
+- 33 M de téléchargements cumulés (AppBrain), mais **3,32/5 seulement sur 330 K d'avis** :
+  la note la plus faible du top 5 (pubs aggressives, monétisation jugée lourde).
+- Web + mobile ; le multi y est perçu comme vivant et chaotique.
+
+### Little Big Snake — le plus « méta-jeu »
+
+- Slither + **progression persistante** : niveaux, quêtes, clans, artefacts, nectar, abonnement
+  VIP, mode battle-royale et une mouette compagnon. Le plus éloigné du « boire et grandir » pur.
+- 33 M d'install Android, ~4,0-4,5 selon la plateforme.
+- Avis : adoration de la profondeur et des skins ; critiques fortes sur le **lag serveur**
+  (deaths attribuées au lag, pas au skill), le pay-to-advance (gems/VIP) et une partie de
+  l'arène remplie de bots.
+
+### Wormax.io (5 bis) — le clone le plus proche de slither avec des mécaniques actives
+
+- Deux **compétences actives** uniques dans le genre : **Stop instantané** (W) et **Ghost**
+  (traverser les autres sans mourir, E) — débloquées à 100 et 500 points.
+- **Skins par pays** confirmés (NamuWiki : « There are also skins for each country », qui
+  alimentent des tournois type Corée-Japon) — deuxième source de drapeaux après slither.io.
+- Leagues, essence, boutique d'artefacts ; 19 M d'install, **4,6/5** — la meilleure note du
+  groupe ; critique récurrente : lag mobile.
+
+### Ce que le genre montre (enseignements transverses 12/09/2026)
+
+1. **Les drapeaux sont un standard du genre** (slither.io skins custom pays, Wormax skins pays
+   achetables) — c'est un marqueur d'appartenance communautaire et une source de contenu YouTube.
+   Snake'on n'a aucun équivalent (skins procéduraux à teinte imposée uniquement).
+2. **Tous les gros mobiles mélangent bots et humains** — Worms Zone et Little Big Snake sont
+   ouvertement décrits comme en partie peuplés de bots. La partie privée de Snake'on (hôte +
+   bots authentiques) est mécaniquement plus honnête.
+3. **La note store et la monétisation sont inversement liées** : Wormate (3,32) et Worms Zone
+   (pubs longues) pâtissent de leur monétisation ; slither.io et Wormax (pas de pay-to-win)
+   tiennent les meilleures notes.
+4. **Le lag est LA critique commune n°1** de tout le genre — c'est aussi l'avantage structurel
+   d'un jeu local/partie privée comme Snake'on.
+5. **La vidéo YouTube du genre est le « record »** (world record, biggest snake, 10-98 M de
+   vues sur les hits) — un jeu pensé pour être lisible et spectaculaire en vidéo.
+
+### Ce qu'on en fait pour Snake'on (aucune décision prise — matière pour Matt)
+
+- Skins drapeaux (T-005/T-006 en backlog touchent déjà boutique/monnaie) : option à arbitrer,
+  ce serait un contenu à faible coût mécanique, fort en lisibilité vidéo.
+- Les compétences actives de Wormax (stop, ghost) sont le diff le plus copié du genre.
+- Aucune de ces références ne propose de **prédation par masse** sur serpent — le croisement
+  de Snake'on reste unique (cf. §2 bis).
