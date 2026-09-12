@@ -1443,6 +1443,20 @@ const CONFIG = {
     BOT_FLEE_RANGE: 150,       // distance a laquelle un bot detecte un predateur et fuit
     BASE_MASS: 10,             // masse de depart, egale a la longueur de depart
     EAT_MASS_RATIO: 1.25,      // +25 % de masse pour absorber (modele agar.io, cf. analyse-concurrence.md §1)
+    // L'ECART, pas la marge, protege : il faut etre CUT_MASS_RATIO fois plus lourd pour COUPER
+    // le corps d'un serpent. En dessous de cet ecart, le contact avec un corps reste un mur
+    // (recul, aucune perte). La devoration TETE-A-TETE, elle, reste reglee par EAT_MASS_RATIO
+    // (marge faible, +25 %) : un gros peut toujours avaler un petit qui fonce sur lui. Choix
+    // Matt 12/09 : 3.0, soit l'attaquant doit peser 3x la cible (la cible peut peser jusqu'a
+    // 33 % de sa masse et rester incoupable). Modele par paliers de mope.io, cf.
+    // analyse-concurrence.md §6.
+    CUT_MASS_RATIO: 3.0,
+    // Apres une decoupe, la victime est incoupable pendant CUT_IMMUNITY_MS : fini le rabotage
+    // en chaine par plusieurs contacts successifs. Posee en MEME TEMPS que le sursaut de
+    // vitesse de 5 s (cutSnake applique 'speed') : la fenetre d'incoupabilite DURE autant que
+    // la fuite qu'elle autorise (choix Matt 12/09). Pas un nouveau conteneur : un horodatage
+    // par serpent, compare a l'horloge de simulation (gnow), comme powerupEnds.
+    CUT_IMMUNITY_MS: 5000,
     // Plus de plafond de masse pour les bots : le joueur n'en a aucun, un adversaire capable de
     // le rattraper et de le battre en jeu long en a besoin lui aussi. Seul BOT_MAX_LENGTH continue
     // de plafonner leur affichage (segments), comme MAX_LENGTH le fait pour le joueur.
@@ -3693,6 +3707,10 @@ class Snake {
         // 'poison' n'est pas un power-up mais un malus de pastille poison (-30 % vitesse 3 s) ;
         // on réutilise le même conteneur pour ne pas multiplier les champs.
         this.powerupEnds = { speed: 0, magnet: 0, invincible: 0, poison: 0 };
+        // Incoupabilite post-decoupe : horodatage (horloge de simulation) au-dela duquel le
+        // corps peut etre recoupe. Zero au spawn — le respawn recree l'objet, aucune Memoire
+        // d'une vie a l'autre. Pose par cutSnake, lu par la boucle de collision (corps/tete).
+        this.cutImmuneUntil = 0;
         for (let i = 0; i < this.length; i++) this.segments.push({ x: this.x, y: this.y });
     }
 
@@ -6164,6 +6182,11 @@ function devour(winner, loser) { killSnake(winner, loser, 0); }
 function cutSnake(attacker, target, atIndex) {
     const removed = target.length - atIndex;
     if (removed <= 0) return;
+    // Fenetre d'incoupabilite posee AVANT toute action de la decoupe : pendant CUT_IMMUNITY_MS
+    // (meme duree que le sursaut 'speed' applique plus bas), aucun attaquant ne peut recouper
+    // ce corps — un second contact ne sera qu'un mur. C'est ce qui interdit le rabotage en
+    // chaine (couper, recouper, recouper jusqu'a la tete sans laisser de chance).
+    target.cutImmuneUntil = gnow() + CONFIG.CUT_IMMUNITY_MS;
     const cutPoint = target.segments[atIndex] || { x: target.x, y: target.y };
     scatterCorpseFood(target, atIndex, removed);
     target.cut(atIndex);
@@ -6361,12 +6384,18 @@ function checkCollisions() {
             }
             hitIndex = bestIndex;
 
-            if (attacker.beats(target)) {
+            // L'ECART donne le droit de couper : il faut peser CUT_MASS_RATIO fois la cible.
+            // Sinon — le cas d'un petit qui bute contre un gros, ou de deux gabarits proches —
+            // le corps reste un mur : recul, aucune perte. La deviation tete-a-tete reste
+            // reglee par EAT_MASS_RATIO, elle ne change pas.
+            if (attacker.mass >= target.mass * CONFIG.CUT_MASS_RATIO
+                && gnow() >= target.cutImmuneUntil) {
                 cutSnake(attacker, target, hitIndex);
             } else {
-                // Mur : on repousse juste la tete hors du corps touché. Ne s'applique QUE si
-                // l'attaquant n'a pas la masse superieure — on ne bute jamais sur plus petit
-                // que soi (cf. analyse-concurrence.md §1).
+                // Mur : on repousse juste la tete hors du corps touché. Atteint desormais dans
+                // DEUX cas : l'attaquant n'a pas l'ecart requis (CUT_MASS_RATIO), ou la cible
+                // est dans sa fenetre d'incoupabilite post-decoupe. On ne bute jamais sur plus
+                // petit que soi au sens du DEVOUREMENT (EAT_MASS_RATIO), cf. analyse-concurrence.md §1.
                 const seg = segs[hitIndex];
                 const dx = attacker.x - seg.x, dy = attacker.y - seg.y;
                 const d = Math.hypot(dx, dy) || 1;
