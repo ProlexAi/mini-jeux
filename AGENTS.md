@@ -24,6 +24,43 @@ ligne**, sans repasser par lui entre chaque étape.
   défaut invisible sur un screenshot pris juste après le chargement. Attendre 5-10s avant de
   capturer.
 
+## Les pièges de mesure de ce dépôt
+
+Ici l'instrument ment plus souvent que le code. Ces cinq-là sont mesurés, et chacun fait
+conclure faux sans jamais lever d'erreur.
+
+**Le service worker sert une version fantôme.** Le premier essai après un correctif a rendu
+« toujours cassé » alors que le disque était bon : c'était le SW qui servait l'ancien
+`index.html`. Une passe de test entière perdue le 2026-09-07. Deux gestes en découlent :
+
+- interroger le **runtime** plutôt que le fichier — par exemple `netStyleFrom.toString()` dans
+  la console, qui dit ce qui tourne vraiment ;
+- désinscrire le SW et vider les caches avant de conclure quoi que ce soit.
+
+**Un onglet en arrière-plan fige la boucle de jeu.** `document.visibilityState === 'hidden'`
+suspend `requestAnimationFrame`, au point qu'un `await` sur une frame expire. Sous Wayland,
+aucun script ne met au premier plan la fenêtre d'une autre application — c'est une limite de
+conception, pas un outil manquant. Deux clients ne se capturent donc pas simultanément : il
+faut les mettre au premier plan à tour de rôle, ou cadencer `gameLoop` à la main.
+
+**La qualité graphique se dégrade toute seule.** Sous le seuil de fps, le jeu descend de HIGH à
+MEDIUM sans qu'on l'ait demandé (`save.settings.quality`). Un pilotage headless tourne autour de
+2 fps : la qualité chute pendant la mesure. La remettre à HIGH avant toute capture de skin.
+
+**Sans viewport réel, `window.innerWidth` vaut 0** et tous les chiffres de monde deviennent des
+inventions — le code retombe sur `WORLD_MIN`. Forcer un viewport réel (1100×700, la référence du
+dépôt) avant toute mesure, puis rejouer en 375×812.
+
+**Snake'on est un monolithe.** Tout — CSS, JS, HTML, dictionnaires de traduction — vit dans le
+seul `Snake'on/index.html`. Sa taille se mesure :
+
+```bash
+python3 -c "t=open(\"Snake'on/index.html\",encoding='utf-8').read();print(t.count(chr(10))+1,len(t))"
+```
+
+L'édition se fait par motif unique, diff relu. Une réécriture globale du fichier détruit du code
+qui n'a jamais été lu.
+
 ## Lire une maquette exportée depuis Claude Design
 
 Les maquettes déposées dans ce dépôt (ex. `Snake'on/Snake'on - Eclat neon au clic.html`) sont
