@@ -3,9 +3,9 @@
 Ce dont l'agent **mini-jeux** dispose : à qui déléguer, quoi jouer, quoi servir. Rang **dédié**
 (D59/D60) — il écrit dans son dépôt, délègue la production, vérifie, rend compte.
 
-*Relevé le 2026-09-11 au soir, dépôt `/home/matt/mini-jeux`, session d'implantation
-(D82/D104). Chaque ligne a été rejouée ce soir, sauf mention contraire. Ce qui n'a pas pu
-l'être est marqué « non vérifié ».*
+*Posé le 2026-09-11 au soir (D82/D104), repris le 2026-09-12 sur l'audit d'alignement au socle
+(T-013). Ce document porte l'**opératoire** : quand un chiffre est rejouable, c'est la commande
+qui figure ici, pas sa valeur du jour. Ce qui n'a pas pu être joué est marqué « non vérifié ».*
 
 ---
 
@@ -24,17 +24,24 @@ l'être est marqué « non vérifié ».*
 | Diagnostiquer une panne jusqu'à sa cause | `apex-investigator` | plugin `apex` |
 | Relire un changement par le risque | `apex-reviewer` | plugin `apex` |
 
-**Mesuré** : `/home/matt/mini-jeux/.claude/agents/` n'existe pas — le dépôt n'a toujours aucun
-agent à lui. Les neuf liens de `~/.claude/agents/` pointent tous vers
-`ProlexCore/SOCLE/agents/`. `orchestrateur-federe` n'est plus inerte ici depuis WP5 (2026-09-09) :
-le kit est posé et fédéré (§2). Les trois `codebase-memory-*` restent **hors service** —
-`codebase-memory-mcp` toujours absent (`ListMcpResourcesTool`/`.mcp.json` néant, voir §4).
+`/home/matt/mini-jeux/.claude/agents/` n'existe pas — le dépôt n'a aucun agent à lui, et tout
+ce qu'il invoque vient de `~/.claude/agents/`, dont les liens pointent vers
+`ProlexCore/SOCLE/agents/`. Le compte se rejoue, il ne se recopie pas :
 
-`SOCLE/agents/mini-jeux-projet.md` (lien `~/.claude/agents/mini-jeux-projet.md`, mesuré présent)
-reste en place ce soir : D69 le retire « quand l'orchestrateur dédié de son dépôt est posé », mais
-seulement une fois la branche fusionnée sur `main` — même précédent que KmopBudget, dont le
-retrait a attendu la fusion. Ma branche (`orchestration-2026-09-11`) ne l'est pas. Suite à
-proposer à Matt une fois la fusion faite (équivalent local de T-172).
+```bash
+ls ~/.claude/agents/ | wc -l ; ls -l ~/.claude/agents/ | head -3    # combien, et vers où
+```
+
+`orchestrateur-federe` n'est plus inerte ici depuis WP5 (2026-09-09) : le kit est posé et fédéré
+(§2). Les trois `codebase-memory-*` restent **hors service** — `codebase-memory-mcp` toujours
+absent (`ListMcpResourcesTool`/`.mcp.json` néant, voir §4).
+
+`SOCLE/agents/mini-jeux-projet.md` (lien `~/.claude/agents/mini-jeux-projet.md`) est **promis au
+retrait, et sa condition est remplie** : D69 le retire quand l'orchestrateur dédié de son dépôt
+est posé, et D121 précise « à la fusion de l'implantation, pas à sa pose sur une branche ». La
+fusion est faite — `git merge-base --is-ancestor orchestration-2026-09-11 main` rend vrai. Le
+retrait lui-même vit hors de ce dépôt : il revient à ProlexCore, après que ses pièges détaillés
+sont passés dans `AGENTS.md` (fait le 2026-09-12).
 
 ---
 
@@ -42,7 +49,7 @@ proposer à Matt une fois la fusion faite (équivalent local de T-172).
 
 Zéro dépendance, zéro build. Les contrôles sont des fichiers autonomes, joués à la main.
 
-### Le kit `agent-workflow` — 1.22.0, fédéré
+### Le kit `agent-workflow` — fédéré
 
 ```bash
 WORKFLOW_AGENT=<ton-nom> python3 bin/workflow.py snapshot     # tâches réservées, par qui
@@ -50,9 +57,19 @@ WORKFLOW_AGENT=<ton-nom> python3 bin/workflow.py claim/done   # réserver, clore
 python3 /home/matt/ProlexCore/SOCLE/kits/agent-workflow/installer.py . --controle
 ```
 
-Mesuré ce soir : socle 1.22.0, installé 1.22.0, conforme. `.workflow/local.json` porte
-`agents: ["claude-mini-jeux", "git"]` (T-055) — non versionné (gitignoré par le kit lui-même,
-motif dans `.workflow/.gitignore`). 4 dépôts fédérés au registre.
+La version ne se recopie pas ici : `--controle` la dit, et c'est la seule à croire —
+`cat .workflow/VERSION` donne l'installée, le contrôle dit si elle vaut celle du socle.
+
+`.workflow/local.json` porte les identités que ce dépôt alloue — non versionné (gitignoré par le
+kit lui-même, motif dans `.workflow/.gitignore`), lu directement par la garde A1 :
+
+```bash
+python3 -c "import json;print(json.load(open('.workflow/local.json'))['agents'])"
+```
+
+**Le suivi vit dans `backlog.md`**, généré par le kit et jamais édité à la main (D40). Le nom
+`TODO.md` appartient à l'ancienne convention : il a été retiré le 2026-09-12, le kit ne l'écrivant
+plus depuis la pose de la 1.23.0.
 
 ### Les quatre contrôles rejouables du jeu — canon au §9 de `Snake'on/cahier-des-charges-ui.md`
 
@@ -134,10 +151,26 @@ antérieure faisait `git add -A`, contournant le pathspec explicite d'`AGENTS.md
 |---|---|---|
 | `PreToolUse` / Bash | `gardes-shell.py` | gardes sur les commandes shell |
 | `PreToolUse` / Bash + `mcp__hermes__.*` | `hermes_window.py` | refuse Spark 08h-12h UTC+2 |
+| `PreToolUse` / `Write\|Edit` | `gardes-shell.py --observe`, `garde-identite.py` | observent l'écriture de fichier, ne bloquent pas |
 | `PostToolUse` / Skill | `log_skill_use.py` | journalise l'usage des skills |
-| `SessionStart` | `injecter-revisions.py`, `garde-worktree-a-jour.py`, `indexer-sessions.py` | reprise, worktree, index |
+| `SessionStart` | `injecter-revisions.py`, `garde-worktree-a-jour.py`, `indexer-sessions.py --quiet`, `ping-orchestrateurs.py --hook` | reprise, worktree, index, qui d'autre travaille |
 | `SessionEnd` | `balayer-ledger.py` | balaye le registre |
-| `Stop` | `reviser-session.py` | révision de fin de session |
+| `Stop` | `reviser-session.py`, `todo-a-jour.py` | révision de fin de session, **et refus de rendre si `backlog.md` est en retard** (D86) |
+
+La table se rejoue plutôt que se croire — le fichier porte les scripts sous `args`, pas dans
+`command`, et un relevé qui lit `command` ne ramasse que « python3 » :
+
+```bash
+python3 -c "
+import json
+s=json.load(open('/home/matt/.claude/settings.json'))
+[print(k,'|',m.get('matcher','-'),'|',' '.join(x.split('/')[-1] for x in h.get('args',[])))
+ for k,v in s['hooks'].items() for m in v for h in m['hooks']]"
+```
+
+`Stop`, `SessionStart` et `SessionEnd` tiennent au cycle de la session de premier niveau : **ils
+ne se déclenchent pas pour un sous-agent**. `PreToolUse`/`PostToolUse` s'appliquent à tout appel
+d'outil, quel qu'en soit l'émetteur.
 
 ---
 
@@ -147,8 +180,10 @@ antérieure faisait `git add -A`, contournant le pathspec explicite d'`AGENTS.md
   `.nojekyll` à la racine et dans `Snake'on/` (mesuré présent ce soir). Pousser, c'est publier.
 - **Aucun serveur applicatif, aucune base, aucune API.** Progression du joueur dans le
   `localStorage` du navigateur, jamais dans le dépôt.
-- **Coffre Obsidian** : `Obsidian_MiniJeux/`, gitignoré, jamais publié (D85, posé ce soir —
-  §2ter du rapport d'état).
+- **Coffre Obsidian** : `Obsidian_MiniJeux/`, gitignoré, jamais publié (D85). **Son emplacement
+  n'est plus une question ouverte** : D117 tranche que le coffre vit dans le dépôt, et qu'un dépôt
+  public l'ignore — exactement ce qui est posé ici. Garde : `git ls-files Obsidian_MiniJeux`
+  doit rendre zéro ligne.
 - **Génération d'assets** : ComfyUI local, un seul LoRA actif à la fois (VRAM 16 Go). Chemin du
   dossier LoRAs — non vérifié sous Kubuntu.
 - **Worktrees** : ils vivent sous `~/.worktrees/mini-jeux/<branche>` (D151 de ProlexCore, 2026-09-12), et se
@@ -162,10 +197,11 @@ antérieure faisait `git add -A`, contournant le pathspec explicite d'`AGENTS.md
 |---|---|---|
 | **`mini-jeux-scribe` écrit mais pas installé** | Inappelable — fiche dans `SOCLE/profils-agents/agents-scribes/`, aucun lien | L'installer si le besoin se confirme |
 | **Aucun agent de production propre au jeu** | Personne ne sait spécifiquement lire `index.html` (monolithe) ni mener une passe de mesure navigateur sans repasser par un agent générique | Un agent « mesure dans la page » à écrire, sur le critère du contexte isolé (pas fait ce soir : hors périmètre du prompt, §4) |
-| **`codebase-memory-mcp` retiré** | Trois agents de socle sur neuf inertes ici | Réinstaller — `ProlexCore/SOCLE/mcp/README.md` |
+| **`codebase-memory-mcp` retiré** | Trois agents de socle inertes ici (`codebase-memory-scout`, `-verify`, `-auditor`) | Réinstaller — `ProlexCore/SOCLE/mcp/README.md` |
 | **Contrôles Windows injouables sous Kubuntu** | `verifie-chemins.py` ne prouve que sa branche Linux ; les `.ps1` non couverts | Les jouer depuis Windows, ou les déclarer hors périmètre |
-| **`SOCLE/agents/mini-jeux-projet.md` toujours présent** | Doublonne une partie du coffre et d'`AGENTS.md`, promis au retrait par D69 | Le proposer à Matt une fois la branche de ce soir fusionnée sur `main` |
-| **`AGENTS.md` n'a pas les pièges détaillés de `mini-jeux-projet.md`** (SW fantôme nommé, Wayland, qualité graphique adaptative) | Cette richesse ne vit que dans un sous-agent promis au retrait et dans le coffre versé ce soir | Proposer leur fusion dans `AGENTS.md` avant le retrait ci-dessus, pour ne rien perdre |
+| **`SOCLE/agents/mini-jeux-projet.md` toujours présent** | Doublonne une partie du coffre et d'`AGENTS.md`, promis au retrait par D69/D121, **condition remplie** | Le retrait vit hors de ce dépôt : proposé à ProlexCore, ses pièges désormais versés dans `AGENTS.md` |
+| **La garde A1 du kit refuse les identifiants que D151 demande** | D151 veut `claude-<depot>-<tache>` pour tout agent lancé ; `.workflow/local.json` n'alloue que `claude-mini-jeux` et `git`, donc un sous-agent conforme à D151 est **bloqué** | Allouer l'identifiant de la tâche dans `local.json` avant de lancer l'agent — mesuré le 2026-09-12, un nom non alloué rend `EXIT=1` |
+| **Aucune ligne d'ouverture n'énumère les skills invocables** | D149 a mesuré qu'une session voit un seul skill dans son listing alors que des dizaines sont invocables ; sans la ligne, le réflexe « ça existe déjà ? » ne peut pas jouer | `python3 /home/matt/ProlexCore/GOUVERNANCE/scripts/lister-skills-invocables.py` — porté à `CLAUDE.md` §Ouvrir le 2026-09-12 |
 
 ---
 
