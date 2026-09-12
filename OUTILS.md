@@ -187,8 +187,9 @@ d'outil, quel qu'en soit l'émetteur.
   doit rendre zéro ligne.
 - **Génération d'assets** : ComfyUI local, un seul LoRA actif à la fois (VRAM 16 Go). Chemin du
   dossier LoRAs — non vérifié sous Kubuntu.
-- **Worktrees** : ils vivent sous `~/.worktrees/mini-jeux/<branche>` (D151 de ProlexCore, 2026-09-12), et se
-  retirent dans le geste qui fusionne leur branche. `.claude/worktrees/` existe encore, vide et ignoré par Git.
+- **Worktrees** : ils vivent sous `~/.worktrees/mini-jeux/<branche>` (D151), et se retirent dans
+  le geste qui fusionne leur branche. `.claude/worktrees/`, vide et jamais utilisé, a été retiré
+  le 2026-09-12 — sa ligne reste dans `.gitignore:18`, et un `mkdir` le recrée si besoin.
 
 ---
 
