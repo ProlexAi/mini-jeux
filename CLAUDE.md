@@ -74,10 +74,10 @@
 - Déclarer ton budget d'agents en tête de tâche, et dire à chaque sous-agent ce qu'il peut
   écrire et où — par défaut, rien, et s'il peut en lancer d'autres — par défaut, non. Son
   modèle s'écrit toujours, `sonnet` ou `haiku` : sans lui, il hérite du plus cher.
-- Un agent qui **écrit** ici prend son worktree et sa branche (D151) — `git worktree add -b
-  <tache> ~/.worktrees/mini-jeux/<tache> main`, retiré dans le geste qui fusionne. Son
-  identifiant porte sa tâche, `claude-mini-jeux-<tache>`, **déclaré dans `.workflow/local.json`
-  avant son départ** : sinon la garde A1 du kit le refuse.
+- Un agent qui **écrit** ici prend son worktree et sa branche (D151) : `git worktree add -b
+  <tache> ~/.worktrees/mini-jeux/<tache> main`, retiré dans le geste qui fusionne. Écrire son
+  identifiant `claude-mini-jeux-<tache>` dans `.workflow/local.json` **du même geste**, et l'en
+  retirer avec lui (D164) — une étape à part se saute, et la garde A1 refuse alors l'agent.
 - Proposer à Matt un spécialiste dès qu'un même contexte isolé se redemande deux fois ; tu le
   crées sans validation préalable et l'inscris à `OUTILS.md` le jour même.
 
