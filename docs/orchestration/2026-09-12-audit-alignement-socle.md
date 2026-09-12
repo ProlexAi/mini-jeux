@@ -42,7 +42,7 @@ qui le dit lui-même. Les commits datés qui citent « D150 » visent D148.
 |---|---|---|
 | D148 | La règle « une question à la fois, autant qu'il en faut » n'était portée par **aucune** des quatre surfaces — `grep -n "question"` rendait zéro ligne. ProlexCore l'avait déjà mesuré : « mini-jeux ne porte pas la règle » | Entrée à `CLAUDE.md` §Tenir le travail, avec les deux lectures fausses nommées (le plafond, le paquet) |
 | D149 | Aucune ligne d'ouverture n'énumérait les skills invocables. `grep "lister-skills-invocables\|inventorier-actifs"` : zéro | `CLAUDE.md` §Ouvrir cite désormais `lister-skills-invocables.py` |
-| D151 | Portée par `OUTILS.md` §6 seulement — un inventaire, pas une surface d'ordres. Et l'identifiant dérivé de la tâche que D151 demande est **refusé par la garde A1 du kit** (voir §2) | Entrée à `CLAUDE.md` §Déléguer, avec la garde qui manquait : déclarer l'identifiant dans `.workflow/local.json` avant de lancer l'agent |
+| D151 | **Partiellement portée**, et c'est la nuance : `git show 3c67233:OUTILS.md` la montre déjà à la ligne 154, posée par le commit `bf250a5`. Mais `OUTILS.md` est un inventaire, pas une surface d'ordres — aucun ordre ne la portait. Et l'identifiant dérivé de la tâche que D151 demande est **refusé par la garde A1 du kit** (voir §2) | Entrée à `CLAUDE.md` §Déléguer, avec la garde qui manquait : déclarer l'identifiant dans `.workflow/local.json` avant de lancer l'agent |
 | D154 | `CLAUDE.md:16` renvoyait à `docs/archive/`, **un dossier qui n'existe pas** : `ls docs/` rend `active`, `inbox`, `migration-linux`, `orchestration`, `travaux-en-cours` | Le renvoi mort est remplacé par le test de D154 : ce qui raconte ne bouge pas, ce qui prescrit prend un bandeau daté |
 | D125 | Le contrôle de ton n'avait pas été rejoué depuis le 2026-09-11 | Rejoué ce jour sur les 7 fichiers. Deux `[VOIR]` subsistent, motivés plutôt que faits taire (§3) |
 
@@ -110,6 +110,25 @@ dont ma réécriture d'en-tête avait fait tomber la date de relevé. R-09 joué
 
 ---
 
+## 3bis. Ce que la contre-passe a fait tomber
+
+Dix affirmations d'état ont été remises, **sans le raisonnement qui y mène**, à un agent qui ne
+les avait pas produites. Sept tenues, une non vérifiable, **deux tombées** :
+
+- **Un chiffre d'avance écrit en dur.** Le §5 disait « rend `0 13` ». L'agent a mesuré `0 18`, et
+  au moment où j'écris ces lignes c'est `0 19` : mes six commits de la session l'ont fait bouger
+  trois fois en une heure. Les deux mesures étaient justes à leur instant — le défaut est d'avoir
+  recopié une valeur là où la commande devait figurer. Corrigé : le §5 porte la commande.
+- **« D148, D149, D151, D154 n'apparaissaient dans aucune des quatre surfaces. »** Faux pour
+  D151 : `git show 3c67233:OUTILS.md` la porte déjà, ligne 154. Le tableau du §1 disait bien
+  « portée par `OUTILS.md` §6 seulement » ; c'est la formule courte qui débordait. Corrigé, et la
+  ligne de D151 est reclassée en **partiellement portée**.
+
+**La non vérifiable mérite d'être dite** : que `sync` ne réécrivait pas `TODO.md` a été mesuré
+avant son retrait, par deux exécutions à mtime inchangé. Le fichier n'existant plus, personne ne
+peut rejouer cette mesure — l'instrument a été consommé par le geste qu'il justifiait. Elle reste
+au journal, datée, et ne vaut que pour ce qu'elle est : une mesure d'auteur, non contre-passée.
+
 ## 4. Ce qui a changé sur disque
 
 | Commit | Geste |
@@ -125,11 +144,17 @@ dont ma réécriture d'en-tête avait fait tomber la date de relevé. R-09 joué
 
 **Pour Matt** — chacun avec sa recommandation :
 
-1. **Pousser `main`.** `git rev-list --left-right --count origin/main...main` rend `0 13` : onze
-   journées de travail, fusionnées en local, absentes d'`origin` et donc du site en ligne.
-   Pousser, c'est publier. *Recommandation : pousser, mais après avoir joué les quatre contrôles
-   du §9 depuis l'URL de production, et seulement si `CACHE_VERSION` a été montée — aucun commit
-   de ce lot ne touche le code du jeu, donc le bump n'est pas dû, ce qui est à vérifier avant.*
+1. **Pousser `main`.** L'avance se mesure, elle ne se recopie pas — elle bouge à chaque commit :
+
+   ```bash
+   git fetch && git rev-list --left-right --count origin/main...main   # gauche = retard, droite = avance
+   ```
+
+   Onze journées de travail sont fusionnées en local et absentes d'`origin`, donc du site en
+   ligne. Pousser, c'est publier. *Recommandation : pousser, mais après avoir joué les quatre
+   contrôles du §9 depuis l'URL de production, et seulement si `CACHE_VERSION` a été montée —
+   aucun commit de ce lot ne touche le code du jeu, donc le bump n'est pas dû, ce qui est à
+   vérifier avant.*
 2. **Le sort de `.workflow/local.json` face à D151** (§2). *Recommandation : laisser la garde
    close et déclarer chaque identifiant de tâche à la main — trois caractères de friction contre
    une garde qui a déjà mordu.*
