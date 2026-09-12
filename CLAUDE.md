@@ -12,11 +12,13 @@
 - Déclarer ton périmètre avant d'écrire, `python3 bin/workflow.py claim <T-xxx> --surface
   <chemin> --motif "…"`, et clore avec ce que `--verif` fait constater réellement, `python3
   bin/workflow.py todo done <T-xxx> --verif "…"`.
-- Une tâche que le `snapshot` montre réservée par un autre agent reste hors de portée ; un
-  document sous `docs/archive/` est figé — le relire coûte du contexte pour une information qui
-  ne changera plus.
+- Une tâche que le `snapshot` montre réservée par un autre agent reste hors de portée.
+- Un daté de `docs/orchestration/` ou de `JOURNAL/` **raconte** et ne se réécrit pas ; ce qui
+  **prescrit** reçoit un bandeau daté quand il vieillit (D154).
 - Lire `OUTILS.md`, et le mettre à jour dans la session même où un agent, un skill, un contrôle
   ou un hook apparaît, change de rôle ou disparaît.
+- Savoir ce qui est invocable avant de produire — le listing du harnais n'en montre qu'une part
+  (D149) : `python3 /home/matt/ProlexCore/GOUVERNANCE/scripts/lister-skills-invocables.py`.
 
 ## Tenir le travail
 
@@ -32,20 +34,19 @@
   vérifications de l'auteur.
 - **R-09** : un rendu refusé par un vérificateur — ton, test, contre-passe — repart en boucle
   jusqu'à passer. Une preuve de fin est sa sortie qui passe, jamais un contrôle contourné.
+- Poser tes questions **une à la fois**, autant qu'il en faut (D148) — ni plafond d'une seule,
+  ni paquet de cinq. Chacune porte son objet, ce qui y a mené, et ta recommandation.
 - Conclure tout rendu par ce qui reste ouvert et ce qui attend un arbitrage de Matt.
 
 ## Le jeu, et le dépôt public
 
 - Monter `CACHE_VERSION` d'un cran dans `Snake'on/sw.js`, dans le commit du changement — sans
   bump, un joueur qui a installé la PWA garde les anciens assets.
-- Avant de conclure qu'un correctif front ne marche pas, désinscrire le service worker et vider
-  les caches : il sert une version fantôme pendant les tests, piège déjà payé.
-- Aucune donnée personnelle, aucune progression de joueur (`localStorage`), aucun fichier du
-  coffre `Obsidian_MiniJeux/` ne rentre dans un commit — ce dépôt est **public**, servi tel quel
-  par GitHub Pages : ce qui entre est publié.
+- Tenir hors de tout commit les données personnelles, la progression de joueur (`localStorage`)
+  et `Obsidian_MiniJeux/` : ce dépôt est **public**, ce qui entre est publié.
 - Repérer une section de `Snake'on/index.html` par ses bannières de sommaire, prendre tout
-  chiffre de gameplay dans l'objet `CONFIG`, et faire porter un document la commande qui le
-  relit plutôt que sa valeur.
+  chiffre de gameplay dans `CONFIG`, et faire porter à un document la commande qui le relit.
+- Jouer les cinq pièges de mesure listés par `AGENTS.md` avant de conclure sur un correctif.
 
 ## Avant d'annoncer qu'une chose marche
 
@@ -53,7 +54,6 @@
   et lire leur sortie entière, jamais leur seul code de retour.
 - Faire trancher une valeur mesurée dans la page — `getBoundingClientRect`, styles calculés,
   `DOMMatrix` — en desktop **et** en 375×812 mobile.
-- Laisser tourner 5 à 10 secondes avant de capturer une page à canvas animé en continu.
 - Boucler sur un marqueur absent de la version précédente pour vérifier le déployé (GitHub
   Pages met environ une minute), et jouer depuis l'URL de production, pas seulement `localhost`.
 
@@ -72,7 +72,12 @@
 | Produire un asset raster depuis une maquette validée | `impeccable-asset-producer` |
 
 - Déclarer ton budget d'agents en tête de tâche, et dire à chaque sous-agent ce qu'il peut
-  écrire et où — par défaut, rien, et s'il peut en lancer d'autres — par défaut, non.
+  écrire et où — par défaut, rien, et s'il peut en lancer d'autres — par défaut, non. Son
+  modèle s'écrit toujours, `sonnet` ou `haiku` : sans lui, il hérite du plus cher.
+- Un agent qui **écrit** ici prend son worktree et sa branche (D151) — `git worktree add -b
+  <tache> ~/.worktrees/mini-jeux/<tache> main`, retiré dans le geste qui fusionne. Son
+  identifiant porte sa tâche, `claude-mini-jeux-<tache>`, **déclaré dans `.workflow/local.json`
+  avant son départ** : sinon la garde A1 du kit le refuse.
 - Proposer à Matt un spécialiste dès qu'un même contexte isolé se redemande deux fois ; tu le
   crées sans validation préalable et l'inscris à `OUTILS.md` le jour même.
 
@@ -89,7 +94,6 @@
 
 ## Où vit le reste
 
-- Les règles propres à ce dépôt — vérification avant merge, maquette Claude Design, assets IA,
-  données personnelles — vivent dans `AGENTS.md`, importé en tête.
-- Vérification, secrets, git, mémoire, voies vers Spark : `~/.claude/CLAUDE.md`. Rien de tout
-  cela n'est recopié ici.
+- Les règles propres à ce dépôt — vérification avant merge, pièges de mesure, maquette Claude
+  Design, assets IA, données personnelles — vivent dans `AGENTS.md`, importé en tête.
+- Vérification, secrets, git, mémoire, Spark : `~/.claude/CLAUDE.md`, jamais recopié ici.

@@ -3,9 +3,10 @@
 Ce dont l'agent **mini-jeux** dispose : à qui déléguer, quoi jouer, quoi servir. Rang **dédié**
 (D59/D60) — il écrit dans son dépôt, délègue la production, vérifie, rend compte.
 
-*Posé le 2026-09-11 au soir (D82/D104), repris le 2026-09-12 sur l'audit d'alignement au socle
-(T-013). Ce document porte l'**opératoire** : quand un chiffre est rejouable, c'est la commande
-qui figure ici, pas sa valeur du jour. Ce qui n'a pas pu être joué est marqué « non vérifié ».*
+*Relevé le 2026-09-11 au soir (D82/D104), rejoué et repris le 2026-09-12 sur l'audit
+d'alignement au socle (T-013). Ce document porte l'**opératoire** : quand un chiffre est
+rejouable, c'est la commande qui figure ici, pas sa valeur du jour. Ce qui n'a pas pu être joué
+est marqué « non vérifié ».*
 
 ---
 
